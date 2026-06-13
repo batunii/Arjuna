@@ -35,6 +35,9 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0, 1)] private float m_iouThreshold = 0.6f;
         [SerializeField, Range(0, 1)] private float m_scoreThreshold = 0.35f;
 
+        [Tooltip("Seconds to wait between inferences. YOLO is heavy; running it continuously starves the render thread. ~0.15s (≈6-7 Hz) is plenty for highlighting.")]
+        [SerializeField] private float m_detectionInterval = 0.15f;
+
         [Tooltip("COCO class names that should be highlighted in the periphery. Must match the labels file exactly.")]
         [SerializeField]
         private List<string> m_highlightClasses = new List<string>
@@ -76,6 +79,10 @@ namespace PassthroughCameraSamples.ShaderSample
             while (true)
             {
                 yield return RunInference();
+                if (m_detectionInterval > 0f)
+                {
+                    yield return new WaitForSeconds(m_detectionInterval);
+                }
             }
         }
 

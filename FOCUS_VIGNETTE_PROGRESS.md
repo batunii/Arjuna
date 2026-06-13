@@ -105,11 +105,14 @@ Essentially a safety-attention aid: distraction-free periphery, except things yo
 
 ## 8. Open items / next steps
 
-1. **Verify the fusion fix on device.** Tune `m_cameraHorizontalFovDeg` (zoom/fill) and `_FlipY` (if image is inverted). Expect a slightly **flat** look (mono → no real depth) but comfortable fusion.
-2. **Verify salience lands on objects.** Tune `_SalienceFlipY`, `m_scoreThreshold`, and `_SalienceFeather` / `_HighlightBrightness` / `_HighlightContrast`. Adjust `m_highlightClasses`.
-3. **Detector backend:** decide CPU (default, current) vs `GPUCompute` for snappier detection.
-4. **Build hygiene:** build to a local non-OneDrive output folder.
-5. *(Optional, exact alignment)* switch the pinhole FOV to real **camera intrinsics**.
+1. ✅ **Fusion fix verified on device** (world-direction sampling — user confirmed it fuses).
+2. ✅ **Zoom + sharpness:** FOV now derived from **camera intrinsics** (`SensorResolution/(2·FocalLength)`) instead of the 82° guess → natural 1:1 scale.
+3. ✅ **Slowness:** detector throttled via `m_detectionInterval` (default 0.15s ≈ 6–7 Hz).
+4. ⏳ **Re-test on device** after the above (zoom natural? framerate smooth? salience aligned?). Tune `_FlipY` / `_SalienceFlipY` if image or boxes are vertically off.
+5. ⏳ **Salience tuning:** `m_scoreThreshold`, `_SalienceFeather` / `_HighlightBrightness` / `_HighlightContrast`, `m_highlightClasses`.
+6. **Detector backend:** CPU (default) vs `GPUCompute` if detection still feels laggy.
+7. **Build hygiene:** build to a local non-OneDrive output folder.
+8. **Quality ceiling:** capped by the mono 1280×960 camera; can try a wider supported resolution, but it won't match real passthrough.
 
 ---
 

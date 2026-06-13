@@ -1,10 +1,37 @@
 # System: Focus Vignette (world-locked attention filter)
 
-Last updated: 2026-06-03
+Last updated: 2026-06-09
 
-A custom effect built on top of the ShaderSample foundation. Keeps one **world-locked**
-direction sharp and progressively **blurs + desaturates** the passthrough camera feed toward the
-periphery, to guide the user's attention to a fixed direction in the room.
+The dissertation **STATIC mode (Mode 3)** — a **user-defined quad window + tunnel outside**, at full
+passthrough quality (no camera feed in the visuals → no warp). The whole view stays real system
+passthrough; a translucent overlay blacks out (tunnels) everything OUTSIDE a 4-corner window the user
+defines by pointing a controller.
+
+**Controller selection (`FocusVignetteManager`):** the user picks **two opposite corners** → an
+axis-aligned rectangle window.
+- **A / index pinch** — place the next corner at the aim point (`pointer.position + forward *
+  m_selectDistance`); a cyan `FV_AimCursor` shows where you're aiming; yellow markers mark placed
+  corners.
+- **B / middle pinch** — reset and start over.
+- Until both corners are placed (`_RegionActive = 0`) the whole view is clear so the user can aim.
+  Corners are stored as **world points**; their directions-from-head are recomputed each frame, so the
+  window is world-locked. `m_pointer` = RightControllerAnchor; `m_headAnchor` = CenterEyeAnchor.
+- The outside fade is **gradual** (`_EdgeSoftness`, default 0.2) via a signed-distance soft edge, not a
+  hard boundary.
+
+**Outside look:** `_DimColor`/`_MaxDim` (default black @ 1.0 = tunnel; set dark-grey @ ~0.8 for a gentle
+dim instead). Markers use an `Unlit/Color` material (watch for pink on device → add `Unlit/Color` to
+Always Included Shaders if stripped).
+
+**Why no camera feed:** the modifiable camera feed warps (mono, offset, no depth correction) and the
+crisp system passthrough can't be blurred/read (OS owns the pixels — see
+[[pca-mono-camera-stereo-comfort]]). So the effect is **subtractive (black-out/dim), not blur**.
+
+Architecture: Transparent queue, `Blend SrcAlpha OneMinusSrcAlpha`, `Cull Front`, `ZWrite Off`. The
+shader gnomonically projects the 4 corner directions + the fragment direction onto the region-center
+tangent plane and does a point-in-quad test; `alpha = tunnel * _MaxDim`. YOLO salience reduces `tunnel`
+→ detected objects stay visible through the tunnel. Head-basis/intrinsics uniforms are fed only to
+locate the salience boxes (no colour sampled).
 
 ## Files
 
@@ -26,6 +53,19 @@ brightness/contrast boost, so safety-relevant objects pop out of the dimmed peri
   `PassthroughCameraAccess` + the model + labels.
 - Shader tunables: `_SalienceFeather` (soft edge), `_HighlightBrightness`, `_HighlightContrast`,
   `_SalienceFlipY` (reconcile box vs camera-UV vertical orientation if misaligned).
+
+## Dissertation alignment (Static mode)
+
+This effect is the **Static-mode prototype** for the dissertation (see [[dissertation-attention-guidance]])
+— the 3-channel DR pipeline: **desaturation** (`_Desat`) + **blur** (`_BlurRadius`) + **boundary
+highlight** (`_EdgeGlow` / `_EdgeColor` / `_EdgeWidth`, a soft rim at the focus-cone edge).
+
+- **User-controlled reveal (Gaps 3+4):** B button / middle-finger pinch toggles DR off (reveal the
+  full scene) and back on, **eased** via `_DrIntensity` (driven by `m_transitionSpeed` in
+  `FocusVignetteManager`). Demonstrates temporal transitions + user-controlled release.
+- Still TODO toward the full dissertation: mode system + UI, Dynamic (head-follow + auto easing on
+  head turn) and Semi-Dynamic (multi-anchor) modes, Kawase blur (replace the box blur), per-mode
+  presets. The YOLO salience is parked here but belongs to the Dynamic (driving) mode.
 - Box alignment is approximate (camera FOV ≠ eye FOV, and the camera is sampled screen-space), which is
   fine for a subtle salience boost; calibrate `_SalienceFlipY` / thresholds on device.
 
@@ -41,9 +81,27 @@ This replaced the original screen-space sampling (`uv = screenPos`), which tied 
 screen position → each eye sampled a different camera pixel for the same point → double vision. See
 [[pca-mono-camera-stereo-comfort]].
 
-Tuning: `m_cameraHorizontalFovDeg` controls how much the image is zoomed (and aligns the salience
-boxes); `_FlipY` if the image is vertically inverted. Needs on-device verification. Trade-off: the
-world looks flat-ish (mono → no real depth), but it fuses comfortably.
+The display FOV (`_TanHalfFov`) is derived from the **camera intrinsics**: horizontal half-FOV =
+`SensorResolution.x / (2 * FocalLength.x)`; **vertical is derived from the displayed texture aspect**
+(`CurrentResolution`) to avoid a Y-stretch when the sensor aspect differs from the streamed/cropped
+aspect. `m_cameraHorizontalFovDeg` is only a fallback until intrinsics are available. `_FlipY` if the
+image is vertically inverted.
+
+Out-of-FOV handling: the passthrough camera's FOV is narrower than the headset display, so the lower
+periphery (looking down) falls outside the camera image. Rather than clamping/stretching the edge
+texels (vertical streaks), the shader forces those areas to **full blur + desaturation** (a soft
+dimmed periphery — `_FovFeather` controls the edge softness; `fovInside` drives `effect → 1` beyond the
+FOV). It deliberately does NOT darken to black (that read as an ugly dark "box"). If the periphery
+still reads as a frame, the cleaner fix is showing real system passthrough there (alpha-blend over the
+underlay) — a noted follow-up.
+
+Trade-off: the world looks flat-ish (mono → no real depth) and the periphery beyond the camera FOV is
+dark, but it fuses comfortably. A one-time `[FocusVignette]` Debug.Log reports the real
+focal/sensorRes/currentRes/FOV at startup (read via on-device logcat).
+
+Performance: `FocusSalienceDetector` throttles inference via `m_detectionInterval` (default 0.15s ≈
+6–7 Hz) — running YOLO every frame on CPU starved the render thread. Switch `m_backend` to
+`GPUCompute` for snappier detection if needed.
 
 ## How it works
 
