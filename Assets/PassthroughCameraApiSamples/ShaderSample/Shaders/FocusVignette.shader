@@ -1,25 +1,30 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 //
-// Diminished-Reality STATIC MODE (dissertation Mode 3) — user-defined rectangle window + soft tunnel.
+// Diminished-Reality focus overlay for Meta Quest passthrough — multi-mode.
 //
-// The user points a controller at TWO opposite corners to define a fixed, axis-aligned clear "window"
-// (the corners are fed in as world directions _Corner0/_Corner1). Inside the rectangle the real system
-// passthrough shows untouched; OUTSIDE it the periphery fades to a tunnel (blacked out), GRADUALLY via
-// a signed-distance soft edge (_EdgeSoftness). No camera pixels are rendered, so there is no warp and
-// full passthrough quality everywhere.
+// A translucent overlay on the real system passthrough (Underlay) that dims the periphery, leaving a
+// clear focus region. No camera pixels are rendered, so there is no warp and full passthrough quality.
 //
-// _DimColor/_MaxDim set the outside look (black @ 1.0 = tunnel; dark-grey @ ~0.8 = dim). Until both
-// corners are placed (_RegionActive = 0) the whole view is clear so the user can aim.
+//   _FocusMode = 0  DYNAMIC (Mode 1, driving): clear cone follows the gaze (_FocusDir = head forward),
+//                   soft falloff (_InnerAngle.._OuterAngle); light dim; intensity eased by head motion
+//                   (_DrIntensity, driven from script) so the periphery clears while you scan.
+//   _FocusMode = 1  STATIC (Mode 3, workstation): clear inside a user-defined axis-aligned rectangle
+//                   (two opposite corners _Corner0/_Corner1); gradual signed-distance tunnel outside.
 //
-// Salience: detected "important" objects (boxes from FocusSalienceDetector) stay visible through the
-// tunnel. Renders alpha-blended inside a head-centered sphere (Cull Front).
+// _DimColor/_MaxDim set the outside look (black @ 1.0 = tunnel; grey @ ~0.4 = light dim).
+// Salience: detected "important" objects (FocusSalienceDetector) stay visible through the dimming.
+// Renders alpha-blended inside a head-centered sphere (Cull Front).
 Shader "Meta/PCA/FocusVignette"
 {
     Properties
     {
         _DimColor ("Outside Color", Color) = (0, 0, 0, 1)
         _MaxDim ("Max Dim Strength", Range(0, 1)) = 1.0
-        _EdgeSoftness ("Edge Softness", Range(0.01, 1)) = 0.2
+        _FocusDir ("Focus Dir (world)", Vector) = (0, 0, 1, 0)
+        _InnerAngle ("Dynamic Inner Angle (rad)", Float) = 0.35
+        _OuterAngle ("Dynamic Outer Angle (rad)", Float) = 0.95
+        _EdgeSoftness ("Static Edge Softness", Range(0.01, 1)) = 0.2
+        _DrIntensity ("DR Intensity", Range(0, 1)) = 1
         [Toggle] _FlipY ("Camera Flip Y", Float) = 0
         _FovFeather ("Camera FOV Edge Feather", Float) = 0.05
 
@@ -34,7 +39,7 @@ Shader "Meta/PCA/FocusVignette"
         LOD 100
         Cull Front      // we are inside the sphere looking out
         ZWrite Off
-        Blend SrcAlpha OneMinusSrcAlpha     // alpha-blend the tunnel overlay over the passthrough underlay
+        Blend SrcAlpha OneMinusSrcAlpha     // alpha-blend the overlay over the passthrough underlay
 
         Pass
         {
@@ -63,15 +68,19 @@ Shader "Meta/PCA/FocusVignette"
             fixed4 _DimColor;
             float _MaxDim;
             float _EdgeSoftness;
+            float _DrIntensity;
             float _FlipY;
 
-            // User-selected window: two opposite corners (world directions) + active flag.
-            float3 _Corner0;
+            // Mode + focus parameters.
+            float _FocusMode;       // 0 = dynamic cone (gaze), 1 = static rectangle
+            float3 _FocusDir;       // dynamic: gaze direction (head forward), set per-frame
+            float _InnerAngle;
+            float _OuterAngle;
+            float3 _Corner0;        // static: two opposite corners (world directions)
             float3 _Corner1;
-            float _RegionActive;
+            float _RegionActive;    // static: 1 once both corners are placed
 
-            // Sphere/head center + head basis + FOV (set per-frame from script) — used only to locate
-            // the salience boxes in the view (no camera colour is sampled).
+            // Sphere/head center + head basis + FOV (set per-frame) — used to locate the salience boxes.
             float3 _SphereCenter;
             float3 _HeadRight;
             float3 _HeadUp;
@@ -84,7 +93,6 @@ Shader "Meta/PCA/FocusVignette"
             float _SalienceFeather;
             float _SalienceFlipY;
 
-            // Gnomonic projection of a world direction onto a tangent plane (center + right/up basis).
             float2 ProjDir(float3 d, float3 r2, float3 u2, float3 c)
             {
                 return float2(dot(d, r2), dot(d, u2)) / max(dot(d, c), 1e-3);
@@ -109,13 +117,17 @@ Shader "Meta/PCA/FocusVignette"
 
                 float3 dir = normalize(i.worldDir);
 
-                // 'tunnel' = how much this fragment is OUTSIDE the window (0 inside, 1 outside), with a
-                // gradual soft edge.
+                // 'tunnel' = how much this fragment is dimmed (0 in focus, 1 fully dimmed).
                 float tunnel = 0.0;
-                if (_RegionActive > 0.5)
+                if (_FocusMode < 0.5)
                 {
-                    // Axis-aligned rectangle from the two corners, in a gravity-aligned gnomonic
-                    // tangent plane (x = horizontal angle, y = vertical angle).
+                    // DYNAMIC: soft cone around the gaze direction.
+                    float ang = acos(clamp(dot(dir, normalize(_FocusDir)), -1.0, 1.0));
+                    tunnel = smoothstep(_InnerAngle, _OuterAngle, ang);
+                }
+                else if (_RegionActive > 0.5)
+                {
+                    // STATIC: axis-aligned rectangle from two corners, gravity-aligned, soft edge.
                     float3 center = normalize(_Corner0 + _Corner1);
                     float3 worldUp = float3(0.0, 1.0, 0.0);
                     float3 up2 = normalize(worldUp - center * dot(worldUp, center));
@@ -127,11 +139,8 @@ Shader "Meta/PCA/FocusVignette"
                     float2 rectCenter = (a + b) * 0.5;
                     float2 rectHalf = abs(b - a) * 0.5;
 
-                    // Signed distance to the rectangle: negative inside, positive outside.
                     float2 q = abs(p - rectCenter) - rectHalf;
                     float signedDist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-
-                    // Gradual transition centered on the boundary.
                     tunnel = smoothstep(-_EdgeSoftness, _EdgeSoftness, signedDist);
 
                     if (dot(dir, center) <= 0.0)
@@ -139,6 +148,8 @@ Shader "Meta/PCA/FocusVignette"
                         tunnel = 1.0;   // behind the window
                     }
                 }
+
+                tunnel *= _DrIntensity;   // motion easing (dynamic); 1 in static
 
                 // Project world dir -> camera UV to test against YOLO detection boxes.
                 float dz = max(dot(dir, _HeadForward), 1e-3);
@@ -165,7 +176,7 @@ Shader "Meta/PCA/FocusVignette"
                 }
                 salience = saturate(salience) * fovInside;
 
-                // Detected objects stay visible through the tunnel.
+                // Detected objects stay visible through the dimming.
                 tunnel *= (1.0 - salience);
 
                 float alpha = tunnel * _MaxDim;

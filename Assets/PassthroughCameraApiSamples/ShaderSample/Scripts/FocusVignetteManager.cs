@@ -9,46 +9,58 @@ using UnityEngine.UI;
 namespace PassthroughCameraSamples.ShaderSample
 {
     /// <summary>
-    /// Drives the <c>Meta/PCA/FocusVignette</c> shader for the dissertation's STATIC mode (Mode 3).
-    /// Place this on the inverted sphere GameObject (whose MeshRenderer uses the FocusVignette material).
+    /// Drives the <c>Meta/PCA/FocusVignette</c> shader across the dissertation modes. Place on the
+    /// inverted sphere GameObject (whose MeshRenderer uses the FocusVignette material).
     ///
-    /// The user defines a fixed clear "window" by pointing a controller at FOUR corners:
-    /// - A button / index pinch: place the next corner at the aim point.
-    /// - B button / middle pinch: reset and start over.
-    /// Outside the quad the periphery is tunnelled (blacked out). Until 4 corners are placed the whole
-    /// view is clear so the user can aim. The window is world-locked (corners stored as world points;
-    /// directions recomputed from the head each frame).
+    /// - DYNAMIC (Mode 1, driving): clear cone follows the gaze; light dim in the periphery; the dim
+    ///   eases OFF while you turn your head (situational awareness) and eases back on when you settle.
+    /// - STATIC (Mode 3, workstation): point a controller at two opposite corners to define a fixed
+    ///   rectangle window; tunnel (black-out) outside it.
+    ///
+    /// Left controller Y toggles modes. In Static: A/index-pinch places a corner, B/middle-pinch resets.
     /// </summary>
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
     public class FocusVignetteManager : MonoBehaviour
     {
+        private enum FocusMode { Dynamic, Static }
+
         [SerializeField] private PassthroughCameraAccess m_cameraAccess;
         [SerializeField] private MeshRenderer m_renderer;
         [SerializeField] private Text m_debugText;
-
-        [Tooltip("Head transform (e.g. CenterEyeAnchor). Falls back to Camera.main.")]
         [SerializeField] private Transform m_headAnchor;
 
-        [Tooltip("Controller transform used to aim (e.g. RightControllerAnchor). Falls back to the head.")]
+        [Tooltip("Controller transform used to aim in Static mode (e.g. RightControllerAnchor).")]
         [SerializeField] private Transform m_pointer;
 
-        [Tooltip("Distance (m) along the controller ray where a corner is placed / the aim cursor sits.")]
-        [SerializeField] private float m_selectDistance = 2.5f;
+        [SerializeField] private FocusMode m_mode = FocusMode.Dynamic;
 
-        [Header("Selection visuals (assign small world-space markers)")]
+        [Header("Dynamic (Mode 1) — gaze-follow + motion easing")]
+        [SerializeField] private Color m_dynamicDimColor = new Color(0.1f, 0.1f, 0.1f, 1f);
+        [SerializeField, Range(0, 1)] private float m_dynamicMax = 0.45f;
+        [SerializeField] private float m_dynamicInnerAngle = 0.35f;   // radians
+        [SerializeField] private float m_dynamicOuterAngle = 0.95f;   // radians
+        [Tooltip("Head angular speed (deg/s) above which the dim eases off for situational awareness.")]
+        [SerializeField] private float m_motionThresholdDeg = 30f;
+        [Tooltip("Seconds to ease the dim OFF when you start turning.")]
+        [SerializeField] private float m_revealSeconds = 0.25f;
+        [Tooltip("Seconds to ease the dim back ON once your gaze settles (2-4s).")]
+        [SerializeField] private float m_reapplySeconds = 3f;
+
+        [Header("Static (Mode 3) — controller rectangle window")]
+        [SerializeField] private Color m_staticDimColor = Color.black;
+        [SerializeField, Range(0, 1)] private float m_staticMax = 1f;
+        [SerializeField, Range(0.01f, 1f)] private float m_staticEdgeSoftness = 0.2f;
+        [SerializeField] private float m_selectDistance = 2.5f;
         [SerializeField] private Transform m_aimCursor;
         [SerializeField] private Transform[] m_cornerMarkers = new Transform[4];
 
-        [Header("Outside-window look (default = tunnel)")]
-        [SerializeField] private Color m_outsideColor = Color.black;
-        [SerializeField, Range(0, 1)] private float m_outsideMax = 1f;
-
-        [Tooltip("Approximate horizontal FOV (deg) fallback for the salience projection until intrinsics arrive.")]
         [SerializeField] private float m_cameraHorizontalFovDeg = 82f;
 
         private Material m_material;
         private bool m_loggedIntrinsics;
-        private readonly Vector3[] m_cornerPoints = new Vector3[4];
+        private Vector3 m_prevForward = Vector3.forward;
+        private float m_drIntensity = 1f;
+        private readonly Vector3[] m_cornerPoints = new Vector3[2];
         private int m_cornerCount;
 
         private static readonly int s_mainTexId = Shader.PropertyToID("_MainTex");
@@ -57,6 +69,12 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_headUpId = Shader.PropertyToID("_HeadUp");
         private static readonly int s_headForwardId = Shader.PropertyToID("_HeadForward");
         private static readonly int s_tanHalfFovId = Shader.PropertyToID("_TanHalfFov");
+        private static readonly int s_focusModeId = Shader.PropertyToID("_FocusMode");
+        private static readonly int s_focusDirId = Shader.PropertyToID("_FocusDir");
+        private static readonly int s_innerAngleId = Shader.PropertyToID("_InnerAngle");
+        private static readonly int s_outerAngleId = Shader.PropertyToID("_OuterAngle");
+        private static readonly int s_edgeSoftnessId = Shader.PropertyToID("_EdgeSoftness");
+        private static readonly int s_drIntensityId = Shader.PropertyToID("_DrIntensity");
         private static readonly int s_dimColorId = Shader.PropertyToID("_DimColor");
         private static readonly int s_maxDimId = Shader.PropertyToID("_MaxDim");
         private static readonly int s_regionActiveId = Shader.PropertyToID("_RegionActive");
@@ -64,8 +82,6 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             Shader.PropertyToID("_Corner0"),
             Shader.PropertyToID("_Corner1"),
-            Shader.PropertyToID("_Corner2"),
-            Shader.PropertyToID("_Corner3"),
         };
 
         private Transform Head =>
@@ -76,16 +92,11 @@ namespace PassthroughCameraSamples.ShaderSample
         private IEnumerator Start()
         {
             m_material = m_renderer.material;
-            m_material.SetColor(s_dimColorId, m_outsideColor);
-            m_material.SetFloat(s_maxDimId, m_outsideMax);
-            m_material.SetFloat(s_regionActiveId, 0f);
-            HideMarkers();
 
             if (m_debugText != null)
             {
                 m_debugText.text = "No permission granted.";
             }
-
             if (!OVRPermissionsRequester.IsPermissionGranted(OVRPermissionsRequester.Permission.PassthroughCameraAccess))
             {
                 OVRPermissionsRequester.Request(new[] { OVRPermissionsRequester.Permission.PassthroughCameraAccess });
@@ -94,15 +105,19 @@ namespace PassthroughCameraSamples.ShaderSample
             {
                 yield return null;
             }
-
             while (!m_cameraAccess.IsPlaying)
             {
                 yield return null;
             }
 
-            // Camera texture is read by FocusSalienceDetector (not for colour here); harmless to assign.
             m_material.SetTexture(s_mainTexId, m_cameraAccess.GetTexture());
-            UpdateStatusText();
+
+            var head = Head;
+            if (head != null)
+            {
+                m_prevForward = head.forward;
+            }
+            ApplyMode();
         }
 
         private void LateUpdate()
@@ -113,7 +128,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 return;
             }
 
-            // Keep the sphere centered on the head; tell the shader where the center is.
+            // Common: keep the sphere on the head; feed head basis + FOV (for the salience projection).
             transform.position = head.position;
             m_material.SetVector(s_sphereCenterId, head.position);
             m_material.SetVector(s_headRightId, head.right);
@@ -121,7 +136,44 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetVector(s_headForwardId, head.forward);
             FeedFovUniform();
 
-            // Aim point along the controller ray; show the cursor while still placing corners.
+            // B button / middle-finger pinch toggles modes (works with controllers AND hands).
+            if (InputManager.IsButtonBDownOrMiddleFingerPinchStarted())
+            {
+                m_mode = m_mode == FocusMode.Dynamic ? FocusMode.Static : FocusMode.Dynamic;
+                ApplyMode();
+            }
+
+            if (m_mode == FocusMode.Dynamic)
+            {
+                UpdateDynamic(head);
+            }
+            else
+            {
+                UpdateStatic(head);
+            }
+        }
+
+        private void UpdateDynamic(Transform head)
+        {
+            // Clear cone follows the gaze.
+            m_material.SetVector(s_focusDirId, head.forward);
+
+            // Ease the dim OFF while turning (situational awareness), back ON when settled.
+            float angle = Vector3.Angle(head.forward, m_prevForward);
+            float speed = Time.deltaTime > 0f ? angle / Time.deltaTime : 0f;
+            m_prevForward = head.forward;
+
+            float target = speed > m_motionThresholdDeg ? 0f : 1f;
+            float seconds = target < m_drIntensity ? m_revealSeconds : m_reapplySeconds;
+            float rate = 1f / Mathf.Max(seconds, 0.01f);
+            m_drIntensity = Mathf.MoveTowards(m_drIntensity, target, rate * Time.deltaTime);
+            m_material.SetFloat(s_drIntensityId, m_drIntensity);
+        }
+
+        private void UpdateStatic(Transform head)
+        {
+            m_material.SetFloat(s_drIntensityId, 1f);
+
             var pointer = Pointer;
             Vector3 aimPoint = pointer.position + pointer.forward * m_selectDistance;
             if (m_aimCursor != null)
@@ -137,17 +189,17 @@ namespace PassthroughCameraSamples.ShaderSample
                 }
             }
 
-            // A / index pinch: place the next corner. B / middle pinch: reset.
-            if (InputManager.IsButtonADownOrPinchStarted() && m_cornerCount < 2)
+            // A / index pinch places the next corner; once both are placed, A restarts the selection.
+            // (B / middle pinch is the global mode switch, handled in LateUpdate.)
+            if (InputManager.IsButtonADownOrPinchStarted())
             {
+                if (m_cornerCount >= 2)
+                {
+                    ResetRegion();
+                }
                 PlaceCorner(aimPoint);
             }
-            if (InputManager.IsButtonBDownOrMiddleFingerPinchStarted())
-            {
-                ResetRegion();
-            }
 
-            // Feed the world-locked corner directions (from the current head) once all 4 are placed.
             if (m_cornerCount >= 2)
             {
                 for (int k = 0; k < 2; k++)
@@ -160,6 +212,40 @@ namespace PassthroughCameraSamples.ShaderSample
             {
                 m_material.SetFloat(s_regionActiveId, 0f);
             }
+        }
+
+        private void ApplyMode()
+        {
+            if (m_material == null)
+            {
+                return;
+            }
+
+            m_material.SetFloat(s_focusModeId, m_mode == FocusMode.Static ? 1f : 0f);
+
+            if (m_mode == FocusMode.Dynamic)
+            {
+                m_material.SetColor(s_dimColorId, m_dynamicDimColor);
+                m_material.SetFloat(s_maxDimId, m_dynamicMax);
+                m_material.SetFloat(s_innerAngleId, m_dynamicInnerAngle);
+                m_material.SetFloat(s_outerAngleId, m_dynamicOuterAngle);
+                m_material.SetFloat(s_regionActiveId, 0f);
+                m_drIntensity = 1f;
+                HideMarkers();
+                if (m_aimCursor != null)
+                {
+                    m_aimCursor.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                m_material.SetColor(s_dimColorId, m_staticDimColor);
+                m_material.SetFloat(s_maxDimId, m_staticMax);
+                m_material.SetFloat(s_edgeSoftnessId, m_staticEdgeSoftness);
+                m_material.SetFloat(s_drIntensityId, 1f);
+                ResetRegion();
+            }
+            UpdateStatusText();
         }
 
         private void PlaceCorner(Vector3 worldPoint)
@@ -203,9 +289,16 @@ namespace PassthroughCameraSamples.ShaderSample
             {
                 return;
             }
-            m_debugText.text = m_cornerCount >= 2
-                ? "Window set (B to redo)"
-                : $"Aim + A to place corner {m_cornerCount + 1}/2 (opposite corners)";
+            if (m_mode == FocusMode.Dynamic)
+            {
+                m_debugText.text = "Mode 1: Dynamic  (B / middle-pinch = switch mode)";
+            }
+            else
+            {
+                m_debugText.text = m_cornerCount >= 2
+                    ? "Mode 3: Static — window set  (A = redo, B = switch mode)"
+                    : $"Mode 3: Static — aim + A, corner {m_cornerCount + 1}/2  (B = switch mode)";
+            }
         }
 
         private void FeedFovUniform()
@@ -223,8 +316,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 if (!m_loggedIntrinsics)
                 {
                     m_loggedIntrinsics = true;
-                    Debug.Log($"[FocusVignette] focal={intr.FocalLength} sensorRes={intr.SensorResolution} " +
-                              $"currentRes={cur} tanHalfFov=({tanX:F3},{tanY:F3})");
+                    Debug.Log($"[FocusVignette] focal={intr.FocalLength} sensorRes={intr.SensorResolution} currentRes={cur}");
                 }
             }
             else

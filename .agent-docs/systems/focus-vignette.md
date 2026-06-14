@@ -2,12 +2,21 @@
 
 Last updated: 2026-06-09
 
-The dissertation **STATIC mode (Mode 3)** — a **user-defined quad window + tunnel outside**, at full
-passthrough quality (no camera feed in the visuals → no warp). The whole view stays real system
-passthrough; a translucent overlay blacks out (tunnels) everything OUTSIDE a 4-corner window the user
-defines by pointing a controller.
+A **multi-mode** Diminished-Reality overlay on the real system passthrough (Underlay) — full
+passthrough quality, no camera feed in the visuals (→ no warp). One shader + `FocusVignetteManager`,
+**switch modes with the left controller Y button** (`_FocusMode`):
 
-**Controller selection (`FocusVignetteManager`):** the user picks **two opposite corners** → an
+- **Mode 1 — DYNAMIC (driving):** a clear **cone follows the gaze** (`_FocusDir` = head forward),
+  soft falloff `_InnerAngle.._OuterAngle`; **light** dim in the periphery (`m_dynamicDimColor`,
+  `m_dynamicMax` ~0.45). The dim **eases off while you turn your head** (head angular speed >
+  `m_motionThresholdDeg` → `_DrIntensity`→0 over `m_revealSeconds`) and **eases back on when you
+  settle** (over `m_reapplySeconds` ≈ 2–4s) — situational-awareness easing (Gap 3). No selection.
+- **Mode 3 — STATIC (workstation):** user picks **two opposite corners** → axis-aligned rectangle
+  window; **tunnel** (black) outside, gradual soft edge (`_EdgeSoftness`).
+
+YOLO salience un-dims detected objects in both modes (esp. relevant for Mode 1 situational awareness).
+
+**Static controller selection (`FocusVignetteManager`):** the user picks **two opposite corners** → an
 axis-aligned rectangle window.
 - **A / index pinch** — place the next corner at the aim point (`pointer.position + forward *
   m_selectDistance`); a cyan `FV_AimCursor` shows where you're aiming; yellow markers mark placed
