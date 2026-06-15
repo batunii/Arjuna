@@ -1047,18 +1047,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_cameraAccess: {fileID: 1608124433}
+  m_passthroughLayer: {fileID: 478312661}
   m_renderer: {fileID: 763573461}
   m_debugText: {fileID: 7828524204933019467}
   m_headAnchor: {fileID: 1848740388}
   m_pointer: {fileID: 123746824}
-  m_mode: 1
-  m_dynamicDimColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
-  m_dynamicMax: 0.66
-  m_dynamicInnerAngle: 0.35
-  m_dynamicOuterAngle: 0.95
+  m_mode: 0
+  m_dynamicDimColor: {r: 0, g: 0, b: 0, a: 1}
+  m_dynamicSaturation: -0.7
+  m_dynamicMax: 1
+  m_dynamicHalfAngleH: 20
+  m_dynamicHalfAngleV: 15
+  m_dynamicEdgeSoftness: 0.55
   m_motionThresholdDeg: 30
-  m_revealSeconds: 0.25
-  m_reapplySeconds: 3
+  m_revealSeconds: 10
+  m_reapplySeconds: 10
   m_staticDimColor: {r: 0, g: 0, b: 0, a: 1}
   m_staticMax: 1
   m_staticEdgeSoftness: 0.2

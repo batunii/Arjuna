@@ -40,6 +40,9 @@ Shader "Meta/PCA/FocusVignette"
         _DesatCurveExp ("Desat Curve Exponent", Float) = 2.0
         _ContrastBoost ("Contrast Boost at Blur Edge", Float) = 0.15
 
+        [Header(Camera Sphere Mode 4)]
+        _SphereDesatDelay ("Desat Delay (0=starts at edge 1=never)", Range(0,1)) = 0.25
+
         [Header(Object Salience)]
         _SalienceFeather ("Salience Edge Feather", Float) = 0.04
         [Toggle] _SalienceFlipY ("Salience Flip Y", Float) = 0
@@ -104,6 +107,9 @@ Shader "Meta/PCA/FocusVignette"
             float _DesatCurveExp;
             float _ContrastBoost;
 
+            // Camera Sphere mode (Mode 4) parameter.
+            float _SphereDesatDelay; // tunnel fraction at which desaturation begins (0–1)
+
             // Sphere/head center + head basis + FOV (set per-frame) — used to locate the salience boxes.
             float3 _SphereCenter;
             float3 _HeadRight;
@@ -165,6 +171,96 @@ Shader "Meta/PCA/FocusVignette"
                     salience = max(salience, inside);
                 }
                 salience = saturate(salience) * fovInside;
+
+                // -----------------------------------------------------------------------
+                // MODE 4 — Camera-Sphere (inverted sphere technique)
+                //
+                // The camera feed IS the rendered surface — no separate passthrough overlay.
+                // The controller-marked focus rectangle is transparent (alpha=0) so the real
+                // OS passthrough shows through at full quality there. Outside the rectangle the
+                // sphere surface becomes opaque and shows the camera feed increasingly blurred
+                // and desaturated as eccentricity grows. Camera warp in the periphery is
+                // perceptually masked by the blur itself.
+                //
+                //   alpha = 0  (focus zone)  → passthrough underlay visible, high quality
+                //   alpha = 1  (periphery)   → camera feed, blurred + desaturated
+                //
+                // _BlurCurveExp / _MaxBlurRadius control the blur gradient.
+                // _SphereDesatDelay controls how far into the periphery desat begins (0–1).
+                // -----------------------------------------------------------------------
+                if (_FocusMode > 3.5)
+                {
+                    // Compute tunnel from the controller-placed rectangle (same formula as Mode 3).
+                    float tunnel = 0.0;
+                    if (_RegionActive > 0.5)
+                    {
+                        float3 center = normalize(_Corner0 + _Corner1);
+                        float3 worldUp = float3(0.0, 1.0, 0.0);
+                        float3 up2  = normalize(worldUp - center * dot(worldUp, center));
+                        float3 rgt2 = normalize(cross(up2, center));
+
+                        float2 p = ProjDir(dir, rgt2, up2, center);
+                        float2 a = ProjDir(_Corner0, rgt2, up2, center);
+                        float2 b = ProjDir(_Corner1, rgt2, up2, center);
+                        float2 rectCenter = (a + b) * 0.5;
+                        float2 rectHalf   = abs(b - a) * 0.5;
+
+                        float2 q = abs(p - rectCenter) - rectHalf;
+                        float sdf = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+                        tunnel = smoothstep(-_EdgeSoftness, _EdgeSoftness, sdf);
+
+                        if (dot(dir, center) <= 0.0) tunnel = 1.0;
+                    }
+                    else
+                    {
+                        // No rectangle placed yet — full periphery visible (no effect).
+                        tunnel = 0.0;
+                    }
+
+                    tunnel *= _DrIntensity;
+
+                    // -------------------------------------------------------------------
+                    // Blur: power-law ramp from the focus edge (tunnel=0) to full periphery.
+                    // -------------------------------------------------------------------
+                    float blurR = pow(tunnel, _BlurCurveExp) * _MaxBlurRadius;
+
+                    // 9-tap weighted Gaussian on camera feed. Centre 4×, 8 ring taps 1×.
+                    fixed3 camSum  = tex2D(_MainTex, uv).rgb * 4.0;
+                    camSum += tex2D(_MainTex, uv + float2( blurR,            0.0)).rgb;
+                    camSum += tex2D(_MainTex, uv + float2(-blurR,            0.0)).rgb;
+                    camSum += tex2D(_MainTex, uv + float2( 0.0,  blurR          )).rgb;
+                    camSum += tex2D(_MainTex, uv + float2( 0.0, -blurR          )).rgb;
+                    camSum += tex2D(_MainTex, uv + float2( blurR * 0.707,  blurR * 0.707)).rgb;
+                    camSum += tex2D(_MainTex, uv + float2(-blurR * 0.707,  blurR * 0.707)).rgb;
+                    camSum += tex2D(_MainTex, uv + float2( blurR * 0.707, -blurR * 0.707)).rgb;
+                    camSum += tex2D(_MainTex, uv + float2(-blurR * 0.707, -blurR * 0.707)).rgb;
+                    fixed3 blurredCam = camSum / 12.0;
+
+                    // -------------------------------------------------------------------
+                    // Desaturation: independent ramp, starts after _SphereDesatDelay.
+                    // This mirrors the research finding that colour is less perceptually
+                    // tolerable than blur at the same eccentricity, so it starts later.
+                    // -------------------------------------------------------------------
+                    float desatSpan = max(1.0 - _SphereDesatDelay, 1e-4);
+                    float desatT = pow(saturate((tunnel - _SphereDesatDelay) / desatSpan), _DesatCurveExp);
+                    float grey   = dot(blurredCam, float3(0.299, 0.587, 0.114));
+                    fixed3 finalCam = lerp(blurredCam, fixed3(grey, grey, grey), desatT);
+
+                    // Contrast boost at the transition boundary — masks the blur onset.
+                    float edgeGlow = saturate(tunnel * 8.0) * saturate((1.0 - tunnel) * 4.0);
+                    finalCam = saturate(finalCam + _ContrastBoost * edgeGlow);
+
+                    // Outside camera FOV fall back to DimColor.
+                    finalCam = lerp(_DimColor.rgb, finalCam, fovInside);
+
+                    // -------------------------------------------------------------------
+                    // Alpha = tunnel: focus zone is transparent (passthrough quality),
+                    // periphery is opaque (camera feed blurred+desaturated).
+                    // Salience keeps detected objects from being degraded.
+                    // -------------------------------------------------------------------
+                    float alpha = tunnel * (1.0 - salience);
+                    return fixed4(finalCam, alpha);
+                }
 
                 // -----------------------------------------------------------------------
                 // MODE 2 — Eccentricity-Adaptive Perceptual Vignette (novel technique)
