@@ -9,22 +9,33 @@ using UnityEngine.UI;
 namespace PassthroughCameraSamples.ShaderSample
 {
     /// <summary>
-    /// Drives the <c>Meta/PCA/FocusVignette</c> shader across the dissertation modes. Place on the
-    /// inverted sphere GameObject (whose MeshRenderer uses the FocusVignette material).
+    /// Drives the <c>Meta/PCA/FocusVignette</c> shader. Inverted-sphere technique: a head-centered
+    /// sphere (Cull Front) renders a translucent eccentricity-adaptive overlay over the OS passthrough.
     ///
-    /// - DYNAMIC (Mode 1): gaze-following rectangle; light grey dim; eases off while turning.
-    /// - PERCEPTUAL (Mode 2): eccentricity-adaptive blur + desaturation over passthrough camera.
-    ///   Two independent power-law curves derived from psychophysics literature (Hansen 2009,
-    ///   Kergassner SIGGRAPH 2025, Krajancich SIGGRAPH 2023). Novel dissertation contribution.
-    /// - STATIC (Mode 3): controller-defined rectangle window; hard tunnel outside.
+    /// Mode 1 — LIGHT PERCEPTUAL: mild peripheral blur + desaturation. Clear focus zone is wide;
+    ///   effect is subtle enough to be near-imperceptible. After scanning, the effect returns quickly.
     ///
-    /// B / middle-finger pinch cycles modes (Dynamic → Perceptual → Static → Dynamic).
-    /// A / index-pinch places a corner (Static mode only).
+    /// Mode 2 — DEEP PERCEPTUAL: strong peripheral blur + desaturation. Effect starts closer to the
+    ///   gaze centre; desaturation is heavier. Crucially, after scanning, the normal-vision window
+    ///   persists significantly longer before the vignette reapplies — rewarding deliberate head
+    ///   movements with extended unobstructed view.
+    ///
+    /// Switching between Mode 1 and Mode 2 smoothly interpolates all shader parameters over
+    /// <see cref="m_transitionDuration"/> seconds (no hard cut).
+    ///
+    /// Mode 3 — STATIC: controller-defined rectangle window; hard tunnel outside.
+    ///
+    /// B / middle-finger pinch cycles modes: Light → Deep → Static → Light.
+    /// A / index-pinch places a corner (Static only).
+    ///
+    /// Research grounding: Hansen et al. 2009 (4.5× colour threshold at 50° vs. 5°),
+    /// Kergassner SIGGRAPH 2025 (σ≈5.4 arcmin blur at 10°), Krajancich SIGGRAPH 2023
+    /// (task focus suppresses peripheral sensitivity — justifies heavier Mode 2 params).
     /// </summary>
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
     public class FocusVignetteManager : MonoBehaviour
     {
-        private enum FocusMode { Dynamic, Perceptual, Static }
+        private enum FocusMode { LightPerceptual, DeepPerceptual, Static }
 
         [SerializeField] private PassthroughCameraAccess m_cameraAccess;
         [SerializeField] private OVRPassthroughLayer m_passthroughLayer;
@@ -35,48 +46,80 @@ namespace PassthroughCameraSamples.ShaderSample
         [Tooltip("Controller transform used to aim in Static mode (e.g. RightControllerAnchor).")]
         [SerializeField] private Transform m_pointer;
 
-        [SerializeField] private FocusMode m_mode = FocusMode.Dynamic;
+        [SerializeField] private FocusMode m_mode = FocusMode.LightPerceptual;
 
-        [Header("Dynamic (Mode 1) — soft rectangle + motion easing")]
-        [SerializeField] private Color m_dynamicDimColor = new Color(0.5f, 0.5f, 0.5f, 1f);
-        [Tooltip("Passthrough saturation in Mode 1 (-1 = fully greyscale, 0 = normal colour).")]
-        [SerializeField, Range(-1f, 0f)] private float m_dynamicSaturation = -0.7f;
-        [SerializeField, Range(0, 1)] private float m_dynamicMax = 1f;
-        [Tooltip("Half-width of the gaze-following focus rectangle (degrees).")]
-        [SerializeField] private float m_dynamicHalfAngleH = 20f;
-        [Tooltip("Half-height of the gaze-following focus rectangle (degrees).")]
-        [SerializeField] private float m_dynamicHalfAngleV = 15f;
-        [Tooltip("Edge softness for Mode 1 — higher = more gradual fade into the grey.")]
-        [SerializeField, Range(0.01f, 2f)] private float m_dynamicEdgeSoftness = 0.55f;
-        [Tooltip("Head angular speed (deg/s) above which the dim eases off for situational awareness.")]
-        [SerializeField] private float m_motionThresholdDeg = 30f;
-        [Tooltip("Seconds to ease the dim OFF when you start turning.")]
+        // -----------------------------------------------------------------------------------------
+        // Mode 1: Light Perceptual — mild, near-imperceptible eccentricity vignette
+        // Blur starts wide (12°); desaturation is gentle and begins well away from centre (25°).
+        // Effect reapplies quickly after head movement (2.5 s) — scanning feels natural.
+        // -----------------------------------------------------------------------------------------
+        [Header("Mode 1 Light — eccentricity angles")]
+        [Tooltip("Eccentricity at which blur begins (deg). Research baseline: 10°.")]
+        [SerializeField, Range(5f, 25f)]  private float m_lightBlurStartDeg   = 12f;
+        [Tooltip("Eccentricity at peak blur (deg).")]
+        [SerializeField, Range(15f, 60f)] private float m_lightBlurMaxDeg     = 27f;
+        [Tooltip("Eccentricity at which desaturation begins (deg). Research: start later than blur.")]
+        [SerializeField, Range(10f, 45f)] private float m_lightDesatStartDeg  = 25f;
+        [Tooltip("Eccentricity at peak desaturation (deg). Research: 4.5× threshold at 50°.")]
+        [SerializeField, Range(30f, 80f)] private float m_lightDesatMaxDeg    = 62f;
+
+        [Header("Mode 1 Light — intensity")]
+        [SerializeField, Range(0f, 0.05f)] private float m_lightMaxBlurRadius  = 0.008f;
+        [SerializeField, Range(0.5f, 3f)]  private float m_lightBlurCurveExp   = 1.5f;
+        [SerializeField, Range(0.5f, 4f)]  private float m_lightDesatCurveExp  = 2.0f;
+        [SerializeField, Range(0f, 0.4f)]  private float m_lightContrastBoost  = 0.12f;
+        [SerializeField, Range(0f, 1f)]    private float m_lightMaxDim         = 0.55f;
+        [SerializeField, Range(0.01f, 1f)] private float m_lightEdgeSoftness   = 0.20f;
+        [SerializeField]                   private Color m_lightDimColor        = Color.black;
+
+        [Header("Mode 1 Light — motion easing")]
+        [Tooltip("Seconds to ease the effect back ON after head settles. Short = effect returns quickly.")]
+        [SerializeField] private float m_lightReapplySeconds   = 2.5f;
+        [Tooltip("Head speed (deg/s) that triggers the effect easing off.")]
+        [SerializeField] private float m_lightMotionThreshDeg  = 30f;
+
+        // -----------------------------------------------------------------------------------------
+        // Mode 2: Deep Perceptual — strong eccentricity vignette with extended normal-vision window
+        // Blur and desaturation start closer to gaze centre and ramp faster.
+        // After scanning, normal vision persists much longer (5.5 s) before the effect returns —
+        // rewarding deliberate head movements with extended unobstructed passthrough.
+        // -----------------------------------------------------------------------------------------
+        [Header("Mode 2 Deep — eccentricity angles")]
+        [SerializeField, Range(5f, 25f)]  private float m_deepBlurStartDeg    = 8f;
+        [SerializeField, Range(15f, 60f)] private float m_deepBlurMaxDeg      = 22f;
+        [SerializeField, Range(10f, 45f)] private float m_deepDesatStartDeg   = 15f;
+        [SerializeField, Range(30f, 80f)] private float m_deepDesatMaxDeg     = 45f;
+
+        [Header("Mode 2 Deep — intensity")]
+        [SerializeField, Range(0f, 0.05f)] private float m_deepMaxBlurRadius  = 0.025f;
+        [SerializeField, Range(0.5f, 3f)]  private float m_deepBlurCurveExp   = 1.2f;
+        [SerializeField, Range(0.5f, 4f)]  private float m_deepDesatCurveExp  = 1.5f;
+        [SerializeField, Range(0f, 0.4f)]  private float m_deepContrastBoost  = 0.18f;
+        [SerializeField, Range(0f, 1f)]    private float m_deepMaxDim         = 0.90f;
+        [SerializeField, Range(0.01f, 1f)] private float m_deepEdgeSoftness   = 0.30f;
+        [SerializeField]                   private Color m_deepDimColor        = Color.black;
+
+        [Header("Mode 2 Deep — motion easing")]
+        [Tooltip("Seconds to ease back ON after head settles. Long = normal vision persists after scanning.")]
+        [SerializeField] private float m_deepReapplySeconds   = 5.5f;
+        [Tooltip("Head speed (deg/s) that triggers the effect easing off. Lower = more sensitive.")]
+        [SerializeField] private float m_deepMotionThreshDeg  = 22f;
+
+        // -----------------------------------------------------------------------------------------
+        // Shared motion easing + mode transition
+        // -----------------------------------------------------------------------------------------
+        [Header("Shared motion easing")]
+        [Tooltip("Seconds to ease the effect OFF when head motion is detected (both modes).")]
         [SerializeField] private float m_revealSeconds = 0.25f;
-        [Tooltip("Seconds to ease the dim back ON once your gaze settles (2-4s).")]
-        [SerializeField] private float m_reapplySeconds = 3f;
 
-        [Header("Perceptual (Mode 2) — eccentricity-adaptive blur and desaturation")]
-        [Tooltip("Eccentricity at which blur begins (degrees). Research baseline: 10°.")]
-        [SerializeField, Range(5f, 25f)] private float m_blurStartAngleDeg = 10f;
-        [Tooltip("Eccentricity at which blur reaches maximum (degrees). Research baseline: 25–30°.")]
-        [SerializeField, Range(15f, 60f)] private float m_blurMaxAngleDeg = 28f;
-        [Tooltip("Maximum UV-space Gaussian kernel radius. ~0.015 ≈ 10px at 640px camera width.")]
-        [SerializeField, Range(0f, 0.05f)] private float m_maxBlurRadius = 0.015f;
-        [Tooltip("Power-law exponent for blur falloff (1=linear, >1=slower onset then accelerating).")]
-        [SerializeField, Range(0.5f, 3f)] private float m_blurCurveExp = 1.5f;
-        [Tooltip("Eccentricity at which desaturation begins (degrees). Research: start later than blur; colour is less tolerable.")]
-        [SerializeField, Range(10f, 40f)] private float m_desatStartAngleDeg = 20f;
-        [Tooltip("Eccentricity at full desaturation (degrees). Research: 4.5x threshold at 50°.")]
-        [SerializeField, Range(30f, 80f)] private float m_desatMaxAngleDeg = 50f;
-        [Tooltip("Power-law exponent for desaturation falloff (higher = more gradual onset).")]
-        [SerializeField, Range(0.5f, 4f)] private float m_desatCurveExp = 2f;
-        [Tooltip("Luminance boost at inner blur onset to mask the transition (Patney SIGGRAPH 2016).")]
-        [SerializeField, Range(0f, 0.4f)] private float m_contrastBoost = 0.15f;
-        [SerializeField] private Color m_perceptualDimColor = Color.black;
-        [SerializeField, Range(0f, 1f)] private float m_perceptualMaxDim = 0.85f;
-        [SerializeField, Range(0.01f, 1f)] private float m_perceptualEdgeSoftness = 0.25f;
+        [Header("Mode transition")]
+        [Tooltip("Time (seconds) to smoothly interpolate all shader params when switching between Mode 1 and Mode 2.")]
+        [SerializeField, Range(0.2f, 3f)] private float m_transitionDuration = 1.5f;
 
-        [Header("Static (Mode 3) — controller rectangle window")]
+        // -----------------------------------------------------------------------------------------
+        // Static (Mode 3) — unchanged
+        // -----------------------------------------------------------------------------------------
+        [Header("Mode 3 Static — controller rectangle window")]
         [SerializeField] private Color m_staticDimColor = Color.black;
         [SerializeField, Range(0, 1)] private float m_staticMax = 1f;
         [SerializeField, Range(0.01f, 1f)] private float m_staticEdgeSoftness = 0.2f;
@@ -86,35 +129,45 @@ namespace PassthroughCameraSamples.ShaderSample
 
         [SerializeField] private float m_cameraHorizontalFovDeg = 82f;
 
+        // -----------------------------------------------------------------------------------------
+        // Runtime state
+        // -----------------------------------------------------------------------------------------
         private Material m_material;
         private bool m_loggedIntrinsics;
+
+        // Perceptual blend (0 = Mode 1 Light, 1 = Mode 2 Deep).
+        private float m_perceptualT = 0f;
+        private float m_targetPerceptualT = 0f;
+
         private Vector3 m_prevForward = Vector3.forward;
         private float m_drIntensity = 0f;
+
+        // Static mode state.
         private readonly Vector3[] m_cornerPoints = new Vector3[2];
         private int m_cornerCount;
 
-        private static readonly int s_mainTexId = Shader.PropertyToID("_MainTex");
-        private static readonly int s_sphereCenterId = Shader.PropertyToID("_SphereCenter");
-        private static readonly int s_headRightId = Shader.PropertyToID("_HeadRight");
-        private static readonly int s_headUpId = Shader.PropertyToID("_HeadUp");
-        private static readonly int s_headForwardId = Shader.PropertyToID("_HeadForward");
-        private static readonly int s_tanHalfFovId = Shader.PropertyToID("_TanHalfFov");
-        private static readonly int s_focusModeId = Shader.PropertyToID("_FocusMode");
-        private static readonly int s_focusDirId = Shader.PropertyToID("_FocusDir");
-        private static readonly int s_innerAngleId = Shader.PropertyToID("_InnerAngle");
-        private static readonly int s_outerAngleId = Shader.PropertyToID("_OuterAngle");
-        private static readonly int s_edgeSoftnessId = Shader.PropertyToID("_EdgeSoftness");
-        private static readonly int s_drIntensityId = Shader.PropertyToID("_DrIntensity");
-        private static readonly int s_desatStrengthId = Shader.PropertyToID("_DesatStrength");
-        private static readonly int s_dimColorId = Shader.PropertyToID("_DimColor");
-        private static readonly int s_maxDimId = Shader.PropertyToID("_MaxDim");
-        private static readonly int s_regionActiveId = Shader.PropertyToID("_RegionActive");
+        // -----------------------------------------------------------------------------------------
+        // Shader property IDs
+        // -----------------------------------------------------------------------------------------
+        private static readonly int s_mainTexId        = Shader.PropertyToID("_MainTex");
+        private static readonly int s_sphereCenterId   = Shader.PropertyToID("_SphereCenter");
+        private static readonly int s_headRightId      = Shader.PropertyToID("_HeadRight");
+        private static readonly int s_headUpId         = Shader.PropertyToID("_HeadUp");
+        private static readonly int s_headForwardId    = Shader.PropertyToID("_HeadForward");
+        private static readonly int s_tanHalfFovId     = Shader.PropertyToID("_TanHalfFov");
+        private static readonly int s_focusModeId      = Shader.PropertyToID("_FocusMode");
+        private static readonly int s_focusDirId       = Shader.PropertyToID("_FocusDir");
+        private static readonly int s_edgeSoftnessId   = Shader.PropertyToID("_EdgeSoftness");
+        private static readonly int s_drIntensityId    = Shader.PropertyToID("_DrIntensity");
+        private static readonly int s_desatStrengthId  = Shader.PropertyToID("_DesatStrength");
+        private static readonly int s_dimColorId       = Shader.PropertyToID("_DimColor");
+        private static readonly int s_maxDimId         = Shader.PropertyToID("_MaxDim");
+        private static readonly int s_regionActiveId   = Shader.PropertyToID("_RegionActive");
         private static readonly int[] s_cornerIds =
         {
             Shader.PropertyToID("_Corner0"),
             Shader.PropertyToID("_Corner1"),
         };
-
         private static readonly int s_blurStartAngleId  = Shader.PropertyToID("_BlurStartAngle");
         private static readonly int s_blurMaxAngleId    = Shader.PropertyToID("_BlurMaxAngle");
         private static readonly int s_maxBlurRadiusId   = Shader.PropertyToID("_MaxBlurRadius");
@@ -123,6 +176,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_desatMaxAngleId   = Shader.PropertyToID("_DesatMaxAngle");
         private static readonly int s_desatCurveExpId   = Shader.PropertyToID("_DesatCurveExp");
         private static readonly int s_contrastBoostId   = Shader.PropertyToID("_ContrastBoost");
+
+        // -----------------------------------------------------------------------------------------
 
         private void OnDisable()
         {
@@ -173,7 +228,6 @@ namespace PassthroughCameraSamples.ShaderSample
                 return;
             }
 
-            // Common: keep the sphere on the head; feed head basis + FOV (for the salience projection).
             transform.position = head.position;
             m_material.SetVector(s_sphereCenterId, head.position);
             m_material.SetVector(s_headRightId, head.right);
@@ -181,23 +235,19 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetVector(s_headForwardId, head.forward);
             FeedFovUniform();
 
-            // B / middle-finger pinch cycles through modes: Dynamic → Perceptual → Static → Dynamic.
+            // B / middle-finger pinch cycles: Light → Deep → Static → Light.
             if (InputManager.IsButtonBDownOrMiddleFingerPinchStarted())
             {
                 m_mode = m_mode switch
                 {
-                    FocusMode.Dynamic     => FocusMode.Perceptual,
-                    FocusMode.Perceptual  => FocusMode.Static,
-                    _                    => FocusMode.Dynamic,
+                    FocusMode.LightPerceptual => FocusMode.DeepPerceptual,
+                    FocusMode.DeepPerceptual  => FocusMode.Static,
+                    _                         => FocusMode.LightPerceptual,
                 };
                 ApplyMode();
             }
 
-            if (m_mode == FocusMode.Dynamic)
-            {
-                UpdateDynamic(head);
-            }
-            else if (m_mode == FocusMode.Perceptual)
+            if (m_mode == FocusMode.LightPerceptual || m_mode == FocusMode.DeepPerceptual)
             {
                 UpdatePerceptual(head);
             }
@@ -207,53 +257,64 @@ namespace PassthroughCameraSamples.ShaderSample
             }
         }
 
-        private void UpdateDynamic(Transform head)
-        {
-            // Gaze-following rectangle: recompute corners every frame in a gravity-aligned frame.
-            Vector3 fwd = head.forward;
-            Vector3 up2Raw = Vector3.up - fwd * Vector3.Dot(Vector3.up, fwd);
-            Vector3 up2 = up2Raw.sqrMagnitude > 0.001f ? up2Raw.normalized : head.up;
-            Vector3 right2 = Vector3.Cross(up2, fwd).normalized;
-            float th = Mathf.Tan(m_dynamicHalfAngleH * Mathf.Deg2Rad);
-            float tv = Mathf.Tan(m_dynamicHalfAngleV * Mathf.Deg2Rad);
-            m_material.SetVector(s_cornerIds[0], (fwd + right2 * th + up2 * tv).normalized);
-            m_material.SetVector(s_cornerIds[1], (fwd - right2 * th - up2 * tv).normalized);
-
-            // Ease the dim OFF while turning (opens the window), back ON when settled.
-            float angle = Vector3.Angle(head.forward, m_prevForward);
-            float speed = Time.deltaTime > 0f ? angle / Time.deltaTime : 0f;
-            m_prevForward = head.forward;
-
-            float target = speed > m_motionThresholdDeg ? 0f : 1f;
-            float seconds = target < m_drIntensity ? m_revealSeconds : m_reapplySeconds;
-            float rate = 1f / Mathf.Max(seconds, 0.01f);
-            m_drIntensity = Mathf.MoveTowards(m_drIntensity, target, rate * Time.deltaTime);
-            m_material.SetFloat(s_drIntensityId, m_drIntensity);
-        }
-
+        // Advances the mode-transition blend and pushes all lerped shader params each frame.
         private void UpdatePerceptual(Transform head)
         {
-            // Feed the current gaze direction (head forward as proxy — Quest 3 has no eye tracker API
-            // exposed yet; swap for OVREyeGaze.EyeTrackingEnabled data when available).
+            // Advance perceptual blend toward target.
+            float transRate = m_transitionDuration > 0f ? Time.deltaTime / m_transitionDuration : 1f;
+            m_perceptualT = Mathf.MoveTowards(m_perceptualT, m_targetPerceptualT, transRate);
+
+            float t = m_perceptualT;
+
+            // Lerp all shader params between Light (t=0) and Deep (t=1) presets.
+            float blurStart  = Mathf.Lerp(m_lightBlurStartDeg,  m_deepBlurStartDeg,  t) * Mathf.Deg2Rad;
+            float blurMax    = Mathf.Lerp(m_lightBlurMaxDeg,    m_deepBlurMaxDeg,    t) * Mathf.Deg2Rad;
+            float blurRadius = Mathf.Lerp(m_lightMaxBlurRadius, m_deepMaxBlurRadius, t);
+            float blurExp    = Mathf.Lerp(m_lightBlurCurveExp,  m_deepBlurCurveExp,  t);
+            float desatStart = Mathf.Lerp(m_lightDesatStartDeg, m_deepDesatStartDeg, t) * Mathf.Deg2Rad;
+            float desatMax   = Mathf.Lerp(m_lightDesatMaxDeg,   m_deepDesatMaxDeg,   t) * Mathf.Deg2Rad;
+            float desatExp   = Mathf.Lerp(m_lightDesatCurveExp, m_deepDesatCurveExp, t);
+            float contrast   = Mathf.Lerp(m_lightContrastBoost, m_deepContrastBoost, t);
+            float maxDim     = Mathf.Lerp(m_lightMaxDim,        m_deepMaxDim,        t);
+            float edgeSoft   = Mathf.Lerp(m_lightEdgeSoftness,  m_deepEdgeSoftness,  t);
+            Color dimColor   = Color.Lerp(m_lightDimColor,      m_deepDimColor,      t);
+
+            m_material.SetFloat(s_blurStartAngleId,  blurStart);
+            m_material.SetFloat(s_blurMaxAngleId,    blurMax);
+            m_material.SetFloat(s_maxBlurRadiusId,   blurRadius);
+            m_material.SetFloat(s_blurCurveExpId,    blurExp);
+            m_material.SetFloat(s_desatStartAngleId, desatStart);
+            m_material.SetFloat(s_desatMaxAngleId,   desatMax);
+            m_material.SetFloat(s_desatCurveExpId,   desatExp);
+            m_material.SetFloat(s_contrastBoostId,   contrast);
+            m_material.SetFloat(s_maxDimId,          maxDim);
+            m_material.SetFloat(s_edgeSoftnessId,    edgeSoft);
+            m_material.SetColor(s_dimColorId,        dimColor);
+
+            // Feed gaze direction (head forward as proxy; swap for OVREyeGaze when available).
             m_material.SetVector(s_focusDirId, head.forward);
 
-            // Apply the same motion-easing as Dynamic: dim eases off while you scan, back on when settled.
+            // Motion easing: ease OFF while scanning, back ON when settled.
+            // Reapply speed is slower in Deep mode — normal vision persists longer after each scan.
             float angle = Vector3.Angle(head.forward, m_prevForward);
             float speed = Time.deltaTime > 0f ? angle / Time.deltaTime : 0f;
             m_prevForward = head.forward;
 
-            float target = speed > m_motionThresholdDeg ? 0f : 1f;
-            float seconds = target < m_drIntensity ? m_revealSeconds : m_reapplySeconds;
-            float rate = 1f / Mathf.Max(seconds, 0.01f);
-            m_drIntensity = Mathf.MoveTowards(m_drIntensity, target, rate * Time.deltaTime);
+            float motionThresh  = Mathf.Lerp(m_lightMotionThreshDeg, m_deepMotionThreshDeg, t);
+            float reapplyTime   = Mathf.Lerp(m_lightReapplySeconds,  m_deepReapplySeconds,  t);
+
+            float intensityTarget = speed > motionThresh ? 0f : 1f;
+            float intensityRate   = intensityTarget < m_drIntensity
+                ? 1f / Mathf.Max(m_revealSeconds, 0.01f)   // easing OFF: fast (same both modes)
+                : 1f / Mathf.Max(reapplyTime,     0.01f);  // easing ON:  slow in Deep mode
+            m_drIntensity = Mathf.MoveTowards(m_drIntensity, intensityTarget, intensityRate * Time.deltaTime);
             m_material.SetFloat(s_drIntensityId, m_drIntensity);
         }
 
         private void UpdateStatic(Transform head)
         {
-            // Ease the vignette in once both corners are placed; hold at 0 while still aiming.
             float drTarget = m_cornerCount >= 2 ? 1f : 0f;
-            float drRate = 1f / Mathf.Max(m_reapplySeconds, 0.01f);
+            float drRate = 1f / Mathf.Max(m_lightReapplySeconds, 0.01f);
             m_drIntensity = Mathf.MoveTowards(m_drIntensity, drTarget, drRate * Time.deltaTime);
             m_material.SetFloat(s_drIntensityId, m_drIntensity);
 
@@ -272,8 +333,6 @@ namespace PassthroughCameraSamples.ShaderSample
                 }
             }
 
-            // A / index pinch places the next corner; once both are placed, A restarts the selection.
-            // (B / middle pinch is the global mode switch, handled in LateUpdate.)
             if (InputManager.IsButtonADownOrPinchStarted())
             {
                 if (m_cornerCount >= 2)
@@ -312,41 +371,20 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_aimCursor.gameObject.SetActive(false);
             }
 
-            if (m_mode == FocusMode.Dynamic)
+            if (m_mode == FocusMode.LightPerceptual || m_mode == FocusMode.DeepPerceptual)
             {
-                // Shader mode 1: rectangle path; corners auto-computed in UpdateDynamic each frame.
-                m_material.SetFloat(s_focusModeId, 1f);
-                m_material.SetColor(s_dimColorId, m_dynamicDimColor);
-                m_material.SetFloat(s_maxDimId, m_dynamicMax);
-                m_material.SetFloat(s_edgeSoftnessId, m_dynamicEdgeSoftness);
-                m_material.SetFloat(s_desatStrengthId, 1f);
-                m_material.SetFloat(s_regionActiveId, 1f);
-                m_passthroughLayer?.SetBrightnessContrastSaturation(0f, 0f, m_dynamicSaturation);
-            }
-            else if (m_mode == FocusMode.Perceptual)
-            {
-                // Shader mode 2: eccentricity-adaptive perceptual vignette.
-                m_material.SetFloat(s_focusModeId, 2f);
-                m_material.SetColor(s_dimColorId, m_perceptualDimColor);
-                m_material.SetFloat(s_maxDimId, m_perceptualMaxDim);
-                m_material.SetFloat(s_edgeSoftnessId, m_perceptualEdgeSoftness);
-                m_material.SetFloat(s_desatStrengthId, 0f);  // shader handles desat internally
-                m_material.SetFloat(s_blurStartAngleId,  m_blurStartAngleDeg  * Mathf.Deg2Rad);
-                m_material.SetFloat(s_blurMaxAngleId,    m_blurMaxAngleDeg    * Mathf.Deg2Rad);
-                m_material.SetFloat(s_maxBlurRadiusId,   m_maxBlurRadius);
-                m_material.SetFloat(s_blurCurveExpId,    m_blurCurveExp);
-                m_material.SetFloat(s_desatStartAngleId, m_desatStartAngleDeg * Mathf.Deg2Rad);
-                m_material.SetFloat(s_desatMaxAngleId,   m_desatMaxAngleDeg   * Mathf.Deg2Rad);
-                m_material.SetFloat(s_desatCurveExpId,   m_desatCurveExp);
-                m_material.SetFloat(s_contrastBoostId,   m_contrastBoost);
+                // Both perceptual modes share shader path 2. Target blend drives lerp in UpdatePerceptual.
+                m_targetPerceptualT = m_mode == FocusMode.DeepPerceptual ? 1f : 0f;
+                m_material.SetFloat(s_focusModeId,    2f);
+                m_material.SetFloat(s_desatStrengthId, 0f);   // desat handled by shader internally
                 m_passthroughLayer?.SetBrightnessContrastSaturation(0f, 0f, 0f);
             }
             else
             {
-                // Shader mode 3: static rectangle, controller-defined.
-                m_material.SetFloat(s_focusModeId, 3f);
-                m_material.SetColor(s_dimColorId, m_staticDimColor);
-                m_material.SetFloat(s_maxDimId, m_staticMax);
+                // Static: shader path 3, controller rectangle.
+                m_material.SetFloat(s_focusModeId,    3f);
+                m_material.SetColor(s_dimColorId,     m_staticDimColor);
+                m_material.SetFloat(s_maxDimId,       m_staticMax);
                 m_material.SetFloat(s_edgeSoftnessId, m_staticEdgeSoftness);
                 m_material.SetFloat(s_desatStrengthId, 0f);
                 m_passthroughLayer?.SetBrightnessContrastSaturation(0f, 0f, 0f);
@@ -377,29 +415,20 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void HideMarkers()
         {
-            if (m_cornerMarkers == null)
-            {
-                return;
-            }
+            if (m_cornerMarkers == null) return;
             foreach (var marker in m_cornerMarkers)
             {
-                if (marker != null)
-                {
-                    marker.gameObject.SetActive(false);
-                }
+                if (marker != null) marker.gameObject.SetActive(false);
             }
         }
 
         private void UpdateStatusText()
         {
-            if (m_debugText == null)
-            {
-                return;
-            }
+            if (m_debugText == null) return;
             m_debugText.text = m_mode switch
             {
-                FocusMode.Dynamic    => "Mode 1: Dynamic  (B = next mode)",
-                FocusMode.Perceptual => "Mode 2: Perceptual Vignette  (B = next mode)",
+                FocusMode.LightPerceptual => "Mode 1: Light Perceptual  (B = next mode)",
+                FocusMode.DeepPerceptual  => "Mode 2: Deep Perceptual  (B = next mode)",
                 _ => m_cornerCount >= 2
                     ? "Mode 3: Static — window set  (A = redo, B = next mode)"
                     : $"Mode 3: Static — aim + A, corner {m_cornerCount + 1}/2  (B = next mode)",
@@ -430,10 +459,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 if (m_cameraAccess != null && m_cameraAccess.IsPlaying)
                 {
                     var res = m_cameraAccess.CurrentResolution;
-                    if (res.x > 0 && res.y > 0)
-                    {
-                        aspect = (float)res.x / res.y;
-                    }
+                    if (res.x > 0 && res.y > 0) aspect = (float)res.x / res.y;
                 }
                 tanX = Mathf.Tan(0.5f * m_cameraHorizontalFovDeg * Mathf.Deg2Rad);
                 tanY = tanX / aspect;
