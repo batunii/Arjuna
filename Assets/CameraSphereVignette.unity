@@ -527,6 +527,7 @@ GameObject:
   - component: {fileID: 949970465}
   - component: {fileID: 949970464}
   - component: {fileID: 949970463}
+  - component: {fileID: 949970468}
   m_Layer: 0
   m_Name: CameraSphereSphere
   m_TagString: Untagged
@@ -553,12 +554,14 @@ MonoBehaviour:
   m_debugText: {fileID: 7828524204933019467}
   m_softEdgeDeg: 20
   m_maxBlurRadius: 0.01
-  m_blurCurveExp: 4
+  m_blurCurveExp: 3
   m_desatDelay: 0.3
   m_desatCurveExp: 3
   m_selectionLine: {fileID: 1551927729}
   m_lineColorHeld: {r: 1, g: 1, b: 1, a: 1}
   m_lineColorLocked: {r: 1, g: 1, b: 1, a: 0.4}
+  m_yoloRunner: {fileID: 949970468}
+  m_detectionLifetime: 0.6
   m_cameraHorizontalFovDeg: 82
 --- !u!23 &949970464
 MeshRenderer:
@@ -649,6 +652,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &949970468
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 949970462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8aa37e808636b545b837596d52f714e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_cameraAccess: {fileID: 1608124433}
+  m_sentisModel: {fileID: 5022602860645237092, guid: 69ab50aef18ae412cac4b305492d527c, type: 3}
+  m_runEveryNFrames: 4
+  m_scoreThreshold: 0.3
+  m_iouThreshold: 0.5
 --- !u!1 &1002987068
 GameObject:
   m_ObjectHideFlags: 0

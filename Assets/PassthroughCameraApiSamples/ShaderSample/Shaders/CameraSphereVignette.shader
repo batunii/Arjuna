@@ -76,6 +76,10 @@ Shader "Meta/PCA/CameraSphereVignette"
             float  _DimStrength;
             float  _FlipY;
 
+            // YOLO detection zones — each clears to full clarity when inside.
+            int    _DetectionCount;
+            float4 _DetectionRects[8]; // same az/el format as _FocusRect
+
             // Updated every frame from the C# manager.
             float3 _SphereCenter;
             float3 _HeadRight;
@@ -111,6 +115,14 @@ Shader "Meta/PCA/CameraSphereVignette"
 
                 // Filter intensity: 0 inside rect → 1 fully outside.
                 float t = smoothstep(0.0, _SoftEdge, dist);
+
+                // YOLO detection zones: if inside any detected bounding box, restore full clarity.
+                for (int _di = 0; _di < _DetectionCount; _di++)
+                {
+                    float _dAz = max(_DetectionRects[_di].x - az, az - _DetectionRects[_di].y);
+                    float _dEl = max(_DetectionRects[_di].z - el, el - _DetectionRects[_di].w);
+                    if (max(_dAz, _dEl) < 0.0) { t = 0.0; break; }
+                }
 
                 // --- Camera UV projection ---
                 // Directions beyond the physical camera FOV clamp to the nearest edge

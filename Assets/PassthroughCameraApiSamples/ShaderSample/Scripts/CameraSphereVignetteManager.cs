@@ -1,6 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 using System.Collections;
+using System.Collections.Generic;
 using Meta.XR;
 using Meta.XR.Samples;
 using UnityEngine;
@@ -54,29 +55,50 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField] private Color        m_lineColorHeld   = Color.white;
         [SerializeField] private Color        m_lineColorLocked = new Color(1f, 1f, 1f, 0.4f);
 
+        [Header("YOLO Detection")]
+        [Tooltip("Optional — wire up to enable automatic clear zones for detected objects.")]
+        [SerializeField] private YoloRunner m_yoloRunner;
+        [Tooltip("How long a detection zone stays visible after the object was last detected (seconds).")]
+        [SerializeField] private float m_detectionLifetime = 0.6f;
+
         // Fallback FOV when camera intrinsics are unavailable.
         [SerializeField] private float m_cameraHorizontalFovDeg = 82f;
 
         // ---- shader property IDs ----
-        private static readonly int s_mainTexId      = Shader.PropertyToID("_MainTex");
-        private static readonly int s_sphereCenterId = Shader.PropertyToID("_SphereCenter");
-        private static readonly int s_headRightId    = Shader.PropertyToID("_HeadRight");
-        private static readonly int s_headUpId       = Shader.PropertyToID("_HeadUp");
-        private static readonly int s_headForwardId  = Shader.PropertyToID("_HeadForward");
-        private static readonly int s_tanHalfFovId   = Shader.PropertyToID("_TanHalfFov");
-        private static readonly int s_focusRectId    = Shader.PropertyToID("_FocusRect");
-        private static readonly int s_softEdgeId     = Shader.PropertyToID("_SoftEdge");
-        private static readonly int s_maxBlurRadId   = Shader.PropertyToID("_MaxBlurRadius");
-        private static readonly int s_blurCurveExpId = Shader.PropertyToID("_BlurCurveExp");
-        private static readonly int s_desatDelayId   = Shader.PropertyToID("_DesatDelay");
-        private static readonly int s_desatCurveExpId= Shader.PropertyToID("_DesatCurveExp");
+        private static readonly int s_mainTexId        = Shader.PropertyToID("_MainTex");
+        private static readonly int s_sphereCenterId   = Shader.PropertyToID("_SphereCenter");
+        private static readonly int s_headRightId      = Shader.PropertyToID("_HeadRight");
+        private static readonly int s_headUpId         = Shader.PropertyToID("_HeadUp");
+        private static readonly int s_headForwardId    = Shader.PropertyToID("_HeadForward");
+        private static readonly int s_tanHalfFovId     = Shader.PropertyToID("_TanHalfFov");
+        private static readonly int s_focusRectId      = Shader.PropertyToID("_FocusRect");
+        private static readonly int s_softEdgeId       = Shader.PropertyToID("_SoftEdge");
+        private static readonly int s_maxBlurRadId     = Shader.PropertyToID("_MaxBlurRadius");
+        private static readonly int s_blurCurveExpId   = Shader.PropertyToID("_BlurCurveExp");
+        private static readonly int s_desatDelayId     = Shader.PropertyToID("_DesatDelay");
+        private static readonly int s_desatCurveExpId  = Shader.PropertyToID("_DesatCurveExp");
+        private static readonly int s_detectionCountId = Shader.PropertyToID("_DetectionCount");
+        private static readonly int s_detectionRectsId = Shader.PropertyToID("_DetectionRects");
 
-        // Full-sphere default → fully transparent overlay before first selection.
+        // Full-sphere default → no filter before first selection.
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
 
+        // YOLO classes to treat as "important" (restore clarity when detected).
+        private static readonly HashSet<int> k_targetClasses = new() { 0, 1, 2, 3, 5, 6, 9, 11 };
+        // person(0), bicycle(1), car(2), motorbike(3), bus(5), truck(6), traffic light(9), stop sign(11)
+
+        private const int k_maxDetections = 8;
+        private readonly Vector4[] m_detectionRects     = new Vector4[k_maxDetections];
+        private readonly float[]   m_detectionTimestamp = new float[k_maxDetections];
+        private int                m_activeDetectionCount;
+
         private Material m_material;
         private bool     m_loggedIntrinsics;
+
+        // Cached head pose for coordinate conversion.
+        private Vector3 m_headRight, m_headUp, m_headForward;
+        private Vector2 m_tanHalfFov;
 
         // Active (confirmed) focus rectangle.
         private Vector4 m_activeRect = k_fullSphere;
@@ -123,7 +145,16 @@ namespace PassthroughCameraSamples.ShaderSample
                 yield return null;
 
             m_material.SetTexture(s_mainTexId, m_cameraAccess.GetTexture());
-            SetDebug("Point at corner A and press trigger.");
+            SetDebug("Hold trigger and sweep to paint a focus zone.");
+
+            if (m_yoloRunner != null)
+                m_yoloRunner.OnDetectionsReady += OnDetectionsReady;
+        }
+
+        private void OnDestroy()
+        {
+            if (m_yoloRunner != null)
+                m_yoloRunner.OnDetectionsReady -= OnDetectionsReady;
         }
 
         private void LateUpdate()
@@ -132,6 +163,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
             UpdateHeadUniforms();
             UpdateFilterUniforms();
+            UpdateDetectionUniforms();
             HandleSelection();
         }
 
@@ -140,15 +172,16 @@ namespace PassthroughCameraSamples.ShaderSample
         private void UpdateHeadUniforms()
         {
             Transform head = Camera.main != null ? Camera.main.transform : transform;
-
-            // Sphere follows head position so the user is always at the centre.
-            // It does NOT rotate — that is intentional.
             transform.position = head.position;
 
+            m_headRight   = head.right;
+            m_headUp      = head.up;
+            m_headForward = head.forward;
+
             m_material.SetVector(s_sphereCenterId, head.position);
-            m_material.SetVector(s_headRightId,    head.right);
-            m_material.SetVector(s_headUpId,       head.up);
-            m_material.SetVector(s_headForwardId,  head.forward);
+            m_material.SetVector(s_headRightId,    m_headRight);
+            m_material.SetVector(s_headUpId,       m_headUp);
+            m_material.SetVector(s_headForwardId,  m_headForward);
             FeedFovUniform();
         }
 
@@ -184,6 +217,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 tanY = tanX / aspect;
             }
 
+            m_tanHalfFov = new Vector2(tanX, tanY);
             m_material.SetVector(s_tanHalfFovId, new Vector4(tanX, tanY, 0f, 0f));
         }
 
@@ -311,6 +345,62 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_selectionLine.SetPosition(3, org + DirFromAzEl(az, el - pr)  * r);
                 m_selectionLine.SetPosition(4, org + DirFromAzEl(az, el + pr)  * r);
             }
+        }
+
+        // ---- YOLO detection zones ----
+
+        private void OnDetectionsReady(IReadOnlyList<(int classId, Vector4 box)> detections, Vector2Int inputSize)
+        {
+            // Reset slot counter each update cycle; we'll fill from index 0.
+            int slot = 0;
+            foreach (var (classId, box) in detections)
+            {
+                if (slot >= k_maxDetections) break;
+                if (!k_targetClasses.Contains(classId)) continue;
+
+                m_detectionRects[slot]     = BoxToAzElRect(box, inputSize);
+                m_detectionTimestamp[slot] = Time.time;
+                slot++;
+            }
+            // Leave older slots as-is — UpdateDetectionUniforms expires them by timestamp.
+        }
+
+        private void UpdateDetectionUniforms()
+        {
+            // Count slots that haven't expired yet.
+            int count = 0;
+            for (int i = 0; i < k_maxDetections; i++)
+            {
+                if (Time.time - m_detectionTimestamp[i] < m_detectionLifetime)
+                    count = i + 1; // keep the array dense by always including up to last live slot
+            }
+            m_material.SetInt(s_detectionCountId,        count);
+            m_material.SetVectorArray(s_detectionRectsId, m_detectionRects);
+        }
+
+        // Converts a YOLO bounding box (pixel space, y-down) to an az/el rect.
+        private Vector4 BoxToAzElRect(Vector4 box, Vector2Int inputSize)
+        {
+            // box = (x1, y1, x2, y2) in model pixel space; y=0 is top of image.
+            // UV: x maps left→right, y is flipped (image top → UV bottom).
+            var tl = UvToAzEl(new Vector2(box.x / inputSize.x, 1f - box.y / inputSize.y));
+            var br = UvToAzEl(new Vector2(box.z / inputSize.x, 1f - box.w / inputSize.y));
+            return new Vector4(
+                Mathf.Min(tl.x, br.x), Mathf.Max(tl.x, br.x),
+                Mathf.Min(tl.y, br.y), Mathf.Max(tl.y, br.y));
+        }
+
+        // Reverses the shader's UV projection: UV [0,1] → azimuth/elevation (radians).
+        private Vector2 UvToAzEl(Vector2 uv)
+        {
+            if (m_tanHalfFov.x <= 0f) return Vector2.zero;
+            Vector2 ndc = (uv - Vector2.one * 0.5f) * 2f;
+            ndc.x *= m_tanHalfFov.x;
+            ndc.y *= m_tanHalfFov.y;
+            Vector3 dir = (m_headForward + ndc.x * m_headRight + ndc.y * m_headUp).normalized;
+            return new Vector2(
+                Mathf.Atan2(dir.x, dir.z),
+                Mathf.Asin(Mathf.Clamp(dir.y, -1f, 1f)));
         }
 
         // ---- helpers ----
