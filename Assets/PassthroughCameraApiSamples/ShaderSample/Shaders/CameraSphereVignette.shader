@@ -194,7 +194,9 @@ Shader "Meta/PCA/CameraSphereVignette"
                 float grey      = dot(camColor, fixed3(0.299, 0.587, 0.114));
                 fixed3 filtered = lerp(camColor, fixed3(grey, grey, grey), desatT);
 
-                return fixed4(filtered, 1.0);
+                // alpha=0 in focus window → OS passthrough (full ~110° FOV) shows through
+                // alpha=1 at periphery  → opaque blurred/desaturated overlay
+                return fixed4(filtered, t);
             }
             ENDCG
         }
