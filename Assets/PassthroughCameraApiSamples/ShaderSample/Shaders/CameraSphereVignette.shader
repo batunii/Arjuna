@@ -1,12 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 //
-// World-space focus window — Diminished Reality overlay.
+// Dual-camera world-space focus window — Diminished Reality overlay.
 //
-// The user defines a rectangular focus window in world space (azimuth/elevation).
-// Inside that window the overlay is fully transparent so the OS passthrough underlay
-// shows through at full quality.  Outside the window the camera feed is progressively
-// blurred and desaturated.  The window is fixed in world space — turning your head
-// reveals more of the filtered periphery.
+// Left and right passthrough cameras are projected onto the inside of the sphere.
+// Each fragment samples from whichever camera(s) cover it, blended by coverage weight.
+// Outside both cameras the edge pixels are stretched and maximally blurred.
 //
 // Cull Front — rendered from inside the sphere.
 Shader "Meta/PCA/CameraSphereVignette"
@@ -14,14 +12,17 @@ Shader "Meta/PCA/CameraSphereVignette"
     Properties
     {
         [Header(Camera)]
-        _MainTex ("Camera Texture", 2D) = "black" {}
+        _MainTexL ("Camera Texture (Left)",  2D) = "black" {}
+        _MainTexR ("Camera Texture (Right)", 2D) = "black" {}
         [Toggle] _FlipY ("Flip Camera Y", Float) = 0
 
         [Header(Focus Window)]
         // x=azMin  y=azMax  z=elMin  w=elMax  (radians, world space)
-        // Default covers full sphere so everything is transparent before first selection.
         _FocusRect  ("Focus Rect (az/el radians)", Vector) = (-3.14159, 3.14159, -1.5708, 1.5708)
         _SoftEdge   ("Soft Edge Width (rad)", Float) = 0.1745
+
+        [Header(Debug)]
+        [Toggle] _DebugCamOverlay ("Debug Overlay (Y=Left green  X=Right red)", Float) = 0
 
         [Header(Blur)]
         _MaxBlurRadius ("Max Blur UV Radius", Float) = 0.025
@@ -30,10 +31,6 @@ Shader "Meta/PCA/CameraSphereVignette"
         [Header(Desaturation)]
         _DesatDelay    ("Desat Delay (0=starts at inner edge)", Range(0, 0.9)) = 0.3
         _DesatCurveExp ("Desat Curve Exponent", Float) = 1.5
-
-        [Header(Outside Camera FOV)]
-        _DimColor    ("Dim Color", Color) = (0, 0, 0, 1)
-        _DimStrength ("Dim Strength", Range(0, 1)) = 0.85
     }
 
     SubShader
@@ -65,27 +62,35 @@ Shader "Meta/PCA/CameraSphereVignette"
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            sampler2D _MainTex;
-            float4 _FocusRect;      // x=azMin, y=azMax, z=elMin, w=elMax (radians)
+            sampler2D _MainTexL;
+            sampler2D _MainTexR;
+            float4 _FocusRect;
             float  _SoftEdge;
             float  _MaxBlurRadius;
             float  _BlurCurveExp;
             float  _DesatDelay;
             float  _DesatCurveExp;
-            float4 _DimColor;
-            float  _DimStrength;
             float  _FlipY;
+            float  _HasRightCam;       // 1 when right camera is active
+            float  _DebugCamOverlay;   // 1 = draw Y on left / X on right
 
-            // YOLO detection zones — each clears to full clarity when inside.
+            // Left camera projection (updated every frame from C#)
+            float3 _CamLFwd;
+            float3 _CamLRt;
+            float3 _CamLUp;
+            float4 _TanHalfFovL;   // x=tanHalfFovX  y=tanHalfFovY
+
+            // Right camera projection
+            float3 _CamRFwd;
+            float3 _CamRRt;
+            float3 _CamRUp;
+            float4 _TanHalfFovR;
+
+            // YOLO detection zones (disabled when _DetectionCount == 0)
             int    _DetectionCount;
-            float4 _DetectionRects[8]; // same az/el format as _FocusRect
+            float4 _DetectionRects[8];
 
-            // Updated every frame from the C# manager.
             float3 _SphereCenter;
-            float3 _HeadRight;
-            float3 _HeadUp;
-            float3 _HeadForward;
-            float4 _TanHalfFov;     // x=tanHalfFovX, y=tanHalfFovY
 
             v2f vert(appdata v)
             {
@@ -98,6 +103,36 @@ Shader "Meta/PCA/CameraSphereVignette"
                 return o;
             }
 
+            // Project direction onto a camera, return UV (may be outside [0,1])
+            float2 CamUV(float3 dir, float3 fwd, float3 rt, float3 up, float2 tanHFov)
+            {
+                float dz   = max(dot(dir, fwd), 0.001);
+                float2 ndc = float2(dot(dir, rt), dot(dir, up)) / dz;
+                return ndc / tanHFov * 0.5 + 0.5;
+            }
+
+            // How far inside a camera's FOV is this UV? (0=at edge, 1=well inside, negative=outside)
+            float InFovWeight(float2 uv)
+            {
+                float2 ed = min(uv, 1.0 - uv);
+                return saturate(min(ed.x, ed.y) / 0.04);
+            }
+
+            // 9-tap box blur with clamped UVs
+            fixed3 SampleBlurred(sampler2D tex, float2 uvC, float r)
+            {
+                fixed3 s = tex2D(tex, uvC).rgb * 4.0;
+                s += tex2D(tex, clamp(uvC + float2( r,       0.0     ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2(-r,       0.0     ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2( 0.0,     r       ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2( 0.0,    -r       ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2( r*0.707, r*0.707 ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2(-r*0.707, r*0.707 ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2( r*0.707,-r*0.707 ), 0, 1)).rgb;
+                s += tex2D(tex, clamp(uvC + float2(-r*0.707,-r*0.707 ), 0, 1)).rgb;
+                return s / 12.0;
+            }
+
             fixed4 frag(v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
@@ -108,15 +143,12 @@ Shader "Meta/PCA/CameraSphereVignette"
                 float az = atan2(dir.x, dir.z);
                 float el = asin(clamp(dir.y, -1.0, 1.0));
 
-                // Signed distance from the focus rectangle (negative = inside).
+                // Filter intensity: 0 inside rect → 1 fully outside
                 float dAz = max(_FocusRect.x - az, az - _FocusRect.y);
                 float dEl = max(_FocusRect.z - el, el - _FocusRect.w);
-                float dist = max(dAz, dEl);
+                float t   = smoothstep(0.0, _SoftEdge, max(dAz, dEl));
 
-                // Filter intensity: 0 inside rect → 1 fully outside.
-                float t = smoothstep(0.0, _SoftEdge, dist);
-
-                // YOLO detection zones: if inside any detected bounding box, restore full clarity.
+                // YOLO detection zones
                 for (int _di = 0; _di < _DetectionCount; _di++)
                 {
                     float _dAz = max(_DetectionRects[_di].x - az, az - _DetectionRects[_di].y);
@@ -124,43 +156,43 @@ Shader "Meta/PCA/CameraSphereVignette"
                     if (max(_dAz, _dEl) < 0.0) { t = 0.0; break; }
                 }
 
-                // --- Camera UV projection ---
-                // Directions beyond the physical camera FOV clamp to the nearest edge
-                // pixel instead of going black. Heavy blur at those edges hides the seam.
-                float safeDz = max(dot(dir, _HeadForward), 0.001);
-                float2 ndc   = float2(dot(dir, _HeadRight), dot(dir, _HeadUp)) / safeDz;
-                float2 uv    = ndc / _TanHalfFov.xy * 0.5 + 0.5;
-                if (_FlipY > 0.5) uv.y = 1.0 - uv.y;
-                float2 uvC   = clamp(uv, 0.0, 1.0);
+                // --- Per-camera UV projection ---
+                float2 uvL = CamUV(dir, _CamLFwd, _CamLRt, _CamLUp, _TanHalfFovL.xy);
+                float2 uvR = CamUV(dir, _CamRFwd, _CamRRt, _CamRUp, _TanHalfFovR.xy);
+                if (_FlipY > 0.5) { uvL.y = 1.0 - uvL.y; uvR.y = 1.0 - uvR.y; }
 
-                // How far inside the physical camera FOV are we? (0 at edge, 1 well inside)
-                float2 edgeDist = min(uvC, 1.0 - uvC);
-                float  inFov    = saturate(min(edgeDist.x, edgeDist.y) / 0.04);
+                float2 uvCL = clamp(uvL, 0.0, 1.0);
+                float2 uvCR = clamp(uvR, 0.0, 1.0);
 
-                // Effective filter intensity: ramps from focus window distance (t),
-                // but is forced to 1 at and beyond the physical FOV edge so clamped
-                // edge pixels are always heavily blurred — hiding the stretching.
-                float tEff = max(t, 1.0 - inFov);
+                float inFovL = InFovWeight(uvL);
+                float inFovR = (_HasRightCam > 0.5) ? InFovWeight(uvR) : 0.0;
+                float inFov  = max(inFovL, inFovR);
 
-                // --- Blur ---
+                // Edge pixels always get max blur to hide stretching
+                float tEff  = max(t, 1.0 - inFov);
                 float blurR = pow(tEff, _BlurCurveExp) * _MaxBlurRadius;
 
-                fixed3 camSum = tex2D(_MainTex, uvC).rgb * 4.0;
-                camSum += tex2D(_MainTex, clamp(uvC + float2( blurR,          0.0          ), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2(-blurR,          0.0          ), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2( 0.0,            blurR        ), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2( 0.0,           -blurR        ), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2( blurR * 0.707,  blurR * 0.707), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2(-blurR * 0.707,  blurR * 0.707), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2( blurR * 0.707, -blurR * 0.707), 0, 1)).rgb;
-                camSum += tex2D(_MainTex, clamp(uvC + float2(-blurR * 0.707, -blurR * 0.707), 0, 1)).rgb;
-                fixed3 blurred = camSum / 12.0;
+                // --- Sample and blend cameras ---
+                fixed3 sampledL = SampleBlurred(_MainTexL, uvCL, blurR);
+                fixed3 camColor;
+                if (_HasRightCam > 0.5)
+                {
+                    fixed3 sampledR = SampleBlurred(_MainTexR, uvCR, blurR);
+                    // Hard split: each fragment comes from whichever camera has it
+                    // more centred in its FOV. No blending = no ghosting.
+                    camColor = (inFovL >= inFovR) ? sampledL : sampledR;
+                }
+                else
+                {
+                    camColor = sampledL;
+                }
+
 
                 // --- Desaturation ---
                 float desatSpan = max(1.0 - _DesatDelay, 1e-4);
                 float desatT    = pow(saturate((tEff - _DesatDelay) / desatSpan), _DesatCurveExp);
-                float grey      = dot(blurred, fixed3(0.299, 0.587, 0.114));
-                fixed3 filtered = lerp(blurred, fixed3(grey, grey, grey), desatT);
+                float grey      = dot(camColor, fixed3(0.299, 0.587, 0.114));
+                fixed3 filtered = lerp(camColor, fixed3(grey, grey, grey), desatT);
 
                 return fixed4(filtered, 1.0);
             }
