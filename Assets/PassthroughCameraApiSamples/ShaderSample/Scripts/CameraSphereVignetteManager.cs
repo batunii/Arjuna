@@ -32,10 +32,15 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 0.9f)]  private float m_desatDelay    = 0.3f;
         [SerializeField, Range(0.5f, 4f)]  private float m_desatCurveExp = 3f;
 
-        [Header("Selection Preview")]
+        // m_selectionLine kept for scene serialisation compatibility — disabled at runtime
         [SerializeField] private LineRenderer m_selectionLine;
-        [SerializeField] private Color        m_lineColorHeld   = Color.white;
-        [SerializeField] private Color        m_lineColorLocked = new Color(1f, 1f, 1f, 0.4f);
+
+        [Header("Selection Dots")]
+        [SerializeField] private Material m_dotMaterialTemplate; // assign SelectionDotMat
+        [SerializeField] private float    m_dotSize        = 0.055f;
+        [SerializeField] private Color  m_dotColorHeld   = Color.white;
+        [SerializeField] private Color  m_dotColorLocked = new Color(1f, 1f, 1f, 0.55f);
+        [SerializeField] private Color  m_dotColorCursor = new Color(1f, 0.9f, 0.3f, 1f);
 
         [Header("Debug")]
         [SerializeField] private bool m_debugCamOverlay;
@@ -83,6 +88,11 @@ namespace PassthroughCameraSamples.ShaderSample
         private bool     m_rightCamTexSet;
         private bool     m_loggedIntrinsics;
 
+        // Selection dot GameObjects: [0-3] corners, [4] cursor
+        private GameObject[] m_selectionDots;
+        private Material[]   m_dotMats;
+        private const float  k_dotDistance = 4f; // metres from head
+
         // Cached for YOLO coordinate conversion
         private Vector3 m_headRight, m_headUp, m_headForward;
         private Vector2 m_tanHalfFov;
@@ -93,6 +103,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private IEnumerator Start()
         {
+            InitSelectionDots();
             m_material = m_renderer.material;
             m_material.SetVector(s_focusRectId, m_activeRect);
             m_material.SetFloat(s_hasRightCamId, 0f);
@@ -140,6 +151,10 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             if (m_yoloRunner != null)
                 m_yoloRunner.OnDetectionsReady -= OnDetectionsReady;
+            if (m_selectionDots != null)
+                foreach (var go in m_selectionDots) if (go != null) Destroy(go);
+            if (m_dotMats != null)
+                foreach (var mat in m_dotMats) if (mat != null) Destroy(mat);
         }
 
         private void LateUpdate()
@@ -327,52 +342,62 @@ namespace PassthroughCameraSamples.ShaderSample
             el = Mathf.Asin(Mathf.Clamp(worldDir.y, -1f, 1f));
         }
 
-        // ---- pointer + border drawing ----
+        // ---- selection dots ----
+
+        private void InitSelectionDots()
+        {
+            if (m_selectionLine != null) m_selectionLine.enabled = false;
+
+            m_selectionDots = new GameObject[5];
+            m_dotMats       = new Material[5];
+            for (int i = 0; i < 5; i++)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.name = i < 4 ? $"SelCorner{i}" : "SelCursor";
+                Destroy(go.GetComponent<SphereCollider>());
+
+                // Clone the template material so each dot has independent colour control.
+                // Template must be assigned in Inspector to guarantee inclusion in the build.
+                var mat = m_dotMaterialTemplate != null
+                    ? new Material(m_dotMaterialTemplate)
+                    : new Material(Shader.Find("Standard"));
+                mat.renderQueue = 4000; // Overlay — always visible on top
+                mat.color       = i == 4 ? m_dotColorCursor : m_dotColorHeld;
+
+                go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                go.transform.localScale = Vector3.one * m_dotSize;
+                go.SetActive(i == 4);   // only cursor dot starts visible
+
+                m_selectionDots[i] = go;
+                m_dotMats[i]       = mat;
+            }
+        }
 
         private void DrawPointerAndBorder(float az, float el, bool holding)
         {
-            if (m_selectionLine == null) return;
-            m_selectionLine.enabled = true;
-            m_selectionLine.loop    = false;
+            if (m_selectionDots == null) return;
 
             Transform head = Camera.main != null ? Camera.main.transform : transform;
-            Vector3   org  = head.position;
-            float     r    = 9.5f;
-            float     pr   = 0.055f;
+            Vector3 org = head.position;
 
+            // Cursor dot — always shown
+            m_selectionDots[4].transform.position = org + DirFromAzEl(az, el) * k_dotDistance;
+
+            // Corner dots — only when a custom region is active
             bool hasBorder = m_activeRect != k_fullSphere;
+            for (int i = 0; i < 4; i++) m_selectionDots[i].SetActive(hasBorder);
 
-            if (hasBorder)
-            {
-                Color borderColor = holding ? m_lineColorHeld : m_lineColorLocked;
-                m_selectionLine.positionCount = 10;
-                m_selectionLine.startColor    = borderColor;
-                m_selectionLine.endColor      = Color.white;
+            if (!hasBorder) return;
 
-                float azMin = m_activeRect.x, azMax = m_activeRect.y;
-                float elMin = m_activeRect.z, elMax = m_activeRect.w;
-                m_selectionLine.SetPosition(0, org + DirFromAzEl(azMin, elMin) * r);
-                m_selectionLine.SetPosition(1, org + DirFromAzEl(azMax, elMin) * r);
-                m_selectionLine.SetPosition(2, org + DirFromAzEl(azMax, elMax) * r);
-                m_selectionLine.SetPosition(3, org + DirFromAzEl(azMin, elMax) * r);
-                m_selectionLine.SetPosition(4, org + DirFromAzEl(azMin, elMin) * r);
-                m_selectionLine.SetPosition(5, org + DirFromAzEl(az - pr, el) * r);
-                m_selectionLine.SetPosition(6, org + DirFromAzEl(az + pr, el) * r);
-                m_selectionLine.SetPosition(7, org + DirFromAzEl(az,       el) * r);
-                m_selectionLine.SetPosition(8, org + DirFromAzEl(az, el - pr)  * r);
-                m_selectionLine.SetPosition(9, org + DirFromAzEl(az, el + pr)  * r);
-            }
-            else
-            {
-                m_selectionLine.positionCount = 5;
-                m_selectionLine.startColor    = Color.white;
-                m_selectionLine.endColor      = Color.white;
-                m_selectionLine.SetPosition(0, org + DirFromAzEl(az - pr, el) * r);
-                m_selectionLine.SetPosition(1, org + DirFromAzEl(az + pr, el) * r);
-                m_selectionLine.SetPosition(2, org + DirFromAzEl(az,       el) * r);
-                m_selectionLine.SetPosition(3, org + DirFromAzEl(az, el - pr)  * r);
-                m_selectionLine.SetPosition(4, org + DirFromAzEl(az, el + pr)  * r);
-            }
+            float azMin = m_activeRect.x, azMax = m_activeRect.y;
+            float elMin = m_activeRect.z, elMax = m_activeRect.w;
+            m_selectionDots[0].transform.position = org + DirFromAzEl(azMin, elMin) * k_dotDistance;
+            m_selectionDots[1].transform.position = org + DirFromAzEl(azMax, elMin) * k_dotDistance;
+            m_selectionDots[2].transform.position = org + DirFromAzEl(azMax, elMax) * k_dotDistance;
+            m_selectionDots[3].transform.position = org + DirFromAzEl(azMin, elMax) * k_dotDistance;
+
+            Color c = holding ? m_dotColorHeld : m_dotColorLocked;
+            for (int i = 0; i < 4; i++) m_dotMats[i].color = c;
         }
 
         // ---- YOLO detection zones ----
