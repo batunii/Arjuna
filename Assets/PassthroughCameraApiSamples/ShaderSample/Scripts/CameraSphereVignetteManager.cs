@@ -9,6 +9,8 @@ using UnityEngine.UI;
 
 namespace PassthroughCameraSamples.ShaderSample
 {
+    public enum VignetteMode { Blur = 0, SoftDark = 1, HardDark = 2 }
+
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
     public class CameraSphereVignetteManager : MonoBehaviour
     {
@@ -34,6 +36,11 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // m_selectionLine kept for scene serialisation compatibility — disabled at runtime
         [SerializeField] private LineRenderer m_selectionLine;
+
+        [Header("Mode")]
+        [SerializeField] private VignetteMode m_vignetteMode    = VignetteMode.Blur;
+        [SerializeField, Range(0.5f, 10f)]  private float m_vignetteFormTime = 3f;
+        [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha   = 0.75f;
 
         [Header("Selection Dots")]
         [SerializeField] private Material m_dotMaterialTemplate; // assign SelectionDotMat
@@ -74,6 +81,9 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_detectionCountId    = Shader.PropertyToID("_DetectionCount");
         private static readonly int s_detectionRectsId    = Shader.PropertyToID("_DetectionRects");
         private static readonly int s_debugCamOverlayId   = Shader.PropertyToID("_DebugCamOverlay");
+        private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
+        private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
+        private static readonly int s_maxVignetteAlphaId  = Shader.PropertyToID("_MaxVignetteAlpha");
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
@@ -98,6 +108,10 @@ namespace PassthroughCameraSamples.ShaderSample
         private Vector2 m_tanHalfFov;
 
         private Vector4 m_activeRect = k_fullSphere;
+
+        // Mode / formation
+        private float     m_vignetteStrength = 1f;
+        private Coroutine m_formCoroutine;
 
         // ---- Unity lifecycle ----
 
@@ -166,6 +180,7 @@ namespace PassthroughCameraSamples.ShaderSample
             UpdateFilterUniforms();
             UpdateDetectionUniforms();
             HandleSelection();
+            UpdateModeUniforms();
         }
 
         // ---- sphere + head ----
@@ -291,13 +306,32 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void HandleSelection()
         {
-            bool held        = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
-            bool justPressed = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
+            bool held         = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
+            bool justPressed  = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
+            bool justReleased = OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger);
+            bool bPressed     = OVRInput.GetDown(OVRInput.RawButton.B);
+
+            // B button: clear focus region and reset formation
+            if (bPressed)
+            {
+                m_activeRect = k_fullSphere;
+                m_material.SetVector(s_focusRectId, m_activeRect);
+                StopFormCoroutine();
+                m_vignetteStrength = m_vignetteMode == VignetteMode.Blur ? 1f : 0f;
+                m_isPainting = false;
+            }
 
             GetControllerAzEl(out float az, out float el);
 
             if (justPressed)
             {
+                // Reset formation strength when a new selection starts
+                if (m_vignetteMode != VignetteMode.Blur)
+                {
+                    StopFormCoroutine();
+                    m_vignetteStrength = 0f;
+                }
+
                 m_activeRect = new Vector4(
                     az - k_brushPad, az + k_brushPad,
                     el - k_brushPad, el + k_brushPad);
@@ -314,9 +348,54 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_material.SetVector(s_focusRectId, m_activeRect);
             }
 
+            // On release: trigger vignette formation (or snap to 1 for Mode 1)
+            if (justReleased && m_isPainting && m_activeRect != k_fullSphere)
+            {
+                if (m_vignetteMode == VignetteMode.Blur)
+                {
+                    m_vignetteStrength = 1f;
+                }
+                else
+                {
+                    StopFormCoroutine();
+                    m_formCoroutine = StartCoroutine(FormVignette());
+                }
+            }
+
             if (!held) m_isPainting = false;
 
             DrawPointerAndBorder(az, el, held);
+        }
+
+        private void StopFormCoroutine()
+        {
+            if (m_formCoroutine != null)
+            {
+                StopCoroutine(m_formCoroutine);
+                m_formCoroutine = null;
+            }
+        }
+
+        private IEnumerator FormVignette()
+        {
+            float elapsed = 0f;
+            while (elapsed < m_vignetteFormTime)
+            {
+                elapsed += Time.deltaTime;
+                m_vignetteStrength = Mathf.SmoothStep(0f, 1f, elapsed / m_vignetteFormTime);
+                yield return null;
+            }
+            m_vignetteStrength = 1f;
+            m_formCoroutine    = null;
+        }
+
+        private void UpdateModeUniforms()
+        {
+            bool isSimple = m_vignetteMode != VignetteMode.Blur;
+            m_material.SetFloat(s_simpleModeId, isSimple ? 1f : 0f);
+            m_material.SetFloat(s_vignetteStrengthId, m_vignetteStrength);
+            float maxAlpha = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+            m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
         }
 
         // ---- controller aim ----

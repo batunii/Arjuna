@@ -631,6 +631,9 @@ MonoBehaviour:
   m_desatDelay: 0.3
   m_desatCurveExp: 3
   m_selectionLine: {fileID: 1551927729}
+  m_vignetteMode: 1
+  m_vignetteFormTime: 8
+  m_mode2MaxAlpha: 0.75
   m_dotMaterialTemplate: {fileID: 2100000, guid: b18da3256e7208b41853d86c2d948044, type: 2}
   m_dotSize: 0.055
   m_dotColorHeld: {r: 1, g: 1, b: 1, a: 1}
