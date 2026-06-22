@@ -1,186 +1,169 @@
-# System: Focus Vignette (world-locked attention filter)
+# System: CameraSphereVignette (DR attention-guidance overlay)
 
-Last updated: 2026-06-09
+Last updated: 2026-06-22. Branch: `feature/PolishingModes`.
 
-A **multi-mode** Diminished-Reality overlay on the real system passthrough (Underlay) — full
-passthrough quality, no camera feed in the visuals (→ no warp). One shader + `FocusVignetteManager`,
-**switch modes with the left controller Y button** (`_FocusMode`):
+Multi-mode Diminished Reality attention-guidance prototype for the MSc dissertation. One shader + one
+manager on a **head-centered inverted sphere** (~10 m radius, `Cull Front`). The sphere renders as
+transparent inside the focus window so OS passthrough (full ~110° FOV, OS quality) shows through;
+the DR effect lives only in the periphery.
 
-- **Mode 1 — DYNAMIC (driving):** a clear **cone follows the gaze** (`_FocusDir` = head forward),
-  soft falloff `_InnerAngle.._OuterAngle`; **light** dim in the periphery (`m_dynamicDimColor`,
-  `m_dynamicMax` ~0.45). The dim **eases off while you turn your head** (head angular speed >
-  `m_motionThresholdDeg` → `_DrIntensity`→0 over `m_revealSeconds`) and **eases back on when you
-  settle** (over `m_reapplySeconds` ≈ 2–4s) — situational-awareness easing (Gap 3). No selection.
-- **Mode 3 — STATIC (workstation):** user picks **two opposite corners** → axis-aligned rectangle
-  window; **tunnel** (black) outside, gradual soft edge (`_EdgeSoftness`).
-
-YOLO salience un-dims detected objects in both modes (esp. relevant for Mode 1 situational awareness).
-
-**Static controller selection (`FocusVignetteManager`):** the user picks **two opposite corners** → an
-axis-aligned rectangle window.
-- **A / index pinch** — place the next corner at the aim point (`pointer.position + forward *
-  m_selectDistance`); a cyan `FV_AimCursor` shows where you're aiming; yellow markers mark placed
-  corners.
-- **B / middle pinch** — reset and start over.
-- Until both corners are placed (`_RegionActive = 0`) the whole view is clear so the user can aim.
-  Corners are stored as **world points**; their directions-from-head are recomputed each frame, so the
-  window is world-locked. `m_pointer` = RightControllerAnchor; `m_headAnchor` = CenterEyeAnchor.
-- The outside fade is **gradual** (`_EdgeSoftness`, default 0.2) via a signed-distance soft edge, not a
-  hard boundary.
-
-**Outside look:** `_DimColor`/`_MaxDim` (default black @ 1.0 = tunnel; set dark-grey @ ~0.8 for a gentle
-dim instead). Markers use an `Unlit/Color` material (watch for pink on device → add `Unlit/Color` to
-Always Included Shaders if stripped).
-
-**Why no camera feed:** the modifiable camera feed warps (mono, offset, no depth correction) and the
-crisp system passthrough can't be blurred/read (OS owns the pixels — see
-[[pca-mono-camera-stereo-comfort]]). So the effect is **subtractive (black-out/dim), not blur**.
-
-Architecture: Transparent queue, `Blend SrcAlpha OneMinusSrcAlpha`, `Cull Front`, `ZWrite Off`. The
-shader gnomonically projects the 4 corner directions + the fragment direction onto the region-center
-tangent plane and does a point-in-quad test; `alpha = tunnel * _MaxDim`. YOLO salience reduces `tunnel`
-→ detected objects stay visible through the tunnel. Head-basis/intrinsics uniforms are fed only to
-locate the salience boxes (no colour sampled).
+---
 
 ## Files
 
-- `ShaderSample/Shaders/FocusVignette.shader` — shader `Meta/PCA/FocusVignette`.
-- `ShaderSample/Scripts/FocusVignetteManager.cs` — driver MonoBehaviour.
-- `ShaderSample/Materials/FocusVignetteMat.mat` — material using the shader.
-- `ShaderSample/Scripts/FocusSalienceDetector.cs` — slim YOLO runner (peripheral object salience).
-
-## Peripheral object salience (YOLO)
-
-`FocusSalienceDetector` runs the bundled Sentis YOLOv9 model (COCO-80) on the camera frames and feeds
-the bounding boxes of "important" classes (people, stop signs, vehicles, … — configurable
-`m_highlightClasses`) to the shader as normalized image-space rects (`_SalienceBoxes` + `_SalienceCount`,
-up to 16). In those regions the shader drops the blur/desaturation (`effect *= 1 - salience`) and adds a
-brightness/contrast boost, so safety-relevant objects pop out of the dimmed periphery.
-
-- It is **detection-only**: no spatial anchors, no environment raycast, no DetectionManager graph
-  (unlike `MultiObjectDetection`'s `SentisInferenceRunManager`). Depends only on
-  `PassthroughCameraAccess` + the model + labels.
-- Shader tunables: `_SalienceFeather` (soft edge), `_HighlightBrightness`, `_HighlightContrast`,
-  `_SalienceFlipY` (reconcile box vs camera-UV vertical orientation if misaligned).
-
-## Dissertation alignment (Static mode)
-
-This effect is the **Static-mode prototype** for the dissertation (see [[dissertation-attention-guidance]])
-— the 3-channel DR pipeline: **desaturation** (`_Desat`) + **blur** (`_BlurRadius`) + **boundary
-highlight** (`_EdgeGlow` / `_EdgeColor` / `_EdgeWidth`, a soft rim at the focus-cone edge).
-
-- **User-controlled reveal (Gaps 3+4):** B button / middle-finger pinch toggles DR off (reveal the
-  full scene) and back on, **eased** via `_DrIntensity` (driven by `m_transitionSpeed` in
-  `FocusVignetteManager`). Demonstrates temporal transitions + user-controlled release.
-- Still TODO toward the full dissertation: mode system + UI, Dynamic (head-follow + auto easing on
-  head turn) and Semi-Dynamic (multi-anchor) modes, Kawase blur (replace the box blur), per-mode
-  presets. The YOLO salience is parked here but belongs to the Dynamic (driving) mode.
-- Box alignment is approximate (camera FOV ≠ eye FOV, and the camera is sampled screen-space), which is
-  fine for a subtle salience boost; calibrate `_SalienceFlipY` / thresholds on device.
-
-## Stereo comfort (double-vision fix)
-
-The camera UV is computed from each fragment's **world direction** (head → fragment), projected
-through a head-centered pinhole (`_HeadRight/_HeadUp/_HeadForward` + `_TanHalfFov`, fed per-frame by
-`FocusVignetteManager` from the head transform and `m_cameraHorizontalFovDeg`). Because the world
-direction is **eye-independent**, the same real-world point maps to the same camera pixel in both eyes,
-so the mono image **fuses** instead of doubling.
-
-This replaced the original screen-space sampling (`uv = screenPos`), which tied the UV to per-eye
-screen position → each eye sampled a different camera pixel for the same point → double vision. See
-[[pca-mono-camera-stereo-comfort]].
-
-The display FOV (`_TanHalfFov`) is derived from the **camera intrinsics**: horizontal half-FOV =
-`SensorResolution.x / (2 * FocalLength.x)`; **vertical is derived from the displayed texture aspect**
-(`CurrentResolution`) to avoid a Y-stretch when the sensor aspect differs from the streamed/cropped
-aspect. `m_cameraHorizontalFovDeg` is only a fallback until intrinsics are available. `_FlipY` if the
-image is vertically inverted.
-
-Out-of-FOV handling: the passthrough camera's FOV is narrower than the headset display, so the lower
-periphery (looking down) falls outside the camera image. Rather than clamping/stretching the edge
-texels (vertical streaks), the shader forces those areas to **full blur + desaturation** (a soft
-dimmed periphery — `_FovFeather` controls the edge softness; `fovInside` drives `effect → 1` beyond the
-FOV). It deliberately does NOT darken to black (that read as an ugly dark "box"). If the periphery
-still reads as a frame, the cleaner fix is showing real system passthrough there (alpha-blend over the
-underlay) — a noted follow-up.
-
-Trade-off: the world looks flat-ish (mono → no real depth) and the periphery beyond the camera FOV is
-dark, but it fuses comfortably. A one-time `[FocusVignette]` Debug.Log reports the real
-focal/sensorRes/currentRes/FOV at startup (read via on-device logcat).
-
-Performance: `FocusSalienceDetector` throttles inference via `m_detectionInterval` (default 0.15s ≈
-6–7 Hz) — running YOLO every frame on CPU starved the render thread. Switch `m_backend` to
-`GPUCompute` for snappier detection if needed.
-
-## How it works
-
-- Renders on the **inside of a large inverted sphere** (`Cull Front`, `ZWrite Off`) centered on
-  the head. Each fragment derives a world-space direction from `worldPos - _SphereCenter`, so the
-  effect is locked to the room, not the head rotation.
-- `effect = smoothstep(_InnerAngle, _OuterAngle, angleFromFocus)` → `0` inside the focus cone,
-  ramping to `1` in the periphery. Used to lerp sharp→blurred and to drive desaturation.
-- Camera feed is sampled in **screen space** (`ComputeScreenPos`) — the camera image fills the eye
-  viewport; the focus mask is what's world-locked.
-- Blur is a cheap 9-tap box blur with radius scaled by `effect`.
-
-## Shader properties
-
-| Property | Meaning |
+| File | Purpose |
 |---|---|
-| `_MainTex` | Passthrough camera texture (set from script). |
-| `_FocusDir` | World-space focus direction (set/frozen from script). |
-| `_InnerAngle` / `_OuterAngle` | Radians; start/end of the sharp→blurred falloff. |
-| `_BlurRadius` | Max blur radius in texels at full effect. |
-| `_Desat` | Max desaturation (0–1) at full effect. |
-| `_FlipY` | Toggle if the camera image is vertically inverted. |
-| `_SphereCenter` | Head/sphere center world pos (uniform, set per-frame by script). |
+| `ShaderSample/Shaders/CameraSphereVignette.shader` | Shader `Meta/PCA/CameraSphereVignette` |
+| `ShaderSample/Scripts/CameraSphereVignetteManager.cs` | Driver MonoBehaviour |
+| `ShaderSample/Materials/SelectionDotMat.mat` | Template material for selection dot clones |
+| `Assets/CameraSphereVignette.unity` | Scene |
 
-## Manager (`FocusVignetteManager`)
+GameObject in scene: `CameraSphereSphere`. Manager lives on it.
 
-Place on the sphere GameObject. Serialized fields:
+---
 
-- `m_cameraAccess` — the scene `PassthroughCameraAccess`.
-- `m_renderer` — the sphere's `MeshRenderer` (uses `FocusVignetteMat`).
-- `m_debugText` — optional permission-status `Text`.
-- `m_headAnchor` — head transform (e.g. `CenterEyeAnchor`); falls back to `Camera.main`.
-- `m_allowRecenter` — if true, A button / index pinch re-aims the focus to current gaze
-  (uses [InputManager](input.md)).
+## Modes
 
-Behavior: waits for camera permission + `IsPlaying`, assigns `GetTexture()` to `_MainTex`, then each
-`LateUpdate` recenters the sphere on the head (position only) and writes `_SphereCenter`; freezes
-`_FocusDir` to the head's forward at start (and on re-center).
+### Mode 1 — Blur (`VignetteMode.Blur`)
 
-## Scene
+Both passthrough cameras (Left + Right `PassthroughCameraAccess`) are sampled. A **hard-split blend**
+picks the camera with the higher in-FOV weight at each fragment (`inFovL >= inFovR ? sampledL :
+sampledR`) — no alpha crossfade avoids ghosting. The periphery is **blurred** (9-tap offset kernel,
+radius scales with `tEff`) and **desaturated** (greyscale lerp, delayed by `_DesatDelay`).
 
-`Assets/FocusVignette.unity` is the **boot scene (Build index 0)**; StartScene is index 1 (kept so
-the ☰/Start-button `ReturnToStartScene` still works). It was created from `ShaderSample.unity`, so it
-reuses the camera rig, passthrough, and `PassthroughCameraAccessPrefab`. Differences from ShaderSample:
+Vignette strength is always 1 (no formation animation). Focus window is transparent → OS passthrough shows through.
 
-> Boot-scene note: the shared `RequestPermissionsOnce` only fires for scenes loaded *after*
-> StartScene, so it never triggers when FocusVignette boots directly. `FocusVignetteManager` therefore
-> **requests `PassthroughCameraAccess` itself** in `Start` before waiting on it.
+### Mode 2 — Soft Dark (`VignetteMode.SoftDark`)
 
+`_SimpleMode = 1`: shader skips all camera sampling, returns `fixed4(0, 0, 0, t * _VignetteStrength * _MaxVignetteAlpha)`.
+`_MaxVignetteAlpha` = `m_mode2MaxAlpha` (default 0.75) — periphery never fully opaque.
+`_VignetteStrength` is animated 0→1 by `FormVignette()` coroutine (SmoothStep over `m_vignetteFormTime`),
+triggered on right trigger release.
 
-- Water plane / pool geometry (`ShaderSampleWaterArea`) removed; `ShaderSampleManager` component
-  removed from the `ShaderSampleManagerPrefab` (its `DebugText` child is kept and reused).
-- A `FocusVignetteSphere` (Sphere primitive, scale 20 → 10 m radius, collider removed) with
-  `FocusVignetteMat` and the `FocusVignetteManager`, wired to: `m_cameraAccess` →
-  `PassthroughCameraAccessPrefab`, `m_renderer` → its own MeshRenderer, `m_headAnchor` →
-  `CenterEyeAnchor`, `m_debugText` → the kept `DebugText`.
+### Mode 3 — Hard Dark (`VignetteMode.HardDark`)
 
-To recreate from scratch: duplicate `ShaderSample.unity`, remove the water area + old manager, add a
-large sphere with `FocusVignetteMat` + `FocusVignetteManager`, wire the four references, add to
-Build Settings.
+Same as Soft Dark but `_MaxVignetteAlpha = 1.0` → complete black-out in periphery.
 
-## Constraints / notes
+---
 
-- The passthrough camera is a **single mono, forward-facing** sensor — only the FOV cone you're
-  looking at has data. Fine here: the periphery is blurred/desaturated anyway, which hides
-  mono/offset artifacts.
-- Heavy blur is the main perf cost; the 9-tap box blur is intentionally cheap. For stronger blur,
-  pre-blur the camera texture into a downsampled RenderTexture and lerp.
-- Keep the inner cone generous and the falloff gradual for comfort; tight rings feel claustrophobic
-  and hard edges shimmer with head motion.
+## Shader: key properties
 
-Related: [Passthrough Camera Access](passthrough-camera-access.md), [Input](input.md),
-[ShaderSample scene](<../scenes/shader-sample.md>).
+| Property | Set by | Meaning |
+|---|---|---|
+| `_FocusRect` | Manager / frame | `(azMin, azMax, elMin, elMax)` in radians — world-locked focus rect |
+| `_SoftEdge` | `m_softEdgeDeg * Deg2Rad` | SmoothStep width at rect boundary |
+| `_SimpleMode` | `UpdateModeUniforms` | 0 = Blur (camera), 1 = Dark (simple) |
+| `_VignetteStrength` | `UpdateModeUniforms` | Formation + motion suppression combined (0–1) |
+| `_MaxVignetteAlpha` | `UpdateModeUniforms` | Ceiling alpha (0.75 = Soft, 1.0 = Hard) |
+| `_MainTexL/R` | Start coroutine | Left/Right PCA textures |
+| `_HasRightCam` | `FeedCameraUniforms` | 1 if right camera is live |
+| `_SphereCenter` | `UpdateSpherePosition` | Head world-pos (updated each frame) |
+| `_CamL/RFwd/Rt/Up`, `_TanHalfFovL/R` | `FeedOneCameraUniforms` | Camera projection basis |
+
+**`t` value** (per-fragment): `smoothstep(0, _SoftEdge, max(dAz, dEl))` where `dAz/dEl` is signed
+distance outside `_FocusRect`. `t = 0` inside focus window, `t = 1` fully outside. Mode 1 uses `t`
+for blur and desat weights; Modes 2/3 use it directly as overlay alpha.
+
+---
+
+## Manager: key systems
+
+### Focus rect selection (`HandleSelection`)
+
+Right trigger held → paint rect (starts at cursor ± `k_brushPad`, expands while held).
+Right trigger release → lock rect; trigger vignette formation (Modes 2/3) or snap strength=1 (Mode 1);
+start dot-hide countdown.
+
+Rect stored in world spherical coords `(azMin, azMax, elMin, elMax)` via `atan2` / `asin` on
+controller forward. Recomputed every frame → world-locked even as head moves.
+
+**B** = clear rect, cancel formation, hide dots immediately.
+**A** = cycle mode (Blur → SoftDark → HardDark → Blur); if rect exists in new Modes 2/3, starts
+formation immediately.
+
+### Vignette formation (`FormVignette` coroutine)
+
+`m_vignetteStrength` SmoothStep 0→1 over `m_vignetteFormTime` seconds. Runs independently of motion
+suppression — if head moves and suppresses, the coroutine keeps counting in the background so the
+effect resumes at whatever level it reached when the head settles.
+
+### Motion suppression (`UpdateMotionDisable`)
+
+Computes head angular velocity (deg/s) each frame using `Quaternion.Angle(m_lastHeadRot, head.rotation)`.
+
+Per-mode thresholds: `m_motionBlur / m_motionSoftDark / m_motionHardDark` (`MotionSettings { speedThreshDeg, holdSeconds }`).
+Global fade speeds: `m_motionFadeOutSec` (default 0.2 s), `m_motionFadeInSec` (default 0.7 s).
+
+`m_motionSuppression` (float 0→1) is animated with `MoveTowards` at those speeds. Shader receives
+`effectiveStrength = m_vignetteStrength * (1 - m_motionSuppression)`.
+
+**Focus-region cancellation:** each frame, if the head direction is inside `_FocusRect + 15°` margin
+(`k_focusArrivalMarginRad = 0.2618 rad`), `m_motionDisableTimer` is zeroed immediately → effect
+restores without waiting for the hold timer, even if the user was moving fast.
+
+### Mode indicator toast (`InitModeUI / ShowModeToast / UpdateModeUI`)
+
+World-space Canvas (0.54 m × 0.15 m), lazy-follow at 1.5 m forward + 0.3 m below eye level. Billboards
+toward head (`transform.rotation = LookRotation(canvasPos - headPos)`).
+
+Content: pip dots (`● ○ ○` etc.), mode name, description, controls hint. Coloured accent stripe (blue/amber/red).
+Fade-in 0.35 s, total show time 2.8 s, then fade out. Triggered on `ShowModeToast()` (called on A press and at startup).
+
+Font: `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` with `"Arial.ttf"` fallback.
+
+### Selection dots (`InitSelectionDots / DrawPointerAndBorder`)
+
+5 runtime sphere GameObjects: [0–3] corner dots, [4] yellow cursor dot. Each gets `new Material(m_dotMaterialTemplate)`
+clone at `renderQueue = 4000`.
+
+`m_dotMaterialTemplate` MUST be assigned in the Inspector (set to `SelectionDotMat.mat`). This
+guarantees the material shader is included in the Android build — `Shader.Find("Unlit/Color")` returns
+null on Quest (stripped shaders), which would silently crash the Start coroutine.
+
+Auto-hide: `HideDotsCoro()` waits `m_dotHideDelay` seconds, then shrinks corner dots to scale 0 over
+0.3 s. `m_cornerDotsHidden` flag prevents `DrawPointerAndBorder` from re-enabling them during shrink.
+Cancelled and restored (`RestoreDotsScale`) on next trigger press.
+
+---
+
+## Architecture notes
+
+- **Sphere renders from inside** (`Cull Front`): each fragment's world direction is `normalize(worldPos - _SphereCenter)`.
+- **Transparent queue** (`Queue = Transparent`), `Blend SrcAlpha OneMinusSrcAlpha`, `ZWrite Off`. Alpha = 0 in focus window → OS passthrough shows through. This is how the full-FOV effect works — the sphere is invisible where you should look.
+- **World-locked rect** via az/el (not screen-space, not head-space) — the window stays fixed in the room even as the head rotates.
+- **No blur in Modes 2/3** — the early-return in the shader skips all camera math. Performance cost in those modes is minimal.
+- **Dual-camera blend** (Mode 1): hard-split (not alpha blend) avoids double-image ghosting. Left + right cameras face the same direction (horizontally offset like eyes); the stitch is invisible in normal use.
+
+---
+
+## Known constraints / not yet done
+
+- On-device parameter tuning (motion thresholds, formation time, blur curve, soft edge) — not done yet
+- YOLO salience disabled (`m_sentisModel: {fileID: 0}` — unassigned intentionally to avoid build failure)
+- No session persistence for selected region
+- Hand-tracking input disabled; right-hand controller only
+- `m_blurCurveExp` is 3.0 in scene YAML (was intended to be 4.0 — CoPlay reset it during a save)
+
+---
+
+## Inspector parameters (CameraSphereVignetteManager)
+
+| Header | Field | Default | Notes |
+|---|---|---|---|
+| Filter | `m_softEdgeDeg` | 20° | Vignette edge softness |
+| Filter | `m_maxBlurRadius` | 0.01 | Mode 1 blur UV radius |
+| Filter | `m_blurCurveExp` | 3.0 | Blur ramp power |
+| Filter | `m_desatDelay` | 0.3 | Desat starts at this fraction of tEff |
+| Filter | `m_desatCurveExp` | 3.0 | Desat ramp power |
+| Mode | `m_vignetteMode` | Blur | Starting mode |
+| Mode | `m_vignetteFormTime` | 3 s | SmoothStep formation duration (Modes 2/3) |
+| Mode | `m_mode2MaxAlpha` | 0.75 | Soft Dark max overlay opacity |
+| Motion | `m_motionBlur.speedThreshDeg` | 30°/s | |
+| Motion | `m_motionSoftDark.speedThreshDeg` | 50°/s | |
+| Motion | `m_motionHardDark.speedThreshDeg` | 70°/s | |
+| Motion | `m_motionFadeOutSec` | 0.20 s | Effect fade-out speed on movement |
+| Motion | `m_motionFadeInSec` | 0.70 s | Effect fade-in speed on settle |
+| Dots | `m_dotSize` | 0.055 | World-space sphere radius |
+| Dots | `m_dotHideDelay` | 3 s | Seconds before corner dots shrink away |
+
+Related: [[dissertation-attention-guidance]], [[pca-mono-camera-stereo-comfort]]

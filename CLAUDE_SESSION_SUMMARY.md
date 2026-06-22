@@ -1,75 +1,140 @@
-# Claude Session Summary — Focus Vignette / Attention-Guidance Dissertation
+# Claude Session Summary — Diminished Reality Attention-Guidance Dissertation
 
-> Handoff doc to resume the work. Last session: 2026-06-14.
-> Companion docs: `.agent-docs/systems/focus-vignette.md` (system detail), `FOCUS_VIGNETTE_PROGRESS.md`
-> (earlier journey), `Dissertation/dissertation_progress_report.md` (the dissertation plan).
+> Last updated: 2026-06-22. Branch: `feature/PolishingModes`.
+> Companion doc: `.agent-docs/systems/focus-vignette.md` (full technical detail).
+> Dissertation plan: `Dissertation/dissertation_progress_report.md`.
+
+---
 
 ## What this is
 
-Implementation for the MSc dissertation **"Guiding User Attention in Real-World Tasks Using XR
-Overlays"** — a multi-mode **Diminished Reality (DR)** system on **Quest 3 passthrough**. Built on the
-Meta `Unity-PassthroughCameraApiSamples` project (Unity 6, MRUK, Sentis YOLO).
+MSc dissertation prototype: **"Guiding User Attention in Real-World Tasks Using XR Overlays"** — a
+3-mode Diminished Reality attention-guidance system on **Quest 3 passthrough**. Built on Meta's
+`Unity-PassthroughCameraApiSamples` (Unity 6).
 
-The effect is one shader + one manager on a head-centered inverted sphere
-(`Assets/FocusVignette.unity`, boots directly — Build index 0):
-- `ShaderSample/Shaders/FocusVignette.shader`
-- `ShaderSample/Scripts/FocusVignetteManager.cs`
-- `ShaderSample/Scripts/FocusSalienceDetector.cs` (slim YOLO runner → un-dims important objects)
+The effect is one shader + one C# manager on a **head-centered inverted sphere** (~10 m radius). The
+sphere is transparent where the user should look (focus window) and applies a DR effect in the
+periphery. OS passthrough bleeds through the transparent focus window at full ~110° FOV — this is the
+key architectural win.
 
-## Current state (what works)
+---
 
-**Multi-mode, switchable, FULL passthrough quality** (a translucent overlay on the real system
-passthrough — NO camera feed in the visuals, so no warp/mono issues):
+## Active files
 
-- **Mode 1 — DYNAMIC (driving):** clear cone follows the gaze; **light** dim in the periphery; the dim
-  **eases off while you turn your head** (situational awareness) and eases back when you settle.
-- **Mode 3 — STATIC (workstation):** point a controller at **two opposite corners** → axis-aligned
-  rectangle window; **gradual** (soft-edge) **tunnel/black-out** outside it. *(This is the one the user
-  liked best.)*
+| File | Role |
+|---|---|
+| `Assets/CameraSphereVignette.unity` | Scene (boot it in Unity to work) |
+| `ShaderSample/Shaders/CameraSphereVignette.shader` | Shader: `Meta/PCA/CameraSphereVignette` |
+| `ShaderSample/Scripts/CameraSphereVignetteManager.cs` | Driver MonoBehaviour |
+| `ShaderSample/Materials/SelectionDotMat.mat` | Template for runtime selection dot clones |
 
-**Controls** (work with controllers OR hand pinch via the project's `InputManager`):
-- **B / middle-finger pinch** = switch Mode 1 ↔ Mode 3.
-- **A / index-finger pinch** = (Static) place a corner; press again after 2 to redo.
-- Boots into **Mode 3 (Static)**. Debug text shows the current mode.
+The sphere GameObject in the scene is called `CameraSphereSphere`.
+`m_dotMaterialTemplate` on the manager must be wired to `SelectionDotMat.mat` (guarantees inclusion in
+Quest build — `Shader.Find` returns null for stripped shaders on Android).
 
-## The journey / key lessons (so we don't re-litigate)
+---
 
-1. **Mono camera over full FOV = double vision.** Painting the single PCA camera across both eyes
-   doesn't fuse. Fixed by sampling via **world direction** (eye-independent) + intrinsics FOV — but the
-   raw camera still warps (offset from eyes, no depth correction), worst on close objects.
-2. **You cannot read/blur/modify the system passthrough** (OS owns those pixels) — only the camera
-   feed is modifiable, and it's lower quality. This is the core trilemma:
-   *blur + quality + spatial focus — pick two.*
-3. **Final design choice:** keep the crisp **real system passthrough** everywhere and **dim/black-out
-   the periphery with a translucent overlay** (subtractive DR = the dissertation's Gap 2). No camera
-   feed in the visuals → full quality, no warp. Trade-off: can dim/desaturate but **not blur**.
-4. **Input gotcha (resolved):** "controllers don't work" was the **headset being in hand-tracking
-   mode** (controllers `CONNECTED_INACTIVE`) — a **headset restart fixed it**. Not a code bug. The
-   input code uses `InputManager` (controller buttons OR pinch).
-5. ShaderLab `[Header(...)]` text must be plain (no parentheses/dashes) or the build fails to parse.
+## Current state — what works
 
-## Next steps / TODO
+### Three modes (switchable with A button at runtime)
 
-- On-device tuning of **Mode 1**: `m_dynamicMax` (dim strength, ~0.45), `m_dynamicOuterAngle` (cone
-  width), `m_motionThresholdDeg` / `m_revealSeconds` / `m_reapplySeconds` (the motion easing).
-- On-device tuning of **Mode 3**: `_EdgeSoftness` (fade width), `m_staticDimColor`/`m_staticMax`.
-- Decide whether **YOLO salience** stays on per mode (currently un-dims detected objects in both).
-- Add **Mode 2 (Semi-Dynamic / classroom)** — multi-anchor focus (dissertation's third mode).
-- Optional: a proper mode-selection UI; per-mode presets surfaced cleanly (dissertation Gap 1).
-- Consider re-introducing hand-tracking input cleanly if hand use is wanted (OpenXR `HandTracking`
-  feature — was toggled during debugging; left disabled to match the working config).
+| Mode | Enum | Effect | Formation |
+|---|---|---|---|
+| **Blur** | `VignetteMode.Blur` | Dual-camera overlay in periphery — blurred + desaturated | Instant (always strength=1) |
+| **Soft Dark** | `VignetteMode.SoftDark` | Pure dark overlay, never fully opaque (`m_mode2MaxAlpha` ≈ 0.75) | Gradual: SmoothStep 0→1 over `m_vignetteFormTime` |
+| **Hard Dark** | `VignetteMode.HardDark` | Pure dark overlay, full black-out | Gradual: same coroutine, max alpha = 1.0 |
+
+In all modes: the focus window is **transparent** → OS passthrough (full ~110° FOV, full quality)
+shows through. The DR effect only lives in the periphery.
+
+### Controls
+
+| Input | Action |
+|---|---|
+| Right trigger (hold + sweep) | Paint focus region (world-locked rect in az/el space) |
+| Right trigger release | Lock region; start vignette formation (Modes 2/3) |
+| **A** | Cycle mode forward (Blur → Soft Dark → Hard Dark → Blur) |
+| **B** | Clear region, reset formation, hide corner dots |
+
+### Selection UI
+
+- 5 runtime sphere GameObjects: **4 corner dots** (white while holding, dimmed when locked) + **1 yellow cursor dot**
+- Corner dots auto-hide after `m_dotHideDelay` seconds (default 3 s) via scale-shrink animation
+- Pressing trigger again cancels the hide and restores dots at full size
+
+### Mode indicator toast
+
+On A press (mode change), a world-space canvas panel appears at ~1.5 m forward, 0.3 m below eye level:
+- Dark background with **colour-coded accent stripe** (blue = Blur, amber = Soft Dark, red = Hard Dark)
+- Pip dots (e.g. `● ○ ○`) + mode name + description + controls hint
+- Fade-in 0.35 s → visible 2.8 s total → fade out
+
+### Motion-based suppression
+
+When head angular speed exceeds a per-mode threshold, the vignette effect is **gradually suppressed**
+(not cut instantly). The effect fades back in when the head slows down.
+
+- **Per-mode thresholds** in Inspector: `m_motionBlur`, `m_motionSoftDark`, `m_motionHardDark`
+  (each has `speedThreshDeg` and `holdSeconds`)
+- **Global fade speeds**: `m_motionFadeOutSec` (default 0.2 s), `m_motionFadeInSec` (default 0.7 s)
+- **Key behaviour**: if head enters the focus rect (+ 15° margin), the hold timer is zeroed
+  immediately — effect restores without waiting. Moving toward the region still suppresses until arrival.
+
+---
+
+## Key architectural decisions (do not re-litigate)
+
+1. **OS passthrough in focus window, not camera feed.** The shader returns `alpha = t` where `t = 0`
+   inside the focus rect. Alpha=0 → transparent → OS passthrough at full quality shows through. This
+   solved the FOV problem (camera gives ~85-90°; OS gives ~110°) and the quality problem in one line.
+
+2. **World-locked focus rect in azimuth/elevation.** The focus rect is stored as
+   `(azMin, azMax, elMin, elMax)` in radians. Each fragment computes `az = atan2(dir.x, dir.z)` and
+   `el = asin(dir.y)` — fully world-locked, not head-locked.
+
+3. **Mode 2/3 skip camera sampling entirely.** The shader has an early return for `_SimpleMode > 0.5`:
+   `return fixed4(0, 0, 0, t * _VignetteStrength * _MaxVignetteAlpha)`. No camera UV math, no blur — just a dark overlay.
+
+4. **Dual camera (Left + Right PCA), hard-split blend.** Mode 1 samples both cameras and picks based
+   on FOV weight: `camColor = (inFovL >= inFovR) ? sampledL : sampledR`. No alpha blend (no ghosting).
+   The two forward-facing cameras have the same orientation (just horizontally offset like eyes), so the
+   stitch is invisible in normal use.
+
+5. **`SelectionDotMat.mat` as serialized template.** Runtime dots use `new Material(m_dotMaterialTemplate)`
+   clones. The template being in project assets guarantees it survives Android build stripping.
+   `Shader.Find("Unlit/Color")` returns null on Quest — never use it for runtime materials.
+
+---
+
+## Parameters to tune on device
+
+All in the Inspector on `CameraSphereSphere > CameraSphereVignetteManager`:
+
+| Group | Key fields |
+|---|---|
+| Filter | `m_softEdgeDeg` (vignette softness), `m_maxBlurRadius`, `m_blurCurveExp`, `m_desatDelay`, `m_desatCurveExp` |
+| Mode | `m_vignetteFormTime` (formation duration), `m_mode2MaxAlpha` (Soft Dark ceiling) |
+| Motion | `m_motionBlur/SoftDark/HardDark.speedThreshDeg`, `.holdSeconds`, `m_motionFadeOutSec`, `m_motionFadeInSec` |
+| Dots | `m_dotSize`, `m_dotHideDelay` |
+
+---
+
+## What is NOT done yet
+
+- On-device tuning of all parameters (especially motion thresholds and formation time)
+- Saving/persisting the selected region between sessions
+- Any formal user study / data collection tooling
+- YOLO salience integration (was disabled — `m_sentisModel: {fileID: 0}`)
+- Hand-tracking input (disabled; controllers only for now)
+
+---
 
 ## How to run
 
-1. Open `Assets/FocusVignette.unity` in Unity (Coplay connected for agent edits).
-2. Connect Quest 3 (USB-debug authorized); ensure controllers are awake / not stuck in hand mode
-   (restart headset if input is dead).
-3. **Build And Run** (Android). Boots into Mode 3 — aim + A to set a window; B to switch to Mode 1.
-4. Capture/verify via `hzdb` screenshots using the **screencap** method (metacam is black while the
-   app holds the camera).
+1. Open `Assets/CameraSphereVignette.unity` in Unity (ensure CoPlay is connected for agent edits).
+2. Connect Quest 3 via USB, controllers awake (restart headset if input is dead — it gets stuck in
+   hand-tracking mode).
+3. **Build And Run** (Android / Quest target).
+4. On device: hold right trigger + sweep to paint a region, release to lock. A to cycle modes. B to clear.
 
-## Notes
-
-- Build to a **non-OneDrive** folder (OneDrive sync locks files mid-build → spurious failures).
-- `Dissertation/` (research PDFs, ~220 MB) is intentionally **not committed**; consider gitignoring it.
-- Branch: `feat/focus-vignette-static-mode` (now also contains Mode 1).
+> Build to a **non-OneDrive** folder — OneDrive sync locks files mid-build.
