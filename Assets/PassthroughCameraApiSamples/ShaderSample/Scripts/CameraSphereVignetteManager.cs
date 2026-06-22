@@ -11,6 +11,15 @@ namespace PassthroughCameraSamples.ShaderSample
 {
     public enum VignetteMode { Blur = 0, SoftDark = 1, HardDark = 2 }
 
+    [System.Serializable]
+    public struct MotionSettings
+    {
+        [Tooltip("Head angular speed (deg/s) that triggers suppression.")]
+        [Range(5f, 180f)]  public float speedThreshDeg;
+        [Tooltip("Seconds the suppression holds after speed drops below threshold.")]
+        [Range(0f, 5f)]    public float holdSeconds;
+    }
+
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
     public class CameraSphereVignetteManager : MonoBehaviour
     {
@@ -39,15 +48,27 @@ namespace PassthroughCameraSamples.ShaderSample
 
         [Header("Mode")]
         [SerializeField] private VignetteMode m_vignetteMode    = VignetteMode.Blur;
-        [SerializeField, Range(0.5f, 10f)]  private float m_vignetteFormTime = 3f;
-        [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha   = 0.75f;
+        [SerializeField, Range(0.5f, 10f)]   private float m_vignetteFormTime = 3f;
+        [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha    = 0.75f;
+
+        [Header("Motion Disable — Per Mode")]
+        [SerializeField] private MotionSettings m_motionBlur     = new MotionSettings { speedThreshDeg = 30f, holdSeconds = 0.6f };
+        [SerializeField] private MotionSettings m_motionSoftDark = new MotionSettings { speedThreshDeg = 50f, holdSeconds = 1.0f };
+        [SerializeField] private MotionSettings m_motionHardDark = new MotionSettings { speedThreshDeg = 70f, holdSeconds = 1.5f };
+
+        [Tooltip("Seconds for the effect to fade OUT when suppression starts.")]
+        [SerializeField, Range(0.05f, 2f)] private float m_motionFadeOutSec = 0.20f;
+        [Tooltip("Seconds for the effect to fade back IN after suppression ends.")]
+        [SerializeField, Range(0.05f, 3f)] private float m_motionFadeInSec  = 0.70f;
 
         [Header("Selection Dots")]
-        [SerializeField] private Material m_dotMaterialTemplate; // assign SelectionDotMat
-        [SerializeField] private float    m_dotSize        = 0.055f;
-        [SerializeField] private Color  m_dotColorHeld   = Color.white;
-        [SerializeField] private Color  m_dotColorLocked = new Color(1f, 1f, 1f, 0.55f);
-        [SerializeField] private Color  m_dotColorCursor = new Color(1f, 0.9f, 0.3f, 1f);
+        [SerializeField] private Material m_dotMaterialTemplate;
+        [SerializeField] private float    m_dotSize       = 0.055f;
+        [Tooltip("Seconds after trigger-release before corner dots shrink away.")]
+        [SerializeField, Range(1f, 10f)]  private float m_dotHideDelay   = 3f;
+        [SerializeField] private Color    m_dotColorHeld   = Color.white;
+        [SerializeField] private Color    m_dotColorLocked = new Color(1f, 1f, 1f, 0.55f);
+        [SerializeField] private Color    m_dotColorCursor = new Color(1f, 0.9f, 0.3f, 1f);
 
         [Header("Debug")]
         [SerializeField] private bool m_debugCamOverlay;
@@ -60,30 +81,30 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField] private float m_cameraHorizontalFovDeg = 82f;
 
         // ---- shader property IDs ----
-        private static readonly int s_mainTexLId       = Shader.PropertyToID("_MainTexL");
-        private static readonly int s_mainTexRId       = Shader.PropertyToID("_MainTexR");
-        private static readonly int s_sphereCenterId   = Shader.PropertyToID("_SphereCenter");
-        private static readonly int s_camLFwdId        = Shader.PropertyToID("_CamLFwd");
-        private static readonly int s_camLRtId         = Shader.PropertyToID("_CamLRt");
-        private static readonly int s_camLUpId         = Shader.PropertyToID("_CamLUp");
-        private static readonly int s_tanHalfFovLId    = Shader.PropertyToID("_TanHalfFovL");
-        private static readonly int s_camRFwdId        = Shader.PropertyToID("_CamRFwd");
-        private static readonly int s_camRRtId         = Shader.PropertyToID("_CamRRt");
-        private static readonly int s_camRUpId         = Shader.PropertyToID("_CamRUp");
-        private static readonly int s_tanHalfFovRId    = Shader.PropertyToID("_TanHalfFovR");
-        private static readonly int s_hasRightCamId    = Shader.PropertyToID("_HasRightCam");
-        private static readonly int s_focusRectId      = Shader.PropertyToID("_FocusRect");
-        private static readonly int s_softEdgeId       = Shader.PropertyToID("_SoftEdge");
-        private static readonly int s_maxBlurRadId     = Shader.PropertyToID("_MaxBlurRadius");
-        private static readonly int s_blurCurveExpId   = Shader.PropertyToID("_BlurCurveExp");
-        private static readonly int s_desatDelayId     = Shader.PropertyToID("_DesatDelay");
-        private static readonly int s_desatCurveExpId  = Shader.PropertyToID("_DesatCurveExp");
-        private static readonly int s_detectionCountId    = Shader.PropertyToID("_DetectionCount");
-        private static readonly int s_detectionRectsId    = Shader.PropertyToID("_DetectionRects");
-        private static readonly int s_debugCamOverlayId   = Shader.PropertyToID("_DebugCamOverlay");
-        private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
-        private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
-        private static readonly int s_maxVignetteAlphaId  = Shader.PropertyToID("_MaxVignetteAlpha");
+        private static readonly int s_mainTexLId         = Shader.PropertyToID("_MainTexL");
+        private static readonly int s_mainTexRId         = Shader.PropertyToID("_MainTexR");
+        private static readonly int s_sphereCenterId     = Shader.PropertyToID("_SphereCenter");
+        private static readonly int s_camLFwdId          = Shader.PropertyToID("_CamLFwd");
+        private static readonly int s_camLRtId           = Shader.PropertyToID("_CamLRt");
+        private static readonly int s_camLUpId           = Shader.PropertyToID("_CamLUp");
+        private static readonly int s_tanHalfFovLId      = Shader.PropertyToID("_TanHalfFovL");
+        private static readonly int s_camRFwdId          = Shader.PropertyToID("_CamRFwd");
+        private static readonly int s_camRRtId           = Shader.PropertyToID("_CamRRt");
+        private static readonly int s_camRUpId           = Shader.PropertyToID("_CamRUp");
+        private static readonly int s_tanHalfFovRId      = Shader.PropertyToID("_TanHalfFovR");
+        private static readonly int s_hasRightCamId      = Shader.PropertyToID("_HasRightCam");
+        private static readonly int s_focusRectId        = Shader.PropertyToID("_FocusRect");
+        private static readonly int s_softEdgeId         = Shader.PropertyToID("_SoftEdge");
+        private static readonly int s_maxBlurRadId       = Shader.PropertyToID("_MaxBlurRadius");
+        private static readonly int s_blurCurveExpId     = Shader.PropertyToID("_BlurCurveExp");
+        private static readonly int s_desatDelayId       = Shader.PropertyToID("_DesatDelay");
+        private static readonly int s_desatCurveExpId    = Shader.PropertyToID("_DesatCurveExp");
+        private static readonly int s_detectionCountId   = Shader.PropertyToID("_DetectionCount");
+        private static readonly int s_detectionRectsId   = Shader.PropertyToID("_DetectionRects");
+        private static readonly int s_debugCamOverlayId  = Shader.PropertyToID("_DebugCamOverlay");
+        private static readonly int s_simpleModeId       = Shader.PropertyToID("_SimpleMode");
+        private static readonly int s_vignetteStrengthId = Shader.PropertyToID("_VignetteStrength");
+        private static readonly int s_maxVignetteAlphaId = Shader.PropertyToID("_MaxVignetteAlpha");
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
@@ -101,7 +122,7 @@ namespace PassthroughCameraSamples.ShaderSample
         // Selection dot GameObjects: [0-3] corners, [4] cursor
         private GameObject[] m_selectionDots;
         private Material[]   m_dotMats;
-        private const float  k_dotDistance = 4f; // metres from head
+        private const float  k_dotDistance = 4f;
 
         // Cached for YOLO coordinate conversion
         private Vector3 m_headRight, m_headUp, m_headForward;
@@ -113,11 +134,32 @@ namespace PassthroughCameraSamples.ShaderSample
         private float     m_vignetteStrength = 1f;
         private Coroutine m_formCoroutine;
 
+        // Motion disable
+        private Quaternion m_lastHeadRot;
+        private float      m_motionDisableTimer;
+        // 0 = effect fully on, 1 = fully suppressed — animated smoothly
+        private float      m_motionSuppression;
+
+        // Dot auto-hide
+        private Coroutine m_dotHideCoroutine;
+        private bool      m_cornerDotsHidden;
+
+        // Mode indicator UI (created at runtime)
+        private GameObject  m_modeUIRoot;
+        private CanvasGroup m_modeUIGroup;
+        private Text        m_modeNameText;
+        private Text        m_modeHintText;
+        private float       m_modeUITimer;
+        private const float k_modeUIShowTime = 2.8f;
+        private const float k_modeUIFadeDur  = 0.35f;
+
         // ---- Unity lifecycle ----
 
         private IEnumerator Start()
         {
             InitSelectionDots();
+            InitModeUI();
+
             m_material = m_renderer.material;
             m_material.SetVector(s_focusRectId, m_activeRect);
             m_material.SetFloat(s_hasRightCamId, 0f);
@@ -140,6 +182,8 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_selectionLine.enabled       = false;
             }
 
+            if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
+
             SetDebug("Waiting for camera...");
 
             if (!OVRPermissionsRequester.IsPermissionGranted(
@@ -155,10 +199,12 @@ namespace PassthroughCameraSamples.ShaderSample
                 yield return null;
 
             m_material.SetTexture(s_mainTexLId, m_cameraAccess.GetTexture());
-            SetDebug("Hold trigger and sweep to paint a focus zone.");
+            SetDebug("Trigger: paint  [A]: mode  [B]: clear");
 
             if (m_yoloRunner != null)
                 m_yoloRunner.OnDetectionsReady += OnDetectionsReady;
+
+            ShowModeToast();
         }
 
         private void OnDestroy()
@@ -169,6 +215,8 @@ namespace PassthroughCameraSamples.ShaderSample
                 foreach (var go in m_selectionDots) if (go != null) Destroy(go);
             if (m_dotMats != null)
                 foreach (var mat in m_dotMats) if (mat != null) Destroy(mat);
+            if (m_modeUIRoot != null)
+                Destroy(m_modeUIRoot);
         }
 
         private void LateUpdate()
@@ -179,8 +227,10 @@ namespace PassthroughCameraSamples.ShaderSample
             FeedCameraUniforms();
             UpdateFilterUniforms();
             UpdateDetectionUniforms();
+            UpdateMotionDisable();
             HandleSelection();
             UpdateModeUniforms();
+            UpdateModeUI();
         }
 
         // ---- sphere + head ----
@@ -190,7 +240,6 @@ namespace PassthroughCameraSamples.ShaderSample
             Transform head = Camera.main != null ? Camera.main.transform : transform;
             transform.position = head.position;
             m_material.SetVector(s_sphereCenterId, head.position);
-            // cache head direction for YOLO az/el conversion
             m_headForward = head.forward;
             m_headRight   = head.right;
             m_headUp      = head.up;
@@ -278,7 +327,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_material.SetVector(s_camLRtId,      rt);
                 m_material.SetVector(s_camLUpId,      up);
                 m_material.SetVector(s_tanHalfFovLId, new Vector4(tanX, tanY, 0f, 0f));
-                m_tanHalfFov = new Vector2(tanX, tanY); // for YOLO
+                m_tanHalfFov = new Vector2(tanX, tanY);
             }
             else
             {
@@ -291,12 +340,68 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateFilterUniforms()
         {
-            m_material.SetFloat(s_softEdgeId,     m_softEdgeDeg   * Mathf.Deg2Rad);
-            m_material.SetFloat(s_maxBlurRadId,   m_maxBlurRadius);
-            m_material.SetFloat(s_blurCurveExpId, m_blurCurveExp);
+            m_material.SetFloat(s_softEdgeId,        m_softEdgeDeg   * Mathf.Deg2Rad);
+            m_material.SetFloat(s_maxBlurRadId,      m_maxBlurRadius);
+            m_material.SetFloat(s_blurCurveExpId,    m_blurCurveExp);
             m_material.SetFloat(s_desatDelayId,      m_desatDelay);
             m_material.SetFloat(s_desatCurveExpId,   m_desatCurveExp);
             m_material.SetFloat(s_debugCamOverlayId, m_debugCamOverlay ? 1f : 0f);
+        }
+
+        // ---- motion-based disable ----
+
+        private MotionSettings CurrentMotionSettings => m_vignetteMode switch
+        {
+            VignetteMode.Blur     => m_motionBlur,
+            VignetteMode.SoftDark => m_motionSoftDark,
+            _                     => m_motionHardDark
+        };
+
+        // 15 degrees extra margin so the effect restores just before they fully centre on the rect
+        private const float k_focusArrivalMarginRad = 0.2618f;
+
+        private void UpdateMotionDisable()
+        {
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            float angularSpeed = Quaternion.Angle(m_lastHeadRot, head.rotation)
+                                 / Mathf.Max(Time.deltaTime, 0.001f);
+            m_lastHeadRot = head.rotation;
+
+            // Check whether the head direction is inside the focus rect + arrival margin.
+            // When true: cancel hold immediately so effect resumes without waiting.
+            bool headInFocus = false;
+            if (m_activeRect != k_fullSphere)
+            {
+                float headAz = Mathf.Atan2(m_headForward.x, m_headForward.z);
+                float headEl = Mathf.Asin(Mathf.Clamp(m_headForward.y, -1f, 1f));
+                headInFocus  = headAz >= m_activeRect.x - k_focusArrivalMarginRad
+                            && headAz <= m_activeRect.y + k_focusArrivalMarginRad
+                            && headEl >= m_activeRect.z - k_focusArrivalMarginRad
+                            && headEl <= m_activeRect.w + k_focusArrivalMarginRad;
+            }
+
+            var s = CurrentMotionSettings;
+            if (headInFocus)
+            {
+                // User is looking at the region: cancel hold immediately, start restoring
+                m_motionDisableTimer = 0f;
+            }
+            else if (angularSpeed > s.speedThreshDeg)
+            {
+                // Moving away (or any fast motion outside the rect): re-arm hold
+                m_motionDisableTimer = s.holdSeconds;
+            }
+            else if (m_motionDisableTimer > 0f)
+            {
+                m_motionDisableTimer -= Time.deltaTime;
+            }
+
+            // Animate suppression gradually (0 = full effect, 1 = fully suppressed)
+            float target    = m_motionDisableTimer > 0f ? 1f : 0f;
+            float fadeSpeed = target > m_motionSuppression
+                ? 1f / Mathf.Max(m_motionFadeOutSec, 0.001f)
+                : 1f / Mathf.Max(m_motionFadeInSec,  0.001f);
+            m_motionSuppression = Mathf.MoveTowards(m_motionSuppression, target, fadeSpeed * Time.deltaTime);
         }
 
         // ---- selection (paint-while-holding) ----
@@ -309,23 +414,55 @@ namespace PassthroughCameraSamples.ShaderSample
             bool held         = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
             bool justPressed  = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
             bool justReleased = OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger);
+            bool aPressed     = OVRInput.GetDown(OVRInput.RawButton.A);
             bool bPressed     = OVRInput.GetDown(OVRInput.RawButton.B);
 
-            // B button: clear focus region and reset formation
+            // A button: cycle mode
+            if (aPressed)
+            {
+                m_vignetteMode = (VignetteMode)(((int)m_vignetteMode + 1) % 3);
+                // Reset motion state so the new mode's thresholds apply from a clean slate
+                m_motionDisableTimer = 0f;
+                m_motionSuppression  = 0f;
+                bool hasRect         = m_activeRect != k_fullSphere;
+
+                if (m_vignetteMode == VignetteMode.Blur)
+                {
+                    StopFormCoroutine();
+                    m_vignetteStrength = 1f;
+                }
+                else
+                {
+                    StopFormCoroutine();
+                    m_vignetteStrength = 0f;
+                    // If a region is already selected, begin formation automatically
+                    if (hasRect)
+                        m_formCoroutine = StartCoroutine(FormVignette());
+                }
+                ShowModeToast();
+            }
+
+            // B button: clear selection + reset
             if (bPressed)
             {
                 m_activeRect = k_fullSphere;
                 m_material.SetVector(s_focusRectId, m_activeRect);
                 StopFormCoroutine();
                 m_vignetteStrength = m_vignetteMode == VignetteMode.Blur ? 1f : 0f;
-                m_isPainting = false;
+                m_isPainting       = false;
+                CancelDotHide();
+                HideCornerDotsImmediate();
             }
 
             GetControllerAzEl(out float az, out float el);
 
             if (justPressed)
             {
-                // Reset formation strength when a new selection starts
+                // New selection: show dots again, cancel any pending hide, reset formation
+                CancelDotHide();
+                m_cornerDotsHidden = false;
+                RestoreDotsScale();
+
                 if (m_vignetteMode != VignetteMode.Blur)
                 {
                     StopFormCoroutine();
@@ -348,18 +485,17 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_material.SetVector(s_focusRectId, m_activeRect);
             }
 
-            // On release: trigger vignette formation (or snap to 1 for Mode 1)
+            // On release: lock the selection, start vignette + dot-hide countdown
             if (justReleased && m_isPainting && m_activeRect != k_fullSphere)
             {
                 if (m_vignetteMode == VignetteMode.Blur)
-                {
                     m_vignetteStrength = 1f;
-                }
                 else
                 {
                     StopFormCoroutine();
                     m_formCoroutine = StartCoroutine(FormVignette());
                 }
+                m_dotHideCoroutine = StartCoroutine(HideDotsCoro());
             }
 
             if (!held) m_isPainting = false;
@@ -367,13 +503,62 @@ namespace PassthroughCameraSamples.ShaderSample
             DrawPointerAndBorder(az, el, held);
         }
 
+        // ---- dot auto-hide ----
+
+        private void CancelDotHide()
+        {
+            if (m_dotHideCoroutine == null) return;
+            StopCoroutine(m_dotHideCoroutine);
+            m_dotHideCoroutine = null;
+        }
+
+        private void HideCornerDotsImmediate()
+        {
+            m_cornerDotsHidden = true;
+            if (m_selectionDots == null) return;
+            for (int i = 0; i < 4; i++)
+                if (m_selectionDots[i] != null) m_selectionDots[i].SetActive(false);
+        }
+
+        private void RestoreDotsScale()
+        {
+            if (m_selectionDots == null) return;
+            for (int i = 0; i < 4; i++)
+                if (m_selectionDots[i] != null)
+                    m_selectionDots[i].transform.localScale = Vector3.one * m_dotSize;
+        }
+
+        private IEnumerator HideDotsCoro()
+        {
+            yield return new WaitForSeconds(m_dotHideDelay);
+
+            // Quick scale-shrink so the dots pop away cleanly
+            float elapsed = 0f, dur = 0.3f;
+            while (elapsed < dur)
+            {
+                elapsed += Time.deltaTime;
+                float s = Mathf.Lerp(m_dotSize, 0f, Mathf.SmoothStep(0f, 1f, elapsed / dur));
+                if (m_selectionDots != null)
+                    for (int i = 0; i < 4; i++)
+                        if (m_selectionDots[i] != null)
+                            m_selectionDots[i].transform.localScale = Vector3.one * s;
+                yield return null;
+            }
+
+            m_cornerDotsHidden = true;
+            if (m_selectionDots != null)
+                for (int i = 0; i < 4; i++)
+                    if (m_selectionDots[i] != null) m_selectionDots[i].SetActive(false);
+            m_dotHideCoroutine = null;
+        }
+
+        // ---- vignette formation ----
+
         private void StopFormCoroutine()
         {
-            if (m_formCoroutine != null)
-            {
-                StopCoroutine(m_formCoroutine);
-                m_formCoroutine = null;
-            }
+            if (m_formCoroutine == null) return;
+            StopCoroutine(m_formCoroutine);
+            m_formCoroutine = null;
         }
 
         private IEnumerator FormVignette()
@@ -381,7 +566,7 @@ namespace PassthroughCameraSamples.ShaderSample
             float elapsed = 0f;
             while (elapsed < m_vignetteFormTime)
             {
-                elapsed += Time.deltaTime;
+                elapsed           += Time.deltaTime;
                 m_vignetteStrength = Mathf.SmoothStep(0f, 1f, elapsed / m_vignetteFormTime);
                 yield return null;
             }
@@ -391,10 +576,13 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateModeUniforms()
         {
-            bool isSimple = m_vignetteMode != VignetteMode.Blur;
-            m_material.SetFloat(s_simpleModeId, isSimple ? 1f : 0f);
-            m_material.SetFloat(s_vignetteStrengthId, m_vignetteStrength);
-            float maxAlpha = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+            bool  isSimple          = m_vignetteMode != VignetteMode.Blur;
+            // Motion suppression fades effect out/in smoothly; formation animates 0→1
+            float effectiveStrength = m_vignetteStrength * (1f - m_motionSuppression);
+            float maxAlpha          = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+
+            m_material.SetFloat(s_simpleModeId,       isSimple ? 1f : 0f);
+            m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
         }
 
@@ -435,17 +623,15 @@ namespace PassthroughCameraSamples.ShaderSample
                 go.name = i < 4 ? $"SelCorner{i}" : "SelCursor";
                 Destroy(go.GetComponent<SphereCollider>());
 
-                // Clone the template material so each dot has independent colour control.
-                // Template must be assigned in Inspector to guarantee inclusion in the build.
                 var mat = m_dotMaterialTemplate != null
                     ? new Material(m_dotMaterialTemplate)
                     : new Material(Shader.Find("Standard"));
-                mat.renderQueue = 4000; // Overlay — always visible on top
+                mat.renderQueue = 4000;
                 mat.color       = i == 4 ? m_dotColorCursor : m_dotColorHeld;
 
                 go.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 go.transform.localScale = Vector3.one * m_dotSize;
-                go.SetActive(i == 4);   // only cursor dot starts visible
+                go.SetActive(i == 4);
 
                 m_selectionDots[i] = go;
                 m_dotMats[i]       = mat;
@@ -459,24 +645,193 @@ namespace PassthroughCameraSamples.ShaderSample
             Transform head = Camera.main != null ? Camera.main.transform : transform;
             Vector3 org = head.position;
 
-            // Cursor dot — always shown
             m_selectionDots[4].transform.position = org + DirFromAzEl(az, el) * k_dotDistance;
 
-            // Corner dots — only when a custom region is active
-            bool hasBorder = m_activeRect != k_fullSphere;
-            for (int i = 0; i < 4; i++) m_selectionDots[i].SetActive(hasBorder);
+            // Corner dots managed separately when auto-hide is running
+            if (!m_cornerDotsHidden)
+            {
+                bool hasBorder = m_activeRect != k_fullSphere;
+                for (int i = 0; i < 4; i++) m_selectionDots[i].SetActive(hasBorder);
 
-            if (!hasBorder) return;
+                if (hasBorder)
+                {
+                    float azMin = m_activeRect.x, azMax = m_activeRect.y;
+                    float elMin = m_activeRect.z, elMax = m_activeRect.w;
+                    m_selectionDots[0].transform.position = org + DirFromAzEl(azMin, elMin) * k_dotDistance;
+                    m_selectionDots[1].transform.position = org + DirFromAzEl(azMax, elMin) * k_dotDistance;
+                    m_selectionDots[2].transform.position = org + DirFromAzEl(azMax, elMax) * k_dotDistance;
+                    m_selectionDots[3].transform.position = org + DirFromAzEl(azMin, elMax) * k_dotDistance;
 
-            float azMin = m_activeRect.x, azMax = m_activeRect.y;
-            float elMin = m_activeRect.z, elMax = m_activeRect.w;
-            m_selectionDots[0].transform.position = org + DirFromAzEl(azMin, elMin) * k_dotDistance;
-            m_selectionDots[1].transform.position = org + DirFromAzEl(azMax, elMin) * k_dotDistance;
-            m_selectionDots[2].transform.position = org + DirFromAzEl(azMax, elMax) * k_dotDistance;
-            m_selectionDots[3].transform.position = org + DirFromAzEl(azMin, elMax) * k_dotDistance;
+                    Color c = holding ? m_dotColorHeld : m_dotColorLocked;
+                    for (int i = 0; i < 4; i++) m_dotMats[i].color = c;
+                }
+            }
+        }
 
-            Color c = holding ? m_dotColorHeld : m_dotColorLocked;
-            for (int i = 0; i < 4; i++) m_dotMats[i].color = c;
+        // ---- mode indicator UI ----
+
+        private void InitModeUI()
+        {
+            m_modeUIRoot = new GameObject("ModeIndicatorUI");
+
+            var canvas = m_modeUIRoot.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+
+            // Prevent scale-warning from CanvasScaler; we size manually via localScale
+            m_modeUIRoot.AddComponent<CanvasScaler>();
+
+            var rt = m_modeUIRoot.GetComponent<RectTransform>();
+            rt.sizeDelta  = new Vector2(540, 150);
+            rt.localScale = Vector3.one * 0.001f; // → ~0.54 m × 0.15 m at 1 m
+
+            m_modeUIGroup = m_modeUIRoot.AddComponent<CanvasGroup>();
+            m_modeUIGroup.alpha          = 0f;
+            m_modeUIGroup.blocksRaycasts = false;
+            m_modeUIGroup.interactable   = false;
+
+            // Dark background panel
+            var bg   = CreateChild(m_modeUIRoot, "BG");
+            var bgImg = bg.AddComponent<Image>();
+            bgImg.color = new Color(0.05f, 0.05f, 0.05f, 0.82f);
+            StretchFill(bg);
+
+            // Accent stripe at the top (coloured by mode)
+            var stripe    = CreateChild(m_modeUIRoot, "Stripe");
+            var stripeImg = stripe.AddComponent<Image>();
+            stripeImg.color = ModeAccentColor();
+            var stripeRt = stripe.GetComponent<RectTransform>();
+            stripeRt.anchorMin = new Vector2(0f, 0.88f);
+            stripeRt.anchorMax = Vector2.one;
+            stripeRt.offsetMin = stripeRt.offsetMax = Vector2.zero;
+
+            // Mode name (large, upper half)
+            var nameGO   = CreateChild(m_modeUIRoot, "ModeName");
+            m_modeNameText = nameGO.AddComponent<Text>();
+            m_modeNameText.font      = BuiltinFont();
+            m_modeNameText.fontSize  = 46;
+            m_modeNameText.fontStyle = FontStyle.Bold;
+            m_modeNameText.alignment = TextAnchor.MiddleCenter;
+            m_modeNameText.color     = Color.white;
+            var nameRt = nameGO.GetComponent<RectTransform>();
+            nameRt.anchorMin = new Vector2(0f, 0.38f);
+            nameRt.anchorMax = new Vector2(1f, 0.88f);
+            nameRt.offsetMin = nameRt.offsetMax = Vector2.zero;
+
+            // Hint / description (small, lower third)
+            var hintGO  = CreateChild(m_modeUIRoot, "Hint");
+            m_modeHintText = hintGO.AddComponent<Text>();
+            m_modeHintText.font      = BuiltinFont();
+            m_modeHintText.fontSize  = 21;
+            m_modeHintText.alignment = TextAnchor.MiddleCenter;
+            m_modeHintText.color     = new Color(1f, 1f, 1f, 0.6f);
+            var hintRt = hintGO.GetComponent<RectTransform>();
+            hintRt.anchorMin = new Vector2(0f, 0f);
+            hintRt.anchorMax = new Vector2(1f, 0.4f);
+            hintRt.offsetMin = hintRt.offsetMax = Vector2.zero;
+
+            // Start off-screen
+            m_modeUIRoot.transform.position = Vector3.zero;
+        }
+
+        private void ShowModeToast()
+        {
+            if (m_modeNameText == null) return;
+
+            // Mode pip indicator  e.g. "●  ○  ○" / "○  ●  ○" / "○  ○  ●"
+            string pip = m_vignetteMode switch
+            {
+                VignetteMode.Blur     => "●  ○  ○",
+                VignetteMode.SoftDark => "○  ●  ○",
+                _                     => "○  ○  ●"
+            };
+            string modeName = m_vignetteMode switch
+            {
+                VignetteMode.Blur     => "BLUR VIGNETTE",
+                VignetteMode.SoftDark => "SOFT DARK",
+                _                     => "HARD DARK"
+            };
+            string desc = m_vignetteMode switch
+            {
+                VignetteMode.Blur     => "Blurred & desaturated periphery",
+                VignetteMode.SoftDark => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
+                _                     => "Full black-out vignette"
+            };
+
+            m_modeNameText.text = $"{pip}     {modeName}";
+            m_modeHintText.text = $"{desc}     [A] cycle  [B] clear";
+
+            // Update accent stripe colour to match mode
+            var stripe = m_modeUIRoot.transform.Find("Stripe");
+            if (stripe != null)
+            {
+                var img = stripe.GetComponent<Image>();
+                if (img != null) img.color = ModeAccentColor();
+            }
+
+            m_modeUITimer = k_modeUIShowTime;
+        }
+
+        private Color ModeAccentColor()
+        {
+            return m_vignetteMode switch
+            {
+                VignetteMode.Blur     => new Color(0.25f, 0.55f, 1.00f, 1f), // blue
+                VignetteMode.SoftDark => new Color(1.00f, 0.65f, 0.10f, 1f), // amber
+                _                     => new Color(0.90f, 0.15f, 0.15f, 1f)  // red
+            };
+        }
+
+        private void UpdateModeUI()
+        {
+            if (m_modeUIRoot == null) return;
+
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+
+            // Lazy-follow: 1.5 m forward, 0.3 m below eye level
+            Vector3 target = head.position + head.forward * 1.5f + Vector3.down * 0.30f;
+            m_modeUIRoot.transform.position = Vector3.Lerp(
+                m_modeUIRoot.transform.position, target, Time.deltaTime * 9f);
+
+            // Billboard: panel's +Z points away from the head so the front face is visible
+            Vector3 away = m_modeUIRoot.transform.position - head.position;
+            if (away.sqrMagnitude > 0.001f)
+                m_modeUIRoot.transform.rotation = Quaternion.LookRotation(away, Vector3.up);
+
+            // Fade in then fade out
+            if (m_modeUITimer > 0f)
+            {
+                m_modeUITimer -= Time.deltaTime;
+                float fadeIn  = Mathf.Clamp01((k_modeUIShowTime - m_modeUITimer) / k_modeUIFadeDur);
+                float fadeOut = Mathf.Clamp01(m_modeUITimer / k_modeUIFadeDur);
+                m_modeUIGroup.alpha = Mathf.Min(fadeIn, fadeOut);
+            }
+            else
+            {
+                m_modeUIGroup.alpha = 0f;
+            }
+        }
+
+        private static GameObject CreateChild(GameObject parent, string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent.transform, false);
+            go.AddComponent<RectTransform>();
+            return go;
+        }
+
+        private static void StretchFill(GameObject go)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+        }
+
+        private static Font BuiltinFont()
+        {
+            var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (f == null) f = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            return f;
         }
 
         // ---- YOLO detection zones ----
