@@ -19,3 +19,7 @@ PerformanceTestRun*.*
 StreamingAssets*
 buildInfo.txt
 Packages/packages-lock.json
+
+# YOLO weights auto-downloaded by Tools/bake_detections.py
+yolo11*.pt
+yolo*.pt

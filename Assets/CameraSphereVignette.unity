@@ -631,7 +631,7 @@ MonoBehaviour:
   m_desatDelay: 0.3
   m_desatCurveExp: 3
   m_selectionLine: {fileID: 1551927729}
-  m_vignetteMode: 2
+  m_vignetteMode: 0
   m_vignetteFormTime: 8
   m_mode2MaxAlpha: 0.9
   m_motionBlur:
@@ -643,6 +643,18 @@ MonoBehaviour:
   m_motionHardDark:
     speedThreshDeg: 58.4
     holdSeconds: 1.5
+  m_motionFrostWash:
+    speedThreshDeg: 40
+    holdSeconds: 0.8
+  m_motionTintedDark:
+    speedThreshDeg: 70
+    holdSeconds: 1.5
+  m_motionPixelate:
+    speedThreshDeg: 30
+    holdSeconds: 0.6
+  m_motionChromaticCool:
+    speedThreshDeg: 35
+    holdSeconds: 0.7
   m_motionFadeOutSec: 1.518
   m_motionFadeInSec: 0.27
   m_dotMaterialTemplate: {fileID: 2100000, guid: b18da3256e7208b41853d86c2d948044, type: 2}
@@ -651,7 +663,18 @@ MonoBehaviour:
   m_dotColorHeld: {r: 1, g: 1, b: 1, a: 1}
   m_dotColorLocked: {r: 1, g: 1, b: 1, a: 0.55}
   m_dotColorCursor: {r: 1, g: 0.9, b: 0.3, a: 1}
+  m_frostTex: {fileID: 2800000, guid: 954a886c84ddc524085e7ac214d221bc, type: 3}
+  m_frostStrength: 0.5
+  m_frostTiling: 21.8
+  m_grayColor: {r: 0.21568629, g: 0.21568629, b: 0.21568629, a: 1}
+  m_frostMaxAlpha: 0.65
+  m_tintColor: {r: 0.05, g: 0.1, b: 0.25, a: 1}
+  m_pixelBlockCount: 40
+  m_coolStrength: 0.6
+  m_detectionSoftEdgeDeg: 3
   m_debugCamOverlay: 0
+  m_videoDebugMode: 1
+  m_videoSphereMaterialTemplate: {fileID: 2100000, guid: 6376f5d7d515ecf4a871d10a46b673d6, type: 2}
   m_yoloRunner: {fileID: 949970468}
   m_detectionLifetime: 0.6
   m_cameraHorizontalFovDeg: 82

@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["ultralytics>=8.3", "numpy"]
+# ///
+"""
+Offline detection baker for VideoTestScene (replaces the 640x360 in-editor bake).
+
+Runs tiled YOLO inference over the full-resolution video on the PC, so small
+objects (distant traffic lights) that the runtime/editor bake missed are
+recovered. Writes the same JSON schema VideoDetectionTrack expects, so the
+scene picks it up automatically (m_useBakedDetections) with no Unity changes.
+
+IMPORTANT: bake from the exact clip the headset plays
+(Assets/StreamingAssets/DebugVideo.mp4) — the track is keyed by video time.
+Baking from the long DevVideos source would misalign every timestamp.
+
+Usage (from the repo root — uv resolves the dependencies automatically):
+    uv run Tools/bake_detections.py                      # sensible defaults
+    uv run Tools/bake_detections.py --max-seconds 10     # quick smoke test
+    uv run Tools/bake_detections.py --model yolo11m.pt --imgsz 1280
+    uv run Tools/bake_detections.py --interval 0.5       # faster on CPU
+
+Output: Assets/StreamingAssets/DebugVideo.detections.json
+
+Box convention: normalized [0,1], standard image coords (y=0 at top).
+VideoTestSceneManager.m_yoloFlipY = true (the default) converts these to the
+shader's bottom-up video-texture coords. If detection zones ever appear at
+mirror-image elevations, toggle that flag rather than editing this script.
+"""
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_VIDEO = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.mp4"
+DEFAULT_OUT = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.detections.json"
+
+# COCO ids the runtime treats as first-class (traffic light, stop sign).
+# They sort first within each sample so the runtime's 8-slot cap keeps them.
+PRIORITY_CLASSES = {9, 11}
+
+
+def probe_video(path: Path) -> tuple[int, int, float]:
+    """Return (width, height, duration_seconds) via ffprobe."""
+    out = subprocess.check_output(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-show_entries",
+            "format=duration", "-of", "json", str(path),
+        ],
+        text=True,
+    )
+    info = json.loads(out)
+    stream = info["streams"][0]
+    return int(stream["width"]), int(stream["height"]), float(info["format"]["duration"])
+
+
+def frame_reader(path: Path, width: int, height: int, interval: float):
+    """Yield RGB frames sampled every `interval` seconds, decoded via ffmpeg."""
+    fps = 1.0 / interval
+    proc = subprocess.Popen(
+        [
+            "ffmpeg", "-v", "error", "-i", str(path),
+            "-vf", f"fps={fps}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+        ],
+        stdout=subprocess.PIPE,
+    )
+    frame_bytes = width * height * 3
+    try:
+        while True:
+            buf = proc.stdout.read(frame_bytes)
+            if len(buf) < frame_bytes:
+                break
+            yield np.frombuffer(buf, dtype=np.uint8).reshape(height, width, 3)
+    finally:
+        proc.stdout.close()
+        proc.terminate()
+
+
+def make_tiles(width: int, height: int, cols: int, rows: int, overlap: int):
+    """Tile rects (x0, y0, x1, y1) with overlap, plus one full-frame rect."""
+    tiles = []
+    tile_w, tile_h = width // cols, height // rows
+    for r in range(rows):
+        for c in range(cols):
+            x0 = max(0, c * tile_w - overlap)
+            y0 = max(0, r * tile_h - overlap)
+            x1 = min(width, (c + 1) * tile_w + overlap)
+            y1 = min(height, (r + 1) * tile_h + overlap)
+            tiles.append((x0, y0, x1, y1))
+    tiles.append((0, 0, width, height))  # full-frame pass catches large objects
+    return tiles
+
+
+def nms_per_class(dets: list[dict], iou_thresh: float) -> list[dict]:
+    """Greedy per-class NMS over normalized boxes; keeps highest-confidence."""
+    kept = []
+    for cls in {d["c"] for d in dets}:
+        group = sorted((d for d in dets if d["c"] == cls),
+                       key=lambda d: -d["conf"])
+        while group:
+            best = group.pop(0)
+            kept.append(best)
+            group = [d for d in group if iou(best, d) < iou_thresh]
+    return kept
+
+
+def iou(a: dict, b: dict) -> float:
+    ix1, iy1 = max(a["x1"], b["x1"]), max(a["y1"], b["y1"])
+    ix2, iy2 = min(a["x2"], b["x2"]), min(a["y2"], b["y2"])
+    inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    if inter <= 0.0:
+        return 0.0
+    area_a = (a["x2"] - a["x1"]) * (a["y2"] - a["y1"])
+    area_b = (b["x2"] - b["x1"]) * (b["y2"] - b["y1"])
+    return inter / (area_a + area_b - inter)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--video", type=Path, default=DEFAULT_VIDEO)
+    ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    ap.add_argument("--model", default="yolo11s.pt",
+                    help="ultralytics model (auto-downloads); yolo11m.pt = better recall, slower")
+    ap.add_argument("--interval", type=float, default=0.25,
+                    help="seconds between samples (runtime lookup tolerates 1.5x)")
+    ap.add_argument("--imgsz", type=int, default=960,
+                    help="inference size per tile; 1280 = better small-object recall")
+    ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument("--iou", type=float, default=0.5, help="cross-tile merge NMS IoU")
+    ap.add_argument("--cols", type=int, default=3)
+    ap.add_argument("--rows", type=int, default=2)
+    ap.add_argument("--overlap", type=int, default=96, help="tile overlap in pixels")
+    ap.add_argument("--max-seconds", type=float, default=0.0,
+                    help="bake only the first N seconds (0 = all); use for smoke tests")
+    ap.add_argument("--max-per-sample", type=int, default=24,
+                    help="cap stored detections per sample (priority classes kept first)")
+    args = ap.parse_args()
+
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        print("ERROR: ffmpeg/ffprobe not on PATH.", file=sys.stderr)
+        return 1
+    if not args.video.exists():
+        print(f"ERROR: video not found: {args.video}", file=sys.stderr)
+        return 1
+    try:
+        from ultralytics import YOLO
+    except ImportError:
+        print("ERROR: ultralytics not installed. Run via: uv run Tools/bake_detections.py",
+              file=sys.stderr)
+        return 1
+
+    width, height, duration = probe_video(args.video)
+    if args.max_seconds > 0:
+        duration = min(duration, args.max_seconds)
+    tiles = make_tiles(width, height, args.cols, args.rows, args.overlap)
+    total = int(duration / args.interval)
+
+    print(f"Video : {args.video} ({width}x{height}, {duration:.1f}s)")
+    print(f"Model : {args.model} @ imgsz {args.imgsz}, conf {args.conf}")
+    print(f"Tiles : {args.cols}x{args.rows} +full frame ({len(tiles)} inferences/sample)")
+    print(f"Plan  : {total} samples every {args.interval}s", flush=True)
+
+    model = YOLO(args.model)
+    samples = []
+    start = time.time()
+
+    for k, frame in enumerate(frame_reader(args.video, width, height, args.interval)):
+        t = k * args.interval
+        if t >= duration:
+            break
+
+        # BGR crops for ultralytics (cv2 convention); batch all tiles in one call.
+        crops = [np.ascontiguousarray(frame[y0:y1, x0:x1, ::-1])
+                 for (x0, y0, x1, y1) in tiles]
+        results = model.predict(crops, imgsz=args.imgsz, conf=args.conf, verbose=False)
+
+        dets = []
+        for (x0, y0, x1, y1), res in zip(tiles, results):
+            tw, th = x1 - x0, y1 - y0
+            for box, cls, conf in zip(res.boxes.xyxy.tolist(),
+                                      res.boxes.cls.tolist(),
+                                      res.boxes.conf.tolist()):
+                dets.append({
+                    "c": int(cls),
+                    "x1": (x0 + box[0]) / width, "y1": (y0 + box[1]) / height,
+                    "x2": (x0 + box[2]) / width, "y2": (y0 + box[3]) / height,
+                    "conf": float(conf),
+                })
+
+        merged = nms_per_class(dets, args.iou)
+        # Priority classes first, then larger boxes — the runtime keeps the
+        # first 8 that pass its class filter, so ordering decides survival.
+        merged.sort(key=lambda d: (
+            0 if d["c"] in PRIORITY_CLASSES else 1,
+            -((d["x2"] - d["x1"]) * (d["y2"] - d["y1"])),
+        ))
+        merged = merged[: args.max_per_sample]
+
+        samples.append({
+            "t": round(t, 3),
+            "d": [{"c": d["c"],
+                   "x1": round(d["x1"], 4), "y1": round(d["y1"], 4),
+                   "x2": round(d["x2"], 4), "y2": round(d["y2"], 4)}
+                  for d in merged],
+        })
+
+        if (k + 1) % 10 == 0 or k == 0:
+            elapsed = time.time() - start
+            rate = elapsed / (k + 1)
+            n_prio = sum(1 for d in merged if d["c"] in PRIORITY_CLASSES)
+            print(f"[{k + 1}/{total}] t={t:6.2f}s  {len(merged):2d} dets "
+                  f"({n_prio} lights/signs)  ~{rate * (total - k - 1) / 60:.1f} min left",
+                  flush=True)  # visible immediately when stdout is a log file
+
+    args.out.write_text(json.dumps({"interval": args.interval, "samples": samples},
+                                   separators=(",", ":")))
+    prio_total = sum(1 for s in samples for d in s["d"] if d["c"] in PRIORITY_CLASSES)
+    print(f"\nDONE — {len(samples)} samples, {prio_total} traffic-light/stop-sign "
+          f"detections total\n  -> {args.out}")
+    print("The scene loads this automatically (m_useBakedDetections). "
+          "Disable BakeOnPlay on VideoDetectionBaker so it doesn't overwrite it.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

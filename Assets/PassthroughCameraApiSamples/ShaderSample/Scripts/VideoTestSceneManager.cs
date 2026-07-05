@@ -1,0 +1,988 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates.
+//
+// Standalone manager for VideoTestScene.unity.
+// Replaces passthrough with a looping equirectangular video sphere so the
+// DR vignette modes can be evaluated without a physical passthrough stream.
+//
+// Setup (done at runtime, no pre-wired references required):
+//   1. Disables any OVRPassthroughLayer in the scene.
+//   2. Creates a large equirectangular video sphere (VideoSphereEQ shader).
+//   3. Streams Assets/StreamingAssets/DebugVideo.mp4 into a RenderTexture.
+//   4. Feeds the RT as _MainTexL and enables _EqCamSampling on the vignette sphere.
+//
+// Controls (same as main scene):
+//   Right trigger (hold): paint focus window
+//   A button:             cycle mode
+//   B button:             clear focus window
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using Meta.XR;
+using Meta.XR.Samples;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Video;
+
+namespace PassthroughCameraSamples.ShaderSample
+{
+    [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
+    public class VideoTestSceneManager : MonoBehaviour, IStudyVignetteControl
+    {
+        // ---- inspector ----
+
+        [SerializeField] private MeshRenderer m_vignetteSphereRenderer;
+
+        [Tooltip("Optional right controller anchor for aim direction.")]
+        [SerializeField] private Transform m_rightControllerAnchor;
+        [SerializeField] private Transform m_cameraRig;
+
+        [Header("Video")]
+        [Tooltip("Flip the video texture vertically (platform-dependent — try toggling if video is upside-down).")]
+        [SerializeField] private bool m_flipVideoY = false;
+
+        [Header("UV Offset — Video Mode")]
+        [Tooltip("Shift the 360° video horizontally without rotating the sphere.")]
+        [SerializeField, Range(-0.5f, 0.5f)] private float m_videoUOffset = 0f;
+        [Tooltip("Shift the 360° video vertically (e.g. −0.25 raises horizon by 45°).")]
+        [SerializeField, Range(-0.5f, 0.5f)] private float m_videoVOffset = 0f;
+
+        [Header("Filter")]
+        [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
+
+        [Header("Mode")]
+        [SerializeField] private VignetteMode m_vignetteMode = VignetteMode.ColorPop;
+        [SerializeField, Range(0.5f, 10f)]   private float m_vignetteFormTime = 3f;
+        [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha    = 0.75f;
+
+        [Header("Motion Disable — Per Mode")]
+	[SerializeField] private bool m_enableMotion = false;
+        [SerializeField] private MotionSettings m_motionSoftDark      = new MotionSettings { speedThreshDeg = 50f,  holdSeconds = 1.0f };
+        [SerializeField] private MotionSettings m_motionHardDark      = new MotionSettings { speedThreshDeg = 70f,  holdSeconds = 1.5f };
+        [SerializeField] private MotionSettings m_motionColorPop      = new MotionSettings { speedThreshDeg = 35f,  holdSeconds = 0.7f };
+
+        [SerializeField, Range(0.05f, 2f)] private float m_motionFadeOutSec = 0.20f;
+        [SerializeField, Range(0.05f, 3f)] private float m_motionFadeInSec  = 0.70f;
+
+        [Header("Selection Dots")]
+        [SerializeField] private Material m_dotMaterialTemplate;
+        [SerializeField] private float    m_dotSize     = 0.055f;
+        [SerializeField, Range(1f, 10f)]  private float m_dotHideDelay = 3f;
+        [SerializeField] private Color    m_dotColorHeld   = Color.white;
+        [SerializeField] private Color    m_dotColorLocked = new Color(1f, 1f, 1f, 0.55f);
+        [SerializeField] private Color    m_dotColorCursor = new Color(1f, 0.9f, 0.3f, 1f);
+
+        [Header("Noise Texture")]
+        [Tooltip("Noise source for the Gaussian sampling helper (ColorPop glare-core guard).")]
+        [SerializeField] private Texture2D m_frostTex;
+
+        [Header("Color Pop")]
+        [Tooltip("Brightness of the muted grey periphery (lower = stronger pop contrast).")]
+        [SerializeField, Range(0.1f, 1f)] private float m_popGreyDim   = 0.4f;
+        [Tooltip("Saturation boost applied to kept ROG colors INSIDE the focus window.")]
+        [SerializeField, Range(1f, 3f)]   private float m_popSatBoost  = 1.7f;
+        [Tooltip("How much non-ROG colors are desaturated INSIDE the window (0 = untouched).")]
+        [SerializeField, Range(0f, 1f)]   private float m_popInsideDesat = 0.25f;
+        [Tooltip("Brightness multiplier on ROG colors inside the window (>1 lifts them above the scene).")]
+        [SerializeField, Range(1f, 1.5f)] private float m_popBrightInside = 1.15f;
+        [Tooltip("Brightness multiplier on ROG colors outside the window (<1 keeps them below the true scene but above the grey periphery).")]
+        [SerializeField, Range(0.3f, 1f)] private float m_popBrightOutside = 0.8f;
+        [Tooltip("Saturation floor for the red/orange band — keeps warm-white headlights from passing as orange.")]
+        [SerializeField, Range(0f, 0.8f)] private float m_popWarmSatMin = 0.35f;
+        [Tooltip("Sigmoidal midtone contrast on ROG colors inside the window (Sutton 2022, alpha=10 beta=0.5). 0 = linear boost only.")]
+        [SerializeField, Range(0f, 1f)]   private float m_popSigmoid = 0.6f;
+        [Tooltip("Overall luminance dim on the whole unselected region, ROG included (1 = off).")]
+        [SerializeField, Range(0.4f, 1f)] private float m_popPeriphDim = 0.85f;
+        [Tooltip("Luma above which unsaturated non-ROG pixels count as glare (headlights).")]
+        [SerializeField, Range(0.3f, 1f)] private float m_popGlareKnee = 0.6f;
+        [Tooltip("Glare compression strength inside the focus window (0 = off).")]
+        [SerializeField, Range(0f, 1f)]   private float m_popGlareInside = 0.35f;
+        [Tooltip("Glare compression strength in the periphery.")]
+        [SerializeField, Range(0f, 1f)]   private float m_popGlareOutside = 0.85f;
+        [Tooltip("Local-surround radius (UV) for the blown-core guard: white lamp cores with a saturated fringe are exempt from glare dimming. 0 disables the guard.")]
+        [SerializeField, Range(0f, 0.03f)] private float m_popGuardRadius = 0.008f;
+        [Tooltip("ColorPop uses its own (wider) focus-window soft edge — a colour/grey boundary reads harsher than a blur boundary.")]
+        [SerializeField, Range(1f, 60f)]  private float m_popSoftEdgeDeg = 32f;
+
+        [Header("YOLO Detection")]
+        [Tooltip("Drag the YoloRunner component here; it will read from the video RenderTexture instead of the passthrough camera.")]
+        [SerializeField] private YoloRunner m_yoloRunner;
+        [SerializeField] private float      m_detectionLifetime = 0.6f;
+        [Tooltip("Flip detection box Y. Toggle if detected zones appear at mirror-image elevations.")]
+        [SerializeField] private bool       m_yoloFlipY = true;
+        [Tooltip("Soft edge on detection clear zones (degrees).")]
+        [SerializeField, Range(0f, 10f)] private float m_detectionSoftEdgeDeg = 3f;
+        [Tooltip("Saturation/brightness boost on detected objects (0=clear only, 1=vivid).")]
+        [SerializeField, Range(0f, 1f)]  private float m_detectionEnhance = 0.4f;
+        [Tooltip("How much the annulus around a detected object is darkened (center-surround contrast).")]
+        [SerializeField, Range(0f, 0.5f)] private float m_detectionSurround = 0.15f;
+        [Tooltip("Amplitude of the gentle ~1 Hz breathing on the object boost (0 = static).")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionPulseAmp = 0.25f;
+
+        [Header("Baked Detections")]
+        [Tooltip("If a baked detection track exists (StreamingAssets/DebugVideo.detections.json), use it instead of live YOLO.")]
+        [SerializeField] private bool m_useBakedDetections = true;
+
+        [Header("Debug")]
+        [Tooltip("Show raw video RenderTexture in the bottom-left corner (screen-space). " +
+                 "If this preview rotates, the video file itself is rotating (metadata/encoding). " +
+                 "If it's stable, the issue is in the sphere mapping.")]
+        [SerializeField] private bool m_debugVideoPreview = false;
+
+        // ---- shader IDs ----
+        private static readonly int s_mainTexLId          = Shader.PropertyToID("_MainTexL");
+        private static readonly int s_sphereCenterId      = Shader.PropertyToID("_SphereCenter");
+        private static readonly int s_camLFwdId           = Shader.PropertyToID("_CamLFwd");
+        private static readonly int s_camLRtId            = Shader.PropertyToID("_CamLRt");
+        private static readonly int s_camLUpId            = Shader.PropertyToID("_CamLUp");
+        private static readonly int s_tanHalfFovLId       = Shader.PropertyToID("_TanHalfFovL");
+        private static readonly int s_hasRightCamId       = Shader.PropertyToID("_HasRightCam");
+        private static readonly int s_focusRectId         = Shader.PropertyToID("_FocusRect");
+        private static readonly int s_softEdgeId          = Shader.PropertyToID("_SoftEdge");
+        private static readonly int s_detectionCountId    = Shader.PropertyToID("_DetectionCount");
+        private static readonly int s_detectionRectsId    = Shader.PropertyToID("_DetectionRects");
+        private static readonly int s_detectionSoftEdgeId = Shader.PropertyToID("_DetectionSoftEdge");
+        private static readonly int s_detectionEnhanceId  = Shader.PropertyToID("_DetectionEnhance");
+        private static readonly int s_detectionSurroundId   = Shader.PropertyToID("_DetectionSurround");
+        private static readonly int s_detectionPulseAmpId   = Shader.PropertyToID("_DetectionPulseAmp");
+        private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
+        private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
+        private static readonly int s_maxVignetteAlphaId  = Shader.PropertyToID("_MaxVignetteAlpha");
+        private static readonly int s_frostTexId          = Shader.PropertyToID("_FrostTex");
+        private static readonly int s_colorPopModeId      = Shader.PropertyToID("_ColorPopMode");
+        private static readonly int s_popGreyDimId        = Shader.PropertyToID("_PopGreyDim");
+        private static readonly int s_popSatBoostId       = Shader.PropertyToID("_PopSatBoost");
+        private static readonly int s_popInsideDesatId    = Shader.PropertyToID("_PopInsideDesat");
+        private static readonly int s_popBrightInId       = Shader.PropertyToID("_PopBrightIn");
+        private static readonly int s_popBrightOutId      = Shader.PropertyToID("_PopBrightOut");
+        private static readonly int s_popWarmSatMinId     = Shader.PropertyToID("_PopWarmSatMin");
+        private static readonly int s_popSigmoidId        = Shader.PropertyToID("_PopSigmoid");
+        private static readonly int s_popPeriphDimId      = Shader.PropertyToID("_PopPeriphDim");
+        private static readonly int s_popGlareKneeId      = Shader.PropertyToID("_PopGlareKnee");
+        private static readonly int s_popGlareInsideId    = Shader.PropertyToID("_PopGlareInside");
+        private static readonly int s_popGlareOutsideId   = Shader.PropertyToID("_PopGlareOutside");
+        private static readonly int s_popGuardRadiusId    = Shader.PropertyToID("_PopGuardRadius");
+        private static readonly int s_eqCamSamplingId     = Shader.PropertyToID("_EqCamSampling");
+        private static readonly int s_passThroughModeId   = Shader.PropertyToID("_PassthroughMode");
+        private static readonly int s_flipYId             = Shader.PropertyToID("_FlipY");
+        private static readonly int s_eqUOffsetId         = Shader.PropertyToID("_EqUOffset");
+        private static readonly int s_eqVOffsetId         = Shader.PropertyToID("_EqVOffset");
+
+        // A-button cycle: the study runs only these three modes, in this order.
+        private static readonly VignetteMode[] k_modeCycle =
+            { VignetteMode.ColorPop, VignetteMode.SoftDark, VignetteMode.HardDark };
+
+        private static readonly Vector4 k_fullSphere =
+            new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
+
+        // ---- runtime state ----
+        private Material      m_material;
+        private RenderTexture m_videoRT;
+        private RenderTexture m_yoloRT;   // small downsampled RT for YOLO — avoids reading 4K on GPU
+        private VideoPlayer   m_videoPlayer;
+        private GameObject    m_videoPreviewRoot;
+
+        private GameObject[]  m_selectionDots;
+        private Material[]    m_dotMats;
+        private const float   k_dotDistance = 4f;
+
+        private Vector4 m_activeRect = k_fullSphere;
+        private VideoDetectionTrack m_bakedTrack;
+
+        private float     m_vignetteStrength = 1f;
+        private Coroutine m_formCoroutine;
+
+        private Quaternion m_lastHeadRot;
+        private float      m_motionDisableTimer;
+        private float      m_motionSuppression;
+
+        private Coroutine m_dotHideCoroutine;
+        private bool      m_cornerDotsHidden;
+
+        private GameObject  m_modeUIRoot;
+        private Material    m_modeUIMat;
+        private CanvasGroup m_modeUIGroup;
+        private Text        m_modeNameText;
+        private Text        m_modeHintText;
+        private float       m_modeUITimer;
+        private const float k_modeUIShowTime = 2.8f;
+        private const float k_modeUIFadeDur  = 0.35f;
+
+        private const int k_maxDetections = 8;
+        private readonly Vector4[] m_detectionRects      = new Vector4[k_maxDetections];
+        private readonly float[]   m_detectionTimestamps = new float[k_maxDetections];
+        // COCO: 9 = traffic light, 11 = stop sign. Signs only — vehicles/people excluded.
+        private static readonly HashSet<int> k_targetClasses = new() { 9, 11 };
+
+        // ---- lifecycle ----
+
+        private void Start()
+        {
+            // Disable passthrough (this scene uses video as background)
+            foreach (var cam in Camera.allCameras)
+            {
+                cam.clearFlags      = CameraClearFlags.SolidColor;
+                cam.backgroundColor = Color.black;
+            }
+            var ptLayer = FindObjectOfType<OVRPassthroughLayer>();
+            if (ptLayer != null) ptLayer.enabled = false;
+
+            InitSelectionDots();
+            InitModeUI();
+
+            // Only ColorPop / SoftDark / HardDark remain in the study; snap any stale
+            // serialized mode (e.g. Blur from an old scene save) into the cycle.
+            if (Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
+                m_vignetteMode = VignetteMode.ColorPop;
+
+            m_material = m_vignetteSphereRenderer.material;
+            m_material.SetVector(s_focusRectId,    m_activeRect);
+            m_material.SetFloat(s_hasRightCamId,    0f);
+            m_material.SetFloat(s_eqCamSamplingId,  1f);  // equirectangular UV for 360° video
+            m_material.SetFloat(s_passThroughModeId, 0f); // video mode: single opaque sphere
+            m_material.SetFloat(s_flipYId,          m_flipVideoY ? 1f : 0f);
+            m_material.SetInt(s_detectionCountId,   0);
+
+            // Removed modes are no longer driven per-frame — zero their toggles once in
+            // case the serialized material carries stale values.
+            m_material.SetFloat("_TintMode",      0f);
+            m_material.SetFloat("_ChromaticCool", 0f);
+            m_material.SetFloat("_SqueezeMode",   0f);
+            m_material.SetFloat("_GrainMode",     0f);
+            m_material.SetFloat("_OutlineMode",   0f);
+            m_material.SetFloat("_SpotLiftMode",  0f);
+
+            if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
+
+            SetupVideoSphere();
+            StartCoroutine(InitDetections());
+            if (m_debugVideoPreview) CreateVideoPreview();
+            ShowModeToast();
+        }
+
+        // Prefer the baked detection track (offline pre-scan of the video — stable coordinates,
+        // zero runtime inference); fall back to live YOLO when no track file exists.
+        private IEnumerator InitDetections()
+        {
+            var baker = FindObjectOfType<VideoDetectionBaker>();
+            if (baker != null && baker.BakeOnPlay) yield break; // baker owns the engine this run
+
+            if (m_useBakedDetections)
+            {
+                string path = System.IO.Path.Combine(
+                    Application.streamingAssetsPath, "DebugVideo.detections.json");
+                yield return VideoDetectionTrack.Load(path, tr => m_bakedTrack = tr);
+                if (m_bakedTrack != null && m_bakedTrack.samples.Count > 0)
+                {
+                    Debug.Log($"[VideoTestScene] Using baked detection track " +
+                              $"({m_bakedTrack.samples.Count} samples @ {m_bakedTrack.interval}s).");
+                    yield break;
+                }
+            }
+
+            if (m_yoloRunner == null) m_yoloRunner = GetComponent<YoloRunner>();
+            if (m_yoloRunner != null)
+            {
+                // Feed a small RT to YOLO instead of the 4K video RT.
+                // TextureConverter reading 3840x2160 on the GPU competes with rendering and causes stutter.
+                // Blitting down to 640x360 first is cheap; YOLO inference then reads ~36x fewer pixels.
+                m_yoloRT = new RenderTexture(640, 360, 0, RenderTextureFormat.ARGB32);
+                m_yoloRT.Create();
+                m_yoloRunner.SetOverrideRT(m_yoloRT);
+                m_yoloRunner.SetBlitSource(m_videoRT); // blit happens inside YoloRunner, not every frame
+                m_yoloRunner.OnDetectionsReady += OnDetectionsReady;
+            }
+        }
+
+        private void CreateVideoPreview()
+        {
+            m_videoPreviewRoot = new GameObject("VideoDebugPreview");
+
+            var canvas = m_videoPreviewRoot.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
+
+            // Bottom-left quarter of the screen
+            var imgGO = new GameObject("PreviewImage");
+            imgGO.transform.SetParent(m_videoPreviewRoot.transform, false);
+            var raw = imgGO.AddComponent<UnityEngine.UI.RawImage>();
+            raw.texture = m_videoRT;
+
+            var rt = imgGO.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = new Vector2(0.35f, 0.22f);
+            rt.offsetMin = new Vector2(8f, 8f);
+            rt.offsetMax = new Vector2(-4f, -4f);
+
+            // Label
+            var labelGO = new GameObject("PreviewLabel");
+            labelGO.transform.SetParent(m_videoPreviewRoot.transform, false);
+            var txt = labelGO.AddComponent<Text>();
+            txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                         ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            txt.fontSize  = 18;
+            txt.color     = new Color(1f, 1f, 0.3f, 0.9f);
+            txt.text      = "RAW VIDEO RT\n(rotates = video file issue)";
+            txt.alignment = TextAnchor.LowerLeft;
+            var lrt = labelGO.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = new Vector2(0.35f, 0.22f);
+            lrt.offsetMin = new Vector2(8f, 8f);
+            lrt.offsetMax = new Vector2(-4f, -4f);
+        }
+
+        private void SetupVideoSphere()
+        {
+            m_videoRT = new RenderTexture(3840, 2160, 0, RenderTextureFormat.ARGB32);
+            m_videoRT.Create();
+
+            // The vignette sphere is the only renderer — no separate background sphere.
+            // VideoPlayer decodes into the RT; the vignette shader samples it directly.
+            m_videoPlayer               = gameObject.AddComponent<VideoPlayer>();
+            m_videoPlayer.playOnAwake   = false;
+            m_videoPlayer.renderMode    = VideoRenderMode.RenderTexture;
+            m_videoPlayer.targetTexture = m_videoRT;
+            m_videoPlayer.isLooping     = true;
+            m_videoPlayer.skipOnDrop    = true;
+            m_videoPlayer.url           = System.IO.Path.Combine(
+                Application.streamingAssetsPath, "DebugVideo.mp4");
+            m_videoPlayer.Play();
+
+            m_material.SetTexture(s_mainTexLId, m_videoRT);
+        }
+
+        private void OnDestroy()
+        {
+            if (m_yoloRunner != null)
+                m_yoloRunner.OnDetectionsReady -= OnDetectionsReady;
+            if (m_selectionDots != null)
+                foreach (var go in m_selectionDots) if (go != null) Destroy(go);
+            if (m_dotMats != null)
+                foreach (var mat in m_dotMats) if (mat != null) Destroy(mat);
+            if (m_modeUIRoot != null) Destroy(m_modeUIRoot);
+            if (m_modeUIMat  != null) Destroy(m_modeUIMat);
+            if (m_videoPreviewRoot != null) Destroy(m_videoPreviewRoot);
+            if (m_yoloRT  != null) { m_yoloRT.Release();  Destroy(m_yoloRT);  }
+            if (m_videoRT != null) { m_videoRT.Release(); Destroy(m_videoRT); }
+        }
+
+        private void LateUpdate()
+        {
+            if (m_material == null) return;
+            UpdateSpherePosition();
+            UpdateCameraUniforms();
+            UpdateFilterUniforms();
+            UpdateBakedDetections();
+            UpdateDetectionUniforms();
+            UpdateMotionDisable();
+            HandleSelection();
+            UpdateModeUniforms();
+            UpdateModeUI();
+        }
+
+        // ---- sphere + head ----
+
+        private void UpdateSpherePosition()
+        {
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            transform.position = head.position;
+            // Lock world rotation to identity — sphere may be parented to OVRCameraRig which
+            // rotates with the head. Without this, the vertex world positions rotate and the
+            // world-space az/el UV mapping rotates the video with the head.
+            transform.rotation = Quaternion.identity;
+            m_material.SetVector(s_sphereCenterId, head.position);
+        }
+
+        // In video mode: drive the vignette shader's camera uniforms from the head transform.
+        // The equirectangular sampling path uses these for YOLO-style detection only; the actual
+        // UV computation ignores them. Set a wide FOV so CamUV fallback is safe if ever toggled.
+        private void UpdateCameraUniforms()
+        {
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            float tanX = Mathf.Tan(0.5f * 90f * Mathf.Deg2Rad); // 90° horizontal FOV placeholder
+            float tanY = tanX * (9f / 16f);
+
+            m_material.SetVector(s_camLFwdId,     head.forward);
+            m_material.SetVector(s_camLRtId,      head.right);
+            m_material.SetVector(s_camLUpId,      head.up);
+            m_material.SetVector(s_tanHalfFovLId, new Vector4(tanX, tanY, 0f, 0f));
+        }
+
+        // ---- filter uniforms ----
+
+        private void UpdateFilterUniforms()
+        {
+            // ColorPop gets a wider soft edge: a colour/grey boundary reads harsher
+            // than a blur or dark boundary, so the transition needs to be more gradual.
+            float softEdgeDeg = m_vignetteMode == VignetteMode.ColorPop ? m_popSoftEdgeDeg : m_softEdgeDeg;
+            m_material.SetFloat(s_softEdgeId,       softEdgeDeg     * Mathf.Deg2Rad);
+            if (m_frostTex != null) m_material.SetTexture(s_frostTexId, m_frostTex);
+            m_material.SetFloat(s_popGreyDimId,      m_popGreyDim);
+            m_material.SetFloat(s_popSatBoostId,     m_popSatBoost);
+            m_material.SetFloat(s_popInsideDesatId,  m_popInsideDesat);
+            m_material.SetFloat(s_popBrightInId,     m_popBrightInside);
+            m_material.SetFloat(s_popBrightOutId,    m_popBrightOutside);
+            m_material.SetFloat(s_popWarmSatMinId,   m_popWarmSatMin);
+            m_material.SetFloat(s_popSigmoidId,      m_popSigmoid);
+            m_material.SetFloat(s_popPeriphDimId,    m_popPeriphDim);
+            m_material.SetFloat(s_popGlareKneeId,    m_popGlareKnee);
+            m_material.SetFloat(s_popGlareInsideId,  m_popGlareInside);
+            m_material.SetFloat(s_popGlareOutsideId, m_popGlareOutside);
+            m_material.SetFloat(s_popGuardRadiusId,  m_popGuardRadius);
+            m_material.SetFloat(s_eqUOffsetId,      m_videoUOffset);
+            m_material.SetFloat(s_eqVOffsetId,      m_videoVOffset);
+        }
+
+        // ---- YOLO detection zones ----
+
+        private void OnDetectionsReady(
+            IReadOnlyList<(int classId, Vector4 box)> detections, Vector2Int inputSize)
+        {
+            int slot = 0;
+            foreach (var (classId, box) in detections)
+            {
+                if (slot >= k_maxDetections) break;
+                if (k_targetClasses != null && !k_targetClasses.Contains(classId)) continue;
+                m_detectionRects[slot]      = BoxToAzElRectEQ(box, inputSize);
+                m_detectionTimestamps[slot] = Time.time;
+                slot++;
+            }
+        }
+
+        // Drive detection slots from the baked track, keyed by video time.
+        private void UpdateBakedDetections()
+        {
+            if (m_bakedTrack == null || m_videoPlayer == null) return;
+            var sample = m_bakedTrack.Lookup(m_videoPlayer.time);
+            if (sample == null) return;
+
+            int slot = 0;
+            foreach (var det in sample.d)
+            {
+                if (slot >= k_maxDetections) break;
+                if (k_targetClasses != null && !k_targetClasses.Contains(det.c)) continue;
+                // Boxes are stored normalized — inputSize (1,1) reuses the same conversion.
+                m_detectionRects[slot] = BoxToAzElRectEQ(
+                    new Vector4(det.x1, det.y1, det.x2, det.y2), Vector2Int.one);
+                m_detectionTimestamps[slot] = Time.time;
+                slot++;
+            }
+        }
+
+        private void UpdateDetectionUniforms()
+        {
+            int count = 0;
+            for (int i = 0; i < k_maxDetections; i++)
+            {
+                if (Time.time - m_detectionTimestamps[i] < m_detectionLifetime)
+                    count = i + 1;
+            }
+            m_material.SetInt(s_detectionCountId,          count);
+            m_material.SetVectorArray(s_detectionRectsId,  m_detectionRects);
+            m_material.SetFloat(s_detectionSoftEdgeId,     m_detectionSoftEdgeDeg * Mathf.Deg2Rad);
+            m_material.SetFloat(s_detectionEnhanceId,      m_detectionEnhance);
+            m_material.SetFloat(s_detectionSurroundId, m_detectionSurround);
+            m_material.SetFloat(s_detectionPulseAmpId, m_detectionPulseAmp);
+        }
+
+        // EQ box → az/el rect.
+        // YOLO box: (x1,y1,x2,y2) in model pixel space.
+        // Shader samples: u_eq = 0.5 + az/(2π) + uOffset  →  az = (u_tex - 0.5 - uOffset) * 2π
+        //                 v_eq = 0.5 + el/π   + vOffset  →  el = (v_tex - 0.5 - vOffset) * π
+        // UV offsets must be subtracted so boxes align with where the shader actually draws the video.
+        // m_yoloFlipY: Sentis typically reads RenderTextures with y=0 at bottom (OpenGL), so
+        // flip is needed when the YOLO model expects y=0 at top (standard image convention).
+        private Vector4 BoxToAzElRectEQ(Vector4 box, Vector2Int inputSize)
+        {
+            float u1 = box.x / inputSize.x;
+            float u2 = box.z / inputSize.x;
+
+            float rawV1 = box.y / inputSize.y;   // top of box in YOLO space
+            float rawV2 = box.w / inputSize.y;   // bottom of box in YOLO space
+            float v1 = m_yoloFlipY ? 1f - rawV2 : rawV1;
+            float v2 = m_yoloFlipY ? 1f - rawV1 : rawV2;
+
+            float az1 = (u1 - 0.5f - m_videoUOffset) * 2f * Mathf.PI;
+            float az2 = (u2 - 0.5f - m_videoUOffset) * 2f * Mathf.PI;
+            float el1 = (v1 - 0.5f - m_videoVOffset) * Mathf.PI;
+            float el2 = (v2 - 0.5f - m_videoVOffset) * Mathf.PI;
+
+            return new Vector4(
+                Mathf.Min(az1, az2), Mathf.Max(az1, az2),
+                Mathf.Min(el1, el2), Mathf.Max(el1, el2));
+        }
+
+        // ---- motion disable ----
+
+        private MotionSettings CurrentMotionSettings => m_vignetteMode switch
+        {
+            VignetteMode.ColorPop => m_motionColorPop,
+            VignetteMode.SoftDark => m_motionSoftDark,
+            _                     => m_motionHardDark
+        };
+
+        private const float k_focusArrivalMarginRad = 0.2618f;
+
+        private void UpdateMotionDisable()
+        {
+	    if (!m_enableMotion)
+		return;
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            float angularSpeed = Quaternion.Angle(m_lastHeadRot, head.rotation)
+                                 / Mathf.Max(Time.deltaTime, 0.001f);
+            m_lastHeadRot = head.rotation;
+
+            bool headInFocus = false;
+            if (m_activeRect != k_fullSphere)
+            {
+                float headAz = Mathf.Atan2(head.forward.x, head.forward.z);
+                float headEl = Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f));
+                headInFocus  = headAz >= m_activeRect.x - k_focusArrivalMarginRad
+                            && headAz <= m_activeRect.y + k_focusArrivalMarginRad
+                            && headEl >= m_activeRect.z - k_focusArrivalMarginRad
+                            && headEl <= m_activeRect.w + k_focusArrivalMarginRad;
+            }
+
+            var s = CurrentMotionSettings;
+            if (headInFocus)          m_motionDisableTimer = 0f;
+            else if (angularSpeed > s.speedThreshDeg) m_motionDisableTimer = s.holdSeconds;
+            else if (m_motionDisableTimer > 0f)        m_motionDisableTimer -= Time.deltaTime;
+
+            float target    = m_motionDisableTimer > 0f ? 1f : 0f;
+            float fadeSpeed = target > m_motionSuppression
+                ? 1f / Mathf.Max(m_motionFadeOutSec, 0.001f)
+                : 1f / Mathf.Max(m_motionFadeInSec,  0.001f);
+            m_motionSuppression = Mathf.MoveTowards(m_motionSuppression, target, fadeSpeed * Time.deltaTime);
+        }
+
+        // ---- study API (IStudyVignetteControl — driven by Study/ConditionSequencer) ----
+
+        public VignetteMode CurrentMode => m_vignetteMode;
+        public Vector4 ActiveRect => m_activeRect;
+        public float CurrentEffectiveStrength { get; private set; }
+        public bool StudyInputLock { get; set; }
+        public bool StudyEffectSuppressed { get; set; }
+        public bool MotionEnabled { get => m_enableMotion; set => m_enableMotion = value; }
+
+        public void StudySetMode(VignetteMode mode)
+        {
+            if (Array.IndexOf(k_modeCycle, mode) < 0) mode = VignetteMode.ColorPop;
+            m_vignetteMode       = mode;
+            m_motionDisableTimer = 0f;
+            m_motionSuppression  = 0f;
+            StopFormCoroutine();
+            m_vignetteStrength = 1f; // conditions start fully formed; baselines use StudyEffectSuppressed
+        }
+
+        public void StudySetWindow(Vector4 azElRadians)
+        {
+            m_activeRect = azElRadians;
+            m_material.SetVector(s_focusRectId, m_activeRect);
+            m_isPainting = false;
+            CancelDotHide();
+            HideCornerDotsImmediate();
+        }
+
+        public void StudyClearWindow()
+        {
+            m_activeRect = k_fullSphere;
+            m_material.SetVector(s_focusRectId, m_activeRect);
+            m_isPainting = false;
+            CancelDotHide();
+            HideCornerDotsImmediate();
+        }
+
+        // ---- selection ----
+
+        private bool        m_isPainting;
+        private const float k_brushPad = 0.12f;
+
+        // "Camera" modes render the source texture (instant, no formation animation).
+        private static bool IsCameraMode(VignetteMode mode) => mode == VignetteMode.ColorPop;
+
+        private void HandleSelection()
+        {
+            // Study lock: the trigger belongs to the task (probe presses) and A/B must not
+            // change mode/window mid-condition. Hide the aim cursor while locked.
+            if (StudyInputLock)
+            {
+                if (m_selectionDots != null && m_selectionDots[4] != null && m_selectionDots[4].activeSelf)
+                    m_selectionDots[4].SetActive(false);
+                m_isPainting = false;
+                return;
+            }
+            if (m_selectionDots != null && m_selectionDots[4] != null && !m_selectionDots[4].activeSelf)
+                m_selectionDots[4].SetActive(true);
+
+            bool held         = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
+            bool justPressed  = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
+            bool justReleased = OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger);
+            bool aPressed     = OVRInput.GetDown(OVRInput.RawButton.A);
+            bool bPressed     = OVRInput.GetDown(OVRInput.RawButton.B);
+
+            if (aPressed)
+            {
+                m_vignetteMode = k_modeCycle[(Array.IndexOf(k_modeCycle, m_vignetteMode) + 1) % k_modeCycle.Length];
+                m_motionDisableTimer = 0f;
+                m_motionSuppression  = 0f;
+                bool hasRect = m_activeRect != k_fullSphere;
+                if (IsCameraMode(m_vignetteMode))
+                {
+                    StopFormCoroutine();
+                    m_vignetteStrength = 1f;
+                }
+                else
+                {
+                    StopFormCoroutine();
+                    m_vignetteStrength = 0f;
+                    if (hasRect) m_formCoroutine = StartCoroutine(FormVignette());
+                }
+                ShowModeToast();
+            }
+
+            if (bPressed)
+            {
+                m_activeRect = k_fullSphere;
+                m_material.SetVector(s_focusRectId, m_activeRect);
+                StopFormCoroutine();
+                m_vignetteStrength = IsCameraMode(m_vignetteMode) ? 1f : 0f;
+                m_isPainting       = false;
+                CancelDotHide();
+                HideCornerDotsImmediate();
+            }
+
+            GetControllerAzEl(out float az, out float el);
+
+            if (justPressed)
+            {
+                CancelDotHide();
+                m_cornerDotsHidden = false;
+                RestoreDotsScale();
+                if (!IsCameraMode(m_vignetteMode)) { StopFormCoroutine(); m_vignetteStrength = 0f; }
+                m_activeRect = new Vector4(az - k_brushPad, az + k_brushPad,
+                                          el - k_brushPad, el + k_brushPad);
+                m_material.SetVector(s_focusRectId, m_activeRect);
+                m_isPainting = true;
+            }
+            else if (held && m_isPainting)
+            {
+                m_activeRect = new Vector4(
+                    Mathf.Min(m_activeRect.x, az - k_brushPad), Mathf.Max(m_activeRect.y, az + k_brushPad),
+                    Mathf.Min(m_activeRect.z, el - k_brushPad), Mathf.Max(m_activeRect.w, el + k_brushPad));
+                m_material.SetVector(s_focusRectId, m_activeRect);
+            }
+
+            if (justReleased && m_isPainting && m_activeRect != k_fullSphere)
+            {
+                if (IsCameraMode(m_vignetteMode)) m_vignetteStrength = 1f;
+                else { StopFormCoroutine(); m_formCoroutine = StartCoroutine(FormVignette()); }
+                m_dotHideCoroutine = StartCoroutine(HideDotsCoro());
+            }
+
+            if (!held) m_isPainting = false;
+            DrawPointerAndBorder(az, el, held);
+        }
+
+        // ---- formation ----
+
+        private void StopFormCoroutine()
+        {
+            if (m_formCoroutine == null) return;
+            StopCoroutine(m_formCoroutine);
+            m_formCoroutine = null;
+        }
+
+        private IEnumerator FormVignette()
+        {
+            float elapsed = 0f;
+            while (elapsed < m_vignetteFormTime)
+            {
+                elapsed           += Time.deltaTime;
+                m_vignetteStrength = Mathf.SmoothStep(0f, 1f, elapsed / m_vignetteFormTime);
+                yield return null;
+            }
+            m_vignetteStrength = 1f;
+            m_formCoroutine    = null;
+        }
+
+        // ---- mode uniforms ----
+
+        private void UpdateModeUniforms()
+        {
+            bool isColorPop = m_vignetteMode == VignetteMode.ColorPop;
+
+            float effectiveStrength = StudyEffectSuppressed
+                ? 0f
+                : m_vignetteStrength * (1f - m_motionSuppression);
+            CurrentEffectiveStrength = effectiveStrength;
+            float maxAlpha = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+
+            m_material.SetFloat(s_simpleModeId,       isColorPop ? 0f : 1f);
+            m_material.SetFloat(s_colorPopModeId,     isColorPop ? 1f : 0f);
+            m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
+            m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
+
+            // ColorPop: when no selection is painted, auto-follow head gaze so the effect
+            // is always visible without needing to hold trigger first.
+            if (isColorPop && m_activeRect == k_fullSphere)
+            {
+                Transform head = Camera.main != null ? Camera.main.transform : transform;
+                float headAz   = Mathf.Atan2(head.forward.x, head.forward.z);
+                float headEl   = Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f));
+                float halfW    = 40f * Mathf.Deg2Rad;
+                float halfH    = 25f * Mathf.Deg2Rad;
+                m_material.SetVector(s_focusRectId,
+                    new Vector4(headAz - halfW, headAz + halfW, headEl - halfH, headEl + halfH));
+            }
+        }
+
+        // ---- controller aim ----
+
+        private void GetControllerAzEl(out float az, out float el)
+        {
+            Vector3 worldDir;
+            if (m_rightControllerAnchor != null)
+            {
+                worldDir = m_rightControllerAnchor.forward;
+            }
+            else
+            {
+                var rot = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
+                worldDir = m_cameraRig != null
+                    ? m_cameraRig.TransformDirection(rot * Vector3.forward)
+                    : rot * Vector3.forward;
+            }
+            worldDir = worldDir.normalized;
+            az = Mathf.Atan2(worldDir.x, worldDir.z);
+            el = Mathf.Asin(Mathf.Clamp(worldDir.y, -1f, 1f));
+        }
+
+        // ---- selection dots ----
+
+        private void InitSelectionDots()
+        {
+            m_selectionDots = new GameObject[5];
+            m_dotMats       = new Material[5];
+            for (int i = 0; i < 5; i++)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.name = i < 4 ? $"SelCorner{i}" : "SelCursor";
+                Destroy(go.GetComponent<SphereCollider>());
+                var mat = m_dotMaterialTemplate != null
+                    ? new Material(m_dotMaterialTemplate)
+                    : new Material(Shader.Find("Standard"));
+                mat.renderQueue = 4000;
+                mat.color       = i == 4 ? m_dotColorCursor : m_dotColorHeld;
+                go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                go.transform.localScale = Vector3.one * m_dotSize;
+                go.SetActive(i == 4);
+                m_selectionDots[i] = go;
+                m_dotMats[i]       = mat;
+            }
+        }
+
+        private void CancelDotHide()
+        {
+            if (m_dotHideCoroutine == null) return;
+            StopCoroutine(m_dotHideCoroutine);
+            m_dotHideCoroutine = null;
+        }
+
+        private void HideCornerDotsImmediate()
+        {
+            m_cornerDotsHidden = true;
+            if (m_selectionDots == null) return;
+            for (int i = 0; i < 4; i++)
+                if (m_selectionDots[i] != null) m_selectionDots[i].SetActive(false);
+        }
+
+        private void RestoreDotsScale()
+        {
+            if (m_selectionDots == null) return;
+            for (int i = 0; i < 4; i++)
+                if (m_selectionDots[i] != null)
+                    m_selectionDots[i].transform.localScale = Vector3.one * m_dotSize;
+        }
+
+        private IEnumerator HideDotsCoro()
+        {
+            yield return new WaitForSeconds(m_dotHideDelay);
+            float elapsed = 0f, dur = 0.3f;
+            while (elapsed < dur)
+            {
+                elapsed += Time.deltaTime;
+                float s  = Mathf.Lerp(m_dotSize, 0f, Mathf.SmoothStep(0f, 1f, elapsed / dur));
+                if (m_selectionDots != null)
+                    for (int i = 0; i < 4; i++)
+                        if (m_selectionDots[i] != null)
+                            m_selectionDots[i].transform.localScale = Vector3.one * s;
+                yield return null;
+            }
+            m_cornerDotsHidden = true;
+            if (m_selectionDots != null)
+                for (int i = 0; i < 4; i++)
+                    if (m_selectionDots[i] != null) m_selectionDots[i].SetActive(false);
+            m_dotHideCoroutine = null;
+        }
+
+        private void DrawPointerAndBorder(float az, float el, bool holding)
+        {
+            if (m_selectionDots == null) return;
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            Vector3 org = head.position;
+            m_selectionDots[4].transform.position = org + DirFromAzEl(az, el) * k_dotDistance;
+            if (!m_cornerDotsHidden)
+            {
+                bool hasBorder = m_activeRect != k_fullSphere;
+                for (int i = 0; i < 4; i++) m_selectionDots[i].SetActive(hasBorder);
+                if (hasBorder)
+                {
+                    float azMin = m_activeRect.x, azMax = m_activeRect.y;
+                    float elMin = m_activeRect.z, elMax = m_activeRect.w;
+                    m_selectionDots[0].transform.position = org + DirFromAzEl(azMin, elMin) * k_dotDistance;
+                    m_selectionDots[1].transform.position = org + DirFromAzEl(azMax, elMin) * k_dotDistance;
+                    m_selectionDots[2].transform.position = org + DirFromAzEl(azMax, elMax) * k_dotDistance;
+                    m_selectionDots[3].transform.position = org + DirFromAzEl(azMin, elMax) * k_dotDistance;
+                    Color c = holding ? m_dotColorHeld : m_dotColorLocked;
+                    for (int i = 0; i < 4; i++) m_dotMats[i].color = c;
+                }
+            }
+        }
+
+        // ---- mode UI ----
+
+        private void InitModeUI()
+        {
+            m_modeUIRoot = new GameObject("ModeIndicatorUI");
+            var canvas = m_modeUIRoot.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            m_modeUIRoot.AddComponent<CanvasScaler>();
+            var rt = m_modeUIRoot.GetComponent<RectTransform>();
+            rt.sizeDelta  = new Vector2(540, 150);
+            rt.localScale = Vector3.one * 0.001f;
+            m_modeUIGroup = m_modeUIRoot.AddComponent<CanvasGroup>();
+            m_modeUIGroup.alpha = 0f; m_modeUIGroup.blocksRaycasts = false; m_modeUIGroup.interactable = false;
+
+            // The vignette sphere renders on the Transparent queue (3000) with its bounds
+            // centered on the head, so it sorts closer than the toast and draws over it —
+            // default UI is also queue 3000. Queue 4100 puts the toast above the sphere
+            // and the selection dots (4000). GetDefaultCanvasMaterial survives build stripping.
+            m_modeUIMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
+
+            var bg = CreateChild(m_modeUIRoot, "BG");
+            var bgImg = bg.AddComponent<Image>();
+            bgImg.color    = new Color(0.05f, 0.05f, 0.05f, 0.82f);
+            bgImg.material = m_modeUIMat;
+            StretchFill(bg);
+
+            var stripe = CreateChild(m_modeUIRoot, "Stripe");
+            var stripeImg = stripe.AddComponent<Image>();
+            stripeImg.color    = ModeAccentColor();
+            stripeImg.material = m_modeUIMat;
+            var srt = stripe.GetComponent<RectTransform>();
+            srt.anchorMin = new Vector2(0f, 0.88f); srt.anchorMax = Vector2.one;
+            srt.offsetMin = srt.offsetMax = Vector2.zero;
+
+            var nameGO = CreateChild(m_modeUIRoot, "ModeName");
+            m_modeNameText = nameGO.AddComponent<Text>();
+            m_modeNameText.material = m_modeUIMat;
+            m_modeNameText.font = BuiltinFont(); m_modeNameText.fontSize = 46;
+            m_modeNameText.fontStyle = FontStyle.Bold; m_modeNameText.alignment = TextAnchor.MiddleCenter;
+            m_modeNameText.color = Color.white;
+            var nrt = nameGO.GetComponent<RectTransform>();
+            nrt.anchorMin = new Vector2(0f, 0.38f); nrt.anchorMax = new Vector2(1f, 0.88f);
+            nrt.offsetMin = nrt.offsetMax = Vector2.zero;
+
+            var hintGO = CreateChild(m_modeUIRoot, "Hint");
+            m_modeHintText = hintGO.AddComponent<Text>();
+            m_modeHintText.material = m_modeUIMat;
+            m_modeHintText.font = BuiltinFont(); m_modeHintText.fontSize = 21;
+            m_modeHintText.alignment = TextAnchor.MiddleCenter;
+            m_modeHintText.color = new Color(1f, 1f, 1f, 0.6f);
+            var hrt = hintGO.GetComponent<RectTransform>();
+            hrt.anchorMin = new Vector2(0f, 0f); hrt.anchorMax = new Vector2(1f, 0.4f);
+            hrt.offsetMin = hrt.offsetMax = Vector2.zero;
+
+            m_modeUIRoot.transform.position = Vector3.zero;
+        }
+
+        private void ShowModeToast()
+        {
+            if (m_modeNameText == null) return;
+            int idx = Array.IndexOf(k_modeCycle, m_vignetteMode) + 1;
+            string modeName = m_vignetteMode switch
+            {
+                VignetteMode.ColorPop => "COLOR POP",
+                VignetteMode.SoftDark => "SOFT DARK",
+                _                     => "HARD DARK"
+            };
+            string desc = m_vignetteMode switch
+            {
+                VignetteMode.ColorPop => "Red/orange/green pop in window, kept outside; glare dimmed",
+                VignetteMode.SoftDark => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
+                _                     => "Full black-out vignette"
+            };
+            m_modeNameText.text = $"[{idx}/{k_modeCycle.Length}]  {modeName}  [VIDEO]";
+            m_modeHintText.text = $"{desc}     [A] cycle  [B] clear";
+            var stripe = m_modeUIRoot.transform.Find("Stripe");
+            if (stripe != null) { var img = stripe.GetComponent<Image>(); if (img != null) img.color = ModeAccentColor(); }
+            m_modeUITimer = k_modeUIShowTime;
+        }
+
+        private Color ModeAccentColor() => m_vignetteMode switch
+        {
+            VignetteMode.ColorPop => new Color(1.00f, 0.80f, 0.10f, 1f),
+            VignetteMode.SoftDark => new Color(1.00f, 0.65f, 0.10f, 1f),
+            _                     => new Color(0.90f, 0.15f, 0.15f, 1f)
+        };
+
+        private void UpdateModeUI()
+        {
+            if (m_modeUIRoot == null) return;
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            Vector3 target = head.position + head.forward * 1.5f + Vector3.down * 0.30f;
+            m_modeUIRoot.transform.position = Vector3.Lerp(m_modeUIRoot.transform.position, target, Time.deltaTime * 9f);
+            Vector3 away = m_modeUIRoot.transform.position - head.position;
+            if (away.sqrMagnitude > 0.001f)
+                m_modeUIRoot.transform.rotation = Quaternion.LookRotation(away, Vector3.up);
+            if (m_modeUITimer > 0f)
+            {
+                m_modeUITimer -= Time.deltaTime;
+                float fadeIn  = Mathf.Clamp01((k_modeUIShowTime - m_modeUITimer) / k_modeUIFadeDur);
+                float fadeOut = Mathf.Clamp01(m_modeUITimer / k_modeUIFadeDur);
+                m_modeUIGroup.alpha = Mathf.Min(fadeIn, fadeOut);
+            }
+            else m_modeUIGroup.alpha = 0f;
+        }
+
+        // ---- static helpers ----
+
+        private static Vector3 DirFromAzEl(float az, float el)
+        {
+            float cosEl = Mathf.Cos(el);
+            return new Vector3(Mathf.Sin(az) * cosEl, Mathf.Sin(el), Mathf.Cos(az) * cosEl);
+        }
+
+        private static GameObject CreateChild(GameObject parent, string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent.transform, false);
+            go.AddComponent<RectTransform>();
+            return go;
+        }
+
+        private static void StretchFill(GameObject go)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+        }
+
+        private static Font BuiltinFont()
+        {
+            var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (f == null) f = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            return f;
+        }
+    }
+}

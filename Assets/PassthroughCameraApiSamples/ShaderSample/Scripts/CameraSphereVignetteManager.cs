@@ -6,27 +6,38 @@ using Meta.XR;
 using Meta.XR.Samples;
 using UnityEngine;
 using UnityEngine.UI;
-
 namespace PassthroughCameraSamples.ShaderSample
 {
-    public enum VignetteMode { Blur = 0, SoftDark = 1, HardDark = 2 }
+    public enum VignetteMode
+    {
+        Blur               = 0, // Camera: blurred + desaturated periphery (contrast-restored)
+        SoftDark           = 1, // Dark overlay, soft (~75% max alpha), gradual formation
+        HardDark           = 2, // Dark overlay, full blackout, gradual formation
+        TintedDark         = 3, // Configurable-colour dark overlay, gradual formation
+        ChromaticCool      = 4, // Camera: warm focus, cool blue periphery shift
+        ColorPop           = 5, // Muted grey periphery; saturated warm/green colors boosted vivid
+        ConspicuitySqueeze = 6, // Camera: periphery contrast flattened toward local mean (Veas 2011)
+        GranulatedPeriphery= 7, // World-locked noise grains, density ramps with eccentricity (Cao 2021)
+        OutlinedDark       = 8, // Near-blackout with luminance edges kept (Cheng 2022)
+        SpotLift           = 9, // Focus window brightened + soft peripheral dim (video mode)
+    }
 
     [System.Serializable]
     public struct MotionSettings
     {
         [Tooltip("Head angular speed (deg/s) that triggers suppression.")]
-        [Range(5f, 180f)]  public float speedThreshDeg;
+        [Range(5f, 180f)] public float speedThreshDeg;
         [Tooltip("Seconds the suppression holds after speed drops below threshold.")]
-        [Range(0f, 5f)]    public float holdSeconds;
+        [Range(0f, 5f)] public float holdSeconds;
     }
 
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
-    public class CameraSphereVignetteManager : MonoBehaviour
+    public class CameraSphereVignetteManager : MonoBehaviour, IStudyVignetteControl
     {
         [SerializeField] private PassthroughCameraAccess m_cameraAccess;
         [SerializeField] private PassthroughCameraAccess m_cameraAccessRight;
         // Named m_renderer to preserve scene serialization from the prior version.
-        [SerializeField] private MeshRenderer            m_renderer;
+        [SerializeField] private MeshRenderer m_renderer;
 
         [Tooltip("OVRCameraRig's right controller anchor (for aim direction).")]
         [SerializeField] private Transform m_rightControllerAnchor;
@@ -39,7 +50,8 @@ namespace PassthroughCameraSamples.ShaderSample
         [Header("Filter")]
         [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
         [SerializeField, Range(0f, 0.15f)] private float m_maxBlurRadius = 0.01f;
-        [SerializeField, Range(0.5f, 8f)]  private float m_blurCurveExp  = 4f;
+        [SerializeField, Range(0.5f, 8f)]  private float m_blurCurveExp  = 1.5f;
+        [SerializeField, Range(0f, 0.9f)]  private float m_blurDelay     = 0.5f;
         [SerializeField, Range(0f, 0.9f)]  private float m_desatDelay    = 0.3f;
         [SerializeField, Range(0.5f, 4f)]  private float m_desatCurveExp = 3f;
 
@@ -52,9 +64,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha    = 0.75f;
 
         [Header("Motion Disable — Per Mode")]
-        [SerializeField] private MotionSettings m_motionBlur     = new MotionSettings { speedThreshDeg = 30f, holdSeconds = 0.6f };
-        [SerializeField] private MotionSettings m_motionSoftDark = new MotionSettings { speedThreshDeg = 50f, holdSeconds = 1.0f };
-        [SerializeField] private MotionSettings m_motionHardDark = new MotionSettings { speedThreshDeg = 70f, holdSeconds = 1.5f };
+        [SerializeField] private MotionSettings m_motionBlur          = new MotionSettings { speedThreshDeg = 30f,  holdSeconds = 0.6f };
+        [SerializeField] private MotionSettings m_motionSoftDark      = new MotionSettings { speedThreshDeg = 50f,  holdSeconds = 1.0f };
+        [SerializeField] private MotionSettings m_motionHardDark      = new MotionSettings { speedThreshDeg = 70f,  holdSeconds = 1.5f };
+        [SerializeField] private MotionSettings m_motionTintedDark    = new MotionSettings { speedThreshDeg = 70f,  holdSeconds = 1.5f };
+        [SerializeField] private MotionSettings m_motionChromaticCool = new MotionSettings { speedThreshDeg = 35f,  holdSeconds = 0.7f };
+        [SerializeField] private MotionSettings m_motionColorPop      = new MotionSettings { speedThreshDeg = 35f,  holdSeconds = 0.7f };
 
         [Tooltip("Seconds for the effect to fade OUT when suppression starts.")]
         [SerializeField, Range(0.05f, 2f)] private float m_motionFadeOutSec = 0.20f;
@@ -70,6 +85,56 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField] private Color    m_dotColorLocked = new Color(1f, 1f, 1f, 0.55f);
         [SerializeField] private Color    m_dotColorCursor = new Color(1f, 0.9f, 0.3f, 1f);
 
+        [Header("Blur Noise Texture")]
+        [Tooltip("Noise source for the Blur-mode perceptual noise enhancement.")]
+        [SerializeField] private Texture2D m_frostTex;
+
+        [Header("Tinted Dark")]
+        [SerializeField] private Color m_tintColor = new Color(0.05f, 0.10f, 0.25f, 1f);
+
+        [Header("Chromatic Cool")]
+        [SerializeField, Range(0f, 1f)] private float m_coolStrength = 0.6f;
+
+        [Header("Color Pop")]
+        [Tooltip("Brightness of the muted grey periphery (lower = stronger pop contrast).")]
+        [SerializeField, Range(0.1f, 1f)] private float m_popGreyDim  = 0.4f;
+        [Tooltip("Saturation boost applied to kept warm/green colors.")]
+        [SerializeField, Range(1f, 3f)]   private float m_popSatBoost = 1.7f;
+
+        [Header("Blur Contrast Restore")]
+        [Tooltip("Re-amplify local contrast after blurring (Patney 2016) — removes the tunnel-vision percept.")]
+        [SerializeField, Range(0f, 2f)] private float m_blurContrastRestore = 0.8f;
+
+        [Header("Conspicuity Squeeze")]
+        [SerializeField, Range(0.005f, 0.08f)] private float m_squeezeRadius = 0.015f;
+        [SerializeField, Range(0f, 1f)]        private float m_squeezeLum    = 0.5f;
+        [SerializeField, Range(0f, 1f)]        private float m_squeezeChroma = 0.85f;
+
+        [Header("Granulated Periphery")]
+        [SerializeField, Range(8f, 256f)] private float m_grainScale      = 90f;
+        [SerializeField, Range(0f, 1f)]   private float m_grainDensityMin = 0.25f;
+        [SerializeField, Range(0f, 1f)]   private float m_grainDensityMax = 0.75f;
+        [SerializeField]                  private Color m_grainColor      = new Color(0.5f, 0.5f, 0.5f, 1f);
+
+        [Header("Outlined Dimming")]
+        [SerializeField, Range(1f, 40f)]   private float m_edgeGain        = 12f;
+        [SerializeField, Range(0f, 1f)]    private float m_edgeBrightness  = 0.35f;
+        [SerializeField, Range(0.5f, 1f)]  private float m_outlineDimAlpha = 0.92f;
+
+        [Header("Spotlight Lift")]
+        [SerializeField, Range(0f, 0.3f)] private float m_spotLiftAmp  = 0.08f;
+        [SerializeField, Range(0f, 1f)]   private float m_spotDimAlpha = 0.35f;
+
+        [Header("Detection Islands")]
+        [Tooltip("Soft edge width on YOLO detection clear zones (degrees).")]
+        [SerializeField, Range(0f, 10f)] private float m_detectionSoftEdgeDeg = 3f;
+        [Tooltip("How much to boost saturation/brightness on detected objects (0=clear only, 1=vivid).")]
+        [SerializeField, Range(0f, 1f)]  private float m_detectionEnhance = 0.4f;
+        [Tooltip("How much the annulus around a detected object is darkened (center-surround contrast).")]
+        [SerializeField, Range(0f, 0.5f)] private float m_detectionSurround = 0.15f;
+        [Tooltip("Amplitude of the gentle ~1 Hz breathing on the object boost (0 = static).")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionPulseAmp = 0.25f;
+
         [Header("Debug")]
         [SerializeField] private bool m_debugCamOverlay;
 
@@ -81,35 +146,66 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField] private float m_cameraHorizontalFovDeg = 82f;
 
         // ---- shader property IDs ----
-        private static readonly int s_mainTexLId         = Shader.PropertyToID("_MainTexL");
-        private static readonly int s_mainTexRId         = Shader.PropertyToID("_MainTexR");
-        private static readonly int s_sphereCenterId     = Shader.PropertyToID("_SphereCenter");
-        private static readonly int s_camLFwdId          = Shader.PropertyToID("_CamLFwd");
-        private static readonly int s_camLRtId           = Shader.PropertyToID("_CamLRt");
-        private static readonly int s_camLUpId           = Shader.PropertyToID("_CamLUp");
-        private static readonly int s_tanHalfFovLId      = Shader.PropertyToID("_TanHalfFovL");
-        private static readonly int s_camRFwdId          = Shader.PropertyToID("_CamRFwd");
-        private static readonly int s_camRRtId           = Shader.PropertyToID("_CamRRt");
-        private static readonly int s_camRUpId           = Shader.PropertyToID("_CamRUp");
-        private static readonly int s_tanHalfFovRId      = Shader.PropertyToID("_TanHalfFovR");
-        private static readonly int s_hasRightCamId      = Shader.PropertyToID("_HasRightCam");
-        private static readonly int s_focusRectId        = Shader.PropertyToID("_FocusRect");
-        private static readonly int s_softEdgeId         = Shader.PropertyToID("_SoftEdge");
-        private static readonly int s_maxBlurRadId       = Shader.PropertyToID("_MaxBlurRadius");
-        private static readonly int s_blurCurveExpId     = Shader.PropertyToID("_BlurCurveExp");
-        private static readonly int s_desatDelayId       = Shader.PropertyToID("_DesatDelay");
-        private static readonly int s_desatCurveExpId    = Shader.PropertyToID("_DesatCurveExp");
-        private static readonly int s_detectionCountId   = Shader.PropertyToID("_DetectionCount");
-        private static readonly int s_detectionRectsId   = Shader.PropertyToID("_DetectionRects");
-        private static readonly int s_debugCamOverlayId  = Shader.PropertyToID("_DebugCamOverlay");
-        private static readonly int s_simpleModeId       = Shader.PropertyToID("_SimpleMode");
-        private static readonly int s_vignetteStrengthId = Shader.PropertyToID("_VignetteStrength");
-        private static readonly int s_maxVignetteAlphaId = Shader.PropertyToID("_MaxVignetteAlpha");
+        private static readonly int s_mainTexLId           = Shader.PropertyToID("_MainTexL");
+        private static readonly int s_mainTexRId           = Shader.PropertyToID("_MainTexR");
+        private static readonly int s_sphereCenterId       = Shader.PropertyToID("_SphereCenter");
+        private static readonly int s_camLFwdId            = Shader.PropertyToID("_CamLFwd");
+        private static readonly int s_camLRtId             = Shader.PropertyToID("_CamLRt");
+        private static readonly int s_camLUpId             = Shader.PropertyToID("_CamLUp");
+        private static readonly int s_tanHalfFovLId        = Shader.PropertyToID("_TanHalfFovL");
+        private static readonly int s_camRFwdId            = Shader.PropertyToID("_CamRFwd");
+        private static readonly int s_camRRtId             = Shader.PropertyToID("_CamRRt");
+        private static readonly int s_camRUpId             = Shader.PropertyToID("_CamRUp");
+        private static readonly int s_tanHalfFovRId        = Shader.PropertyToID("_TanHalfFovR");
+        private static readonly int s_hasRightCamId        = Shader.PropertyToID("_HasRightCam");
+        private static readonly int s_focusRectId          = Shader.PropertyToID("_FocusRect");
+        private static readonly int s_softEdgeId           = Shader.PropertyToID("_SoftEdge");
+        private static readonly int s_maxBlurRadId         = Shader.PropertyToID("_MaxBlurRadius");
+        private static readonly int s_blurCurveExpId       = Shader.PropertyToID("_BlurCurveExp");
+        private static readonly int s_blurDelayId          = Shader.PropertyToID("_BlurDelay");
+        private static readonly int s_desatDelayId         = Shader.PropertyToID("_DesatDelay");
+        private static readonly int s_desatCurveExpId      = Shader.PropertyToID("_DesatCurveExp");
+        private static readonly int s_detectionCountId     = Shader.PropertyToID("_DetectionCount");
+        private static readonly int s_detectionRectsId     = Shader.PropertyToID("_DetectionRects");
+        private static readonly int s_detectionSoftEdgeId  = Shader.PropertyToID("_DetectionSoftEdge");
+        private static readonly int s_detectionEnhanceId   = Shader.PropertyToID("_DetectionEnhance");
+        private static readonly int s_detectionSurroundId  = Shader.PropertyToID("_DetectionSurround");
+        private static readonly int s_detectionPulseAmpId  = Shader.PropertyToID("_DetectionPulseAmp");
+        private static readonly int s_blurContrastRestoreId = Shader.PropertyToID("_BlurContrastRestore");
+        private static readonly int s_squeezeModeId    = Shader.PropertyToID("_SqueezeMode");
+        private static readonly int s_squeezeRadiusId  = Shader.PropertyToID("_SqueezeRadius");
+        private static readonly int s_squeezeLumId     = Shader.PropertyToID("_SqueezeLum");
+        private static readonly int s_squeezeChromaId  = Shader.PropertyToID("_SqueezeChroma");
+        private static readonly int s_grainModeId       = Shader.PropertyToID("_GrainMode");
+        private static readonly int s_grainScaleId      = Shader.PropertyToID("_GrainScale");
+        private static readonly int s_grainDensityMinId = Shader.PropertyToID("_GrainDensityMin");
+        private static readonly int s_grainDensityMaxId = Shader.PropertyToID("_GrainDensityMax");
+        private static readonly int s_grainColorId      = Shader.PropertyToID("_GrainColor");
+        private static readonly int s_outlineModeId     = Shader.PropertyToID("_OutlineMode");
+        private static readonly int s_edgeGainId        = Shader.PropertyToID("_EdgeGain");
+        private static readonly int s_edgeBrightnessId  = Shader.PropertyToID("_EdgeBrightness");
+        private static readonly int s_outlineDimAlphaId = Shader.PropertyToID("_OutlineDimAlpha");
+        private static readonly int s_spotLiftModeId    = Shader.PropertyToID("_SpotLiftMode");
+        private static readonly int s_spotLiftAmpId     = Shader.PropertyToID("_SpotLiftAmp");
+        private static readonly int s_spotDimAlphaId    = Shader.PropertyToID("_SpotDimAlpha");
+        private static readonly int s_debugCamOverlayId    = Shader.PropertyToID("_DebugCamOverlay");
+        private static readonly int s_simpleModeId         = Shader.PropertyToID("_SimpleMode");
+        private static readonly int s_vignetteStrengthId   = Shader.PropertyToID("_VignetteStrength");
+        private static readonly int s_maxVignetteAlphaId   = Shader.PropertyToID("_MaxVignetteAlpha");
+        private static readonly int s_frostTexId           = Shader.PropertyToID("_FrostTex");
+        private static readonly int s_popGreyDimId         = Shader.PropertyToID("_PopGreyDim");
+        private static readonly int s_popSatBoostId        = Shader.PropertyToID("_PopSatBoost");
+        private static readonly int s_tintColorId          = Shader.PropertyToID("_TintColor");
+        private static readonly int s_tintModeId           = Shader.PropertyToID("_TintMode");
+        private static readonly int s_chromaticCoolId      = Shader.PropertyToID("_ChromaticCool");
+        private static readonly int s_coolStrengthId       = Shader.PropertyToID("_CoolStrength");
+        private static readonly int s_colorPopModeId       = Shader.PropertyToID("_ColorPopMode");
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
 
-        private static readonly HashSet<int> k_targetClasses = new() { 0, 1, 2, 3, 5, 6, 9, 11 };
+        // COCO: 9 = traffic light, 11 = stop sign. Signs only — vehicles/people excluded.
+        private static readonly HashSet<int> k_targetClasses = new() { 9, 11 };
 
         private const int k_maxDetections = 8;
         private readonly Vector4[] m_detectionRects     = new Vector4[k_maxDetections];
@@ -146,12 +242,17 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // Mode indicator UI (created at runtime)
         private GameObject  m_modeUIRoot;
+        private Material    m_modeUIMat;
         private CanvasGroup m_modeUIGroup;
         private Text        m_modeNameText;
         private Text        m_modeHintText;
         private float       m_modeUITimer;
         private const float k_modeUIShowTime = 2.8f;
         private const float k_modeUIFadeDur  = 0.35f;
+
+        private static bool IsCameraMode(VignetteMode mode) =>
+            mode == VignetteMode.Blur || mode == VignetteMode.ChromaticCool || mode == VignetteMode.ColorPop
+            || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
 
         // ---- Unity lifecycle ----
 
@@ -164,14 +265,17 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetVector(s_focusRectId, m_activeRect);
             m_material.SetFloat(s_hasRightCamId, 0f);
 
+            if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
+
+            // Normal passthrough path
             foreach (var cam in Camera.allCameras)
             {
                 cam.clearFlags      = CameraClearFlags.SolidColor;
                 cam.backgroundColor = Color.clear;
             }
 
-            var ptLayer = FindObjectOfType<OVRPassthroughLayer>();
-            if (ptLayer != null) ptLayer.enabled = true;
+            var ptLayerNormal = FindObjectOfType<OVRPassthroughLayer>();
+            if (ptLayerNormal != null) ptLayerNormal.enabled = true;
 
             if (m_selectionLine != null)
             {
@@ -181,8 +285,6 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_selectionLine.endWidth      = 0.005f;
                 m_selectionLine.enabled       = false;
             }
-
-            if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
 
             SetDebug("Waiting for camera...");
 
@@ -217,6 +319,8 @@ namespace PassthroughCameraSamples.ShaderSample
                 foreach (var mat in m_dotMats) if (mat != null) Destroy(mat);
             if (m_modeUIRoot != null)
                 Destroy(m_modeUIRoot);
+            if (m_modeUIMat != null)
+                Destroy(m_modeUIMat);
         }
 
         private void LateUpdate()
@@ -243,6 +347,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_headForward = head.forward;
             m_headRight   = head.right;
             m_headUp      = head.up;
+
         }
 
         // ---- dual-camera uniforms ----
@@ -343,18 +448,49 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_softEdgeId,        m_softEdgeDeg   * Mathf.Deg2Rad);
             m_material.SetFloat(s_maxBlurRadId,      m_maxBlurRadius);
             m_material.SetFloat(s_blurCurveExpId,    m_blurCurveExp);
+            m_material.SetFloat(s_blurDelayId,       m_blurDelay);
             m_material.SetFloat(s_desatDelayId,      m_desatDelay);
             m_material.SetFloat(s_desatCurveExpId,   m_desatCurveExp);
             m_material.SetFloat(s_debugCamOverlayId, m_debugCamOverlay ? 1f : 0f);
+
+            if (m_frostTex != null) m_material.SetTexture(s_frostTexId, m_frostTex);
+            m_material.SetFloat(s_popGreyDimId,  m_popGreyDim);
+            m_material.SetFloat(s_popSatBoostId, m_popSatBoost);
+            m_material.SetFloat(s_blurContrastRestoreId, m_blurContrastRestore);
+            m_material.SetFloat(s_squeezeRadiusId,   m_squeezeRadius);
+            m_material.SetFloat(s_squeezeLumId,      m_squeezeLum);
+            m_material.SetFloat(s_squeezeChromaId,   m_squeezeChroma);
+            m_material.SetFloat(s_grainScaleId,      m_grainScale);
+            m_material.SetFloat(s_grainDensityMinId, m_grainDensityMin);
+            m_material.SetFloat(s_grainDensityMaxId, m_grainDensityMax);
+            m_material.SetColor(s_grainColorId,      m_grainColor);
+            m_material.SetFloat(s_edgeGainId,        m_edgeGain);
+            m_material.SetFloat(s_edgeBrightnessId,  m_edgeBrightness);
+            m_material.SetFloat(s_outlineDimAlphaId, m_outlineDimAlpha);
+            m_material.SetFloat(s_spotLiftAmpId,     m_spotLiftAmp);
+            m_material.SetFloat(s_spotDimAlphaId,    m_spotDimAlpha);
+
+            m_material.SetColor(s_tintColorId,        m_tintColor);
+            m_material.SetFloat(s_coolStrengthId,     m_coolStrength);
+            m_material.SetFloat(s_detectionSoftEdgeId, m_detectionSoftEdgeDeg * Mathf.Deg2Rad);
+            m_material.SetFloat(s_detectionEnhanceId,  m_detectionEnhance);
+            m_material.SetFloat(s_detectionSurroundId, m_detectionSurround);
+            m_material.SetFloat(s_detectionPulseAmpId, m_detectionPulseAmp);
         }
 
         // ---- motion-based disable ----
 
         private MotionSettings CurrentMotionSettings => m_vignetteMode switch
         {
-            VignetteMode.Blur     => m_motionBlur,
-            VignetteMode.SoftDark => m_motionSoftDark,
-            _                     => m_motionHardDark
+            VignetteMode.Blur          => m_motionBlur,
+            VignetteMode.SoftDark      => m_motionSoftDark,
+            VignetteMode.TintedDark          => m_motionTintedDark,
+            VignetteMode.ChromaticCool       => m_motionChromaticCool,
+            VignetteMode.ColorPop            => m_motionColorPop,
+            VignetteMode.ConspicuitySqueeze  => m_motionBlur,
+            VignetteMode.GranulatedPeriphery => m_motionSoftDark,
+            VignetteMode.SpotLift            => m_motionSoftDark,
+            _                                => m_motionHardDark
         };
 
         // 15 degrees extra margin so the effect restores just before they fully centre on the rect
@@ -404,6 +540,44 @@ namespace PassthroughCameraSamples.ShaderSample
             m_motionSuppression = Mathf.MoveTowards(m_motionSuppression, target, fadeSpeed * Time.deltaTime);
         }
 
+        // ---- study API (IStudyVignetteControl — driven by Study/ConditionSequencer) ----
+
+        public VignetteMode CurrentMode => m_vignetteMode;
+        public Vector4 ActiveRect => m_activeRect;
+        public float CurrentEffectiveStrength { get; private set; }
+        public bool StudyInputLock { get; set; }
+        public bool StudyEffectSuppressed { get; set; }
+
+        // Motion suppression has no enable flag in the passthrough scene — it is always on.
+        public bool MotionEnabled { get => true; set { } }
+
+        public void StudySetMode(VignetteMode mode)
+        {
+            m_vignetteMode       = mode;
+            m_motionDisableTimer = 0f;
+            m_motionSuppression  = 0f;
+            StopFormCoroutine();
+            m_vignetteStrength = 1f; // conditions start fully formed; baselines use StudyEffectSuppressed
+        }
+
+        public void StudySetWindow(Vector4 azElRadians)
+        {
+            m_activeRect = azElRadians;
+            m_material.SetVector(s_focusRectId, m_activeRect);
+            m_isPainting = false;
+            CancelDotHide();
+            HideCornerDotsImmediate();
+        }
+
+        public void StudyClearWindow()
+        {
+            m_activeRect = k_fullSphere;
+            m_material.SetVector(s_focusRectId, m_activeRect);
+            m_isPainting = false;
+            CancelDotHide();
+            HideCornerDotsImmediate();
+        }
+
         // ---- selection (paint-while-holding) ----
 
         private bool        m_isPainting;
@@ -411,22 +585,34 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void HandleSelection()
         {
+            // Study lock: the trigger belongs to the task (CPT presses) and A/B must not
+            // change mode/window mid-condition. Hide the aim cursor while locked.
+            if (StudyInputLock)
+            {
+                if (m_selectionDots != null && m_selectionDots[4] != null && m_selectionDots[4].activeSelf)
+                    m_selectionDots[4].SetActive(false);
+                m_isPainting = false;
+                return;
+            }
+            if (m_selectionDots != null && m_selectionDots[4] != null && !m_selectionDots[4].activeSelf)
+                m_selectionDots[4].SetActive(true);
+
             bool held         = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
             bool justPressed  = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
             bool justReleased = OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger);
             bool aPressed     = OVRInput.GetDown(OVRInput.RawButton.A);
             bool bPressed     = OVRInput.GetDown(OVRInput.RawButton.B);
 
-            // A button: cycle mode
+            // A button: cycle through all 6 modes
             if (aPressed)
             {
-                m_vignetteMode = (VignetteMode)(((int)m_vignetteMode + 1) % 3);
+                m_vignetteMode = (VignetteMode)(((int)m_vignetteMode + 1) % 10);
                 // Reset motion state so the new mode's thresholds apply from a clean slate
                 m_motionDisableTimer = 0f;
                 m_motionSuppression  = 0f;
                 bool hasRect         = m_activeRect != k_fullSphere;
 
-                if (m_vignetteMode == VignetteMode.Blur)
+                if (IsCameraMode(m_vignetteMode))
                 {
                     StopFormCoroutine();
                     m_vignetteStrength = 1f;
@@ -448,7 +634,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_activeRect = k_fullSphere;
                 m_material.SetVector(s_focusRectId, m_activeRect);
                 StopFormCoroutine();
-                m_vignetteStrength = m_vignetteMode == VignetteMode.Blur ? 1f : 0f;
+                m_vignetteStrength = IsCameraMode(m_vignetteMode) ? 1f : 0f;
                 m_isPainting       = false;
                 CancelDotHide();
                 HideCornerDotsImmediate();
@@ -463,7 +649,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_cornerDotsHidden = false;
                 RestoreDotsScale();
 
-                if (m_vignetteMode != VignetteMode.Blur)
+                if (!IsCameraMode(m_vignetteMode))
                 {
                     StopFormCoroutine();
                     m_vignetteStrength = 0f;
@@ -488,7 +674,7 @@ namespace PassthroughCameraSamples.ShaderSample
             // On release: lock the selection, start vignette + dot-hide countdown
             if (justReleased && m_isPainting && m_activeRect != k_fullSphere)
             {
-                if (m_vignetteMode == VignetteMode.Blur)
+                if (IsCameraMode(m_vignetteMode))
                     m_vignetteStrength = 1f;
                 else
                 {
@@ -576,14 +762,51 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateModeUniforms()
         {
-            bool  isSimple          = m_vignetteMode != VignetteMode.Blur;
-            // Motion suppression fades effect out/in smoothly; formation animates 0→1
-            float effectiveStrength = m_vignetteStrength * (1f - m_motionSuppression);
-            float maxAlpha          = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+            bool isColorPop = m_vignetteMode == VignetteMode.ColorPop;
+            bool isSimple   = m_vignetteMode == VignetteMode.SoftDark || m_vignetteMode == VignetteMode.HardDark;
+            bool isTinted   = m_vignetteMode == VignetteMode.TintedDark;
+            bool isCoolBlur = m_vignetteMode == VignetteMode.ChromaticCool;
+            bool isSqueeze  = m_vignetteMode == VignetteMode.ConspicuitySqueeze;
+            bool isGrain    = m_vignetteMode == VignetteMode.GranulatedPeriphery;
+            bool isOutline  = m_vignetteMode == VignetteMode.OutlinedDark;
+            bool isSpotLift = m_vignetteMode == VignetteMode.SpotLift;
 
-            m_material.SetFloat(s_simpleModeId,       isSimple ? 1f : 0f);
+            float effectiveStrength = StudyEffectSuppressed
+                ? 0f
+                : m_vignetteStrength * (1f - m_motionSuppression);
+            CurrentEffectiveStrength = effectiveStrength;
+            float maxAlpha = m_vignetteMode switch
+            {
+                VignetteMode.HardDark            => 1f,
+                VignetteMode.TintedDark          => 1f,
+                VignetteMode.OutlinedDark        => 1f,
+                VignetteMode.GranulatedPeriphery => 1f,
+                _                                => m_mode2MaxAlpha
+            };
+
+            m_material.SetFloat(s_simpleModeId,       isSimple   ? 1f : 0f);
+            m_material.SetFloat(s_tintModeId,         isTinted   ? 1f : 0f);
+            m_material.SetFloat(s_chromaticCoolId,    isCoolBlur  ? 1f : 0f);
+            m_material.SetFloat(s_colorPopModeId,     isColorPop  ? 1f : 0f);
+            m_material.SetFloat(s_squeezeModeId,      isSqueeze   ? 1f : 0f);
+            m_material.SetFloat(s_grainModeId,        isGrain     ? 1f : 0f);
+            m_material.SetFloat(s_outlineModeId,      isOutline   ? 1f : 0f);
+            m_material.SetFloat(s_spotLiftModeId,     isSpotLift  ? 1f : 0f);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
+
+            // ColorPop: when no selection is painted, auto-follow head gaze so the effect
+            // is always visible without needing to hold trigger first.
+            if (isColorPop && m_activeRect == k_fullSphere)
+            {
+                Transform head = Camera.main != null ? Camera.main.transform : transform;
+                float headAz   = Mathf.Atan2(head.forward.x, head.forward.z);
+                float headEl   = Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f));
+                float halfW    = 40f * Mathf.Deg2Rad;
+                float halfH    = 25f * Mathf.Deg2Rad;
+                m_material.SetVector(s_focusRectId,
+                    new Vector4(headAz - halfW, headAz + halfW, headEl - halfH, headEl + halfH));
+            }
         }
 
         // ---- controller aim ----
@@ -689,16 +912,24 @@ namespace PassthroughCameraSamples.ShaderSample
             m_modeUIGroup.blocksRaycasts = false;
             m_modeUIGroup.interactable   = false;
 
+            // The vignette sphere renders on the Transparent queue (3000) with its bounds
+            // centered on the head, so it sorts closer than the toast and draws over it —
+            // default UI is also queue 3000. Queue 4100 puts the toast above the sphere
+            // and the selection dots (4000). GetDefaultCanvasMaterial survives build stripping.
+            m_modeUIMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
+
             // Dark background panel
             var bg   = CreateChild(m_modeUIRoot, "BG");
             var bgImg = bg.AddComponent<Image>();
-            bgImg.color = new Color(0.05f, 0.05f, 0.05f, 0.82f);
+            bgImg.color    = new Color(0.05f, 0.05f, 0.05f, 0.82f);
+            bgImg.material = m_modeUIMat;
             StretchFill(bg);
 
             // Accent stripe at the top (coloured by mode)
             var stripe    = CreateChild(m_modeUIRoot, "Stripe");
             var stripeImg = stripe.AddComponent<Image>();
-            stripeImg.color = ModeAccentColor();
+            stripeImg.color    = ModeAccentColor();
+            stripeImg.material = m_modeUIMat;
             var stripeRt = stripe.GetComponent<RectTransform>();
             stripeRt.anchorMin = new Vector2(0f, 0.88f);
             stripeRt.anchorMax = Vector2.one;
@@ -707,6 +938,7 @@ namespace PassthroughCameraSamples.ShaderSample
             // Mode name (large, upper half)
             var nameGO   = CreateChild(m_modeUIRoot, "ModeName");
             m_modeNameText = nameGO.AddComponent<Text>();
+            m_modeNameText.material = m_modeUIMat;
             m_modeNameText.font      = BuiltinFont();
             m_modeNameText.fontSize  = 46;
             m_modeNameText.fontStyle = FontStyle.Bold;
@@ -720,6 +952,7 @@ namespace PassthroughCameraSamples.ShaderSample
             // Hint / description (small, lower third)
             var hintGO  = CreateChild(m_modeUIRoot, "Hint");
             m_modeHintText = hintGO.AddComponent<Text>();
+            m_modeHintText.material = m_modeUIMat;
             m_modeHintText.font      = BuiltinFont();
             m_modeHintText.fontSize  = 21;
             m_modeHintText.alignment = TextAnchor.MiddleCenter;
@@ -737,27 +970,36 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             if (m_modeNameText == null) return;
 
-            // Mode pip indicator  e.g. "●  ○  ○" / "○  ●  ○" / "○  ○  ●"
-            string pip = m_vignetteMode switch
-            {
-                VignetteMode.Blur     => "●  ○  ○",
-                VignetteMode.SoftDark => "○  ●  ○",
-                _                     => "○  ○  ●"
-            };
+            int idx  = (int)m_vignetteMode + 1;
+            int total = 10;
             string modeName = m_vignetteMode switch
             {
-                VignetteMode.Blur     => "BLUR VIGNETTE",
-                VignetteMode.SoftDark => "SOFT DARK",
-                _                     => "HARD DARK"
+                VignetteMode.Blur                => "BLUR",
+                VignetteMode.SoftDark            => "SOFT DARK",
+                VignetteMode.HardDark            => "HARD DARK",
+                VignetteMode.TintedDark          => "TINTED DARK",
+                VignetteMode.ChromaticCool       => "CHROMA COOL",
+                VignetteMode.ColorPop            => "COLOR POP",
+                VignetteMode.ConspicuitySqueeze  => "SQUEEZE",
+                VignetteMode.GranulatedPeriphery => "GRAIN",
+                VignetteMode.OutlinedDark        => "OUTLINE DARK",
+                _                                => "SPOTLIGHT"
             };
             string desc = m_vignetteMode switch
             {
-                VignetteMode.Blur     => "Blurred & desaturated periphery",
-                VignetteMode.SoftDark => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
-                _                     => "Full black-out vignette"
+                VignetteMode.Blur                => "Blurred + desaturated periphery",
+                VignetteMode.SoftDark            => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
+                VignetteMode.HardDark            => "Full black-out vignette",
+                VignetteMode.TintedDark          => "Coloured dark vignette",
+                VignetteMode.ChromaticCool       => "Warm focus / cool periphery",
+                VignetteMode.ColorPop            => "Muted grey periphery; vivid colors pop",
+                VignetteMode.ConspicuitySqueeze  => "Periphery contrast flattened (subtle)",
+                VignetteMode.GranulatedPeriphery => "Static noise grains in periphery",
+                VignetteMode.OutlinedDark        => "Blackout with edge outlines kept",
+                _                                => "Brightened focus, soft dim periphery"
             };
 
-            m_modeNameText.text = $"{pip}     {modeName}";
+            m_modeNameText.text = $"[{idx}/{total}]  {modeName}";
             m_modeHintText.text = $"{desc}     [A] cycle  [B] clear";
 
             // Update accent stripe colour to match mode
@@ -775,9 +1017,16 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             return m_vignetteMode switch
             {
-                VignetteMode.Blur     => new Color(0.25f, 0.55f, 1.00f, 1f), // blue
-                VignetteMode.SoftDark => new Color(1.00f, 0.65f, 0.10f, 1f), // amber
-                _                     => new Color(0.90f, 0.15f, 0.15f, 1f)  // red
+                VignetteMode.Blur                => new Color(0.25f, 0.55f, 1.00f, 1f), // blue
+                VignetteMode.SoftDark            => new Color(1.00f, 0.65f, 0.10f, 1f), // amber
+                VignetteMode.HardDark            => new Color(0.90f, 0.15f, 0.15f, 1f), // red
+                VignetteMode.TintedDark          => new Color(0.55f, 0.35f, 1.00f, 1f), // violet
+                VignetteMode.ChromaticCool       => new Color(0.45f, 0.90f, 0.95f, 1f), // cyan
+                VignetteMode.ColorPop            => new Color(1.00f, 0.80f, 0.10f, 1f), // warm yellow
+                VignetteMode.ConspicuitySqueeze  => new Color(0.60f, 0.60f, 0.65f, 1f), // neutral grey
+                VignetteMode.GranulatedPeriphery => new Color(0.75f, 0.75f, 0.55f, 1f), // sand
+                VignetteMode.OutlinedDark        => new Color(0.95f, 0.95f, 0.95f, 1f), // white
+                _                                => new Color(1.00f, 0.95f, 0.55f, 1f)  // pale gold (spotlight)
             };
         }
 
