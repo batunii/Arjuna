@@ -11,6 +11,7 @@ Builds/
 *.sln
 /.utmp
 *.zip
+*.meta
 *.apk
 RuntimeActionBindings.json
 RuntimeActionBindings.json.meta
