@@ -99,7 +99,6 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private Phase m_phaseBeforePractice;
         private readonly StringBuilder m_pidEntry = new();
 
-        private float m_chordHeld;    // controller SPACE fallback
 
         // ---- lifecycle ----
 
@@ -107,7 +106,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             m_ctrl = m_vignetteManagerBehaviour as IStudyVignetteControl;
             Debug.Log($"[Sequencer] Plan={m_plan}. Type participant ID digits, ENTER to open session " +
-                      $"(or SPACE for default pid {m_participantId}).");
+                      $"(ENTER alone opens default pid {m_participantId}).");
         }
 
         private void Update()
@@ -134,13 +133,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private bool AdvancePressed()
         {
-            if (Input.GetKeyDown(KeyCode.Space)) return true;
-
-            bool chord = OVRInput.Get(OVRInput.RawButton.LThumbstick)
-                      && OVRInput.Get(OVRInput.RawButton.RThumbstick);
-            m_chordHeld = chord ? m_chordHeld + Time.deltaTime : 0f;
-            if (m_chordHeld >= 1f) { m_chordHeld = 0f; return true; }
-            return false;
+            // Keyboard SPACE only. (A thumbstick-click chord used to live here but a
+            // headset-wearing solo operator triggers it by accident while adjusting the
+            // controllers — it kept jumping the session into a block. Removed.)
+            return Input.GetKeyDown(KeyCode.Space);
         }
 
         private void HandleGlobalKeys()
@@ -160,8 +156,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (Input.GetKeyDown(KeyCode.E))
             {
                 m_logger?.EndSession("experimenter");
-                m_phase = Phase.Done;
-                Debug.Log("[Sequencer] Session ended by experimenter.");
+                ResetForNextParticipant();
                 return;
             }
 
@@ -172,7 +167,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 Debug.Log("[Sequencer] CPT panel (re)placed at gaze.");
             }
 
-            if (Input.GetKeyDown(KeyCode.P) && m_phase != Phase.Condition && m_phase != Phase.Practice)
+            if (Input.GetKeyDown(KeyCode.P) && (m_logger != null && m_logger.SessionOpen)
+                && m_phase != Phase.Condition && m_phase != Phase.Practice && m_phase != Phase.Done)
                 StartPractice();
 
             if (Input.GetKeyDown(KeyCode.K) && m_plan == StudyPlan.VideoScene_BlocksBC
@@ -192,8 +188,25 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (m_phase == Phase.Refused && Input.GetKeyDown(KeyCode.E))
             {
                 m_logger?.EndSession("guard_refused");
-                m_phase = Phase.Done;
+                ResetForNextParticipant();
             }
+        }
+
+        // Return to the "type participant ID" state so the next participant can be run
+        // without relaunching the app. Called after every session ends.
+        private void ResetForNextParticipant()
+        {
+            m_pidEntry.Clear();
+            m_condIdx = 0;
+            m_tlxOpen = false;
+            if (m_ctrl != null)
+            {
+                m_ctrl.StudyEffectSuppressed = true;
+                m_ctrl.StudyInputLock = false;
+            }
+            if (m_logger != null) { m_logger.Block = ""; m_logger.Condition = ""; }
+            m_phase = Phase.EnterPid;
+            Debug.Log("[Sequencer] Session closed. Ready for next participant — type ID digits then ENTER.");
         }
 
         // ---- participant ID entry ----
@@ -203,9 +216,12 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             for (var k = KeyCode.Alpha0; k <= KeyCode.Alpha9; k++)
                 if (Input.GetKeyDown(k)) m_pidEntry.Append((char)('0' + (k - KeyCode.Alpha0)));
 
+            // ENTER only (not SPACE) opens a session — a stray SPACE keycode (any input
+            // device, including a controller's HID-mapped buttons) must never silently
+            // start a session; ENTER with no digits typed already falls back to the
+            // default pid below, so SPACE added no unique capability, only accidental-open risk.
             bool confirm = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-            bool useDefault = Input.GetKeyDown(KeyCode.Space) && m_pidEntry.Length == 0;
-            if (!confirm && !useDefault) return;
+            if (!confirm) return;
 
             m_pid = m_pidEntry.Length > 0 && int.TryParse(m_pidEntry.ToString(), out int typed)
                 ? typed : m_participantId;

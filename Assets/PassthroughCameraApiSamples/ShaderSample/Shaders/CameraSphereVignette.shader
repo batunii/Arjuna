@@ -76,7 +76,7 @@ Shader "Meta/PCA/CameraSphereVignette"
         // in passthrough mode the window must stay transparent (OS layer, mono-paint comfort).
         _PopInsideDesat ("Pop: Inside Other Desaturation", Range(0, 1)) = 0.25
         _PopBrightIn    ("Pop: Inside ROG Brightness", Range(1, 1.5)) = 1.15
-        _PopBrightOut   ("Pop: Outside ROG Brightness", Range(0.3, 1)) = 0.8
+        _PopBrightOut   ("Pop: Outside ROG Brightness", Range(0.3, 1)) = 0.65
         _PopWarmSatMin  ("Pop: Warm Band Saturation Floor", Range(0, 0.8)) = 0.35
         _PopSigmoid     ("Pop: ROG Sigmoidal Contrast (Sutton 2022)", Range(0, 1)) = 0.6
         _PopPeriphDim   ("Pop: Periphery Overall Dim", Range(0.4, 1)) = 0.85
@@ -84,6 +84,10 @@ Shader "Meta/PCA/CameraSphereVignette"
         _PopGlareInside ("Pop: Glare Dim Inside Window", Range(0, 1)) = 0.35
         _PopGlareOutside("Pop: Glare Dim Periphery", Range(0, 1)) = 0.85
         _PopGuardRadius ("Pop: Glare Core Guard Radius (UV)", Range(0, 0.03)) = 0.008
+        // SignPop: gate the ROG keep by the baked detection ellipses — only actual
+        // lights/signs pop; colour look-alikes (neon, ads, brake lights) fall back.
+        _PopDetGate     ("Pop: Detection Gate (SignPop)", Range(0, 1)) = 0
+        _PopDetFallback ("Pop: Undetected ROG Keep (graceful miss)", Range(0, 1)) = 0.35
 
         [Header(Conspicuity Squeeze)]
         // Flatten peripheral center-surround contrast toward the local mean (Veas CHI 2011).
@@ -91,6 +95,8 @@ Shader "Meta/PCA/CameraSphereVignette"
         _SqueezeRadius ("Squeeze: Local Mean Radius (UV)", Range(0.005, 0.08)) = 0.015
         _SqueezeLum    ("Squeeze: Luminance Flatten", Range(0, 1)) = 0.5
         _SqueezeChroma ("Squeeze: Chroma Flatten", Range(0, 1)) = 0.85
+        _SqueezeDesat  ("Squeeze: Extra Desaturation (gentle)", Range(0, 1)) = 0.25
+        _SqueezeDim    ("Squeeze: Peripheral Dim", Range(0.5, 1)) = 0.9
 
         [Header(Granulated Periphery)]
         // World-locked static noise grains; suppress detail, keep event awareness (Cao 2021).
@@ -181,7 +187,7 @@ Shader "Meta/PCA/CameraSphereVignette"
             float4 _TanHalfFovR;
 
             int    _DetectionCount;
-            float4 _DetectionRects[8];
+            float4 _DetectionRects[16];
             float  _DetectionSoftEdge;
             float  _DetectionEnhance;
             float  _DetectionSurround;
@@ -217,11 +223,15 @@ Shader "Meta/PCA/CameraSphereVignette"
             float  _PopGlareInside;
             float  _PopGlareOutside;
             float  _PopGuardRadius;
+            float  _PopDetGate;
+            float  _PopDetFallback;
 
             float  _SqueezeMode;
             float  _SqueezeRadius;
             float  _SqueezeLum;
             float  _SqueezeChroma;
+            float  _SqueezeDesat;
+            float  _SqueezeDim;
 
             float  _GrainMode;
             float  _GrainScale;
@@ -352,8 +362,9 @@ Shader "Meta/PCA/CameraSphereVignette"
                     hue = frac(hue / 6.0);
                 }
 
-                // Red/orange/amber band: hue [0, 0.18], fades out by 0.25
-                float warmKeep  = 1.0 - smoothstep(0.18, 0.25, hue);
+                // Red/orange band only: keep hue [0, ~0.08], fade out by 0.13 — this EXCLUDES
+                // yellow (hue ~0.13-0.17, e.g. NYC taxis) while keeping red and orange signals.
+                float warmKeep  = 1.0 - smoothstep(0.08, 0.13, hue);
                 // Red that wraps at top end (crimson/rose): hue [0.88, 1.0]
                 float redWrap   = smoothstep(0.85, 0.92, hue);
                 // Green band: hue [0.26, 0.44]
@@ -401,7 +412,7 @@ Shader "Meta/PCA/CameraSphereVignette"
                                          (_DetectionRects[_di].z + _DetectionRects[_di].w) * 0.5);
                     float2 _rad = max(float2((_DetectionRects[_di].y - _DetectionRects[_di].x) * 0.5,
                                              (_DetectionRects[_di].w - _DetectionRects[_di].z) * 0.5),
-                                      1e-3);
+                                      0.035);  // ~2 deg min radius so distant lights still show a visible halo
                     // Normalized elliptical distance: 1.0 at the object boundary
                     float _ed = length(float2(az - _ctr.x, el - _ctr.y) / _rad);
                     // Feather width in ellipse units, from the angular soft edge
@@ -471,6 +482,13 @@ Shader "Meta/PCA/CameraSphereVignette"
                     float3 col  = tex2D(_MainTexL, uvSrc).rgb;
                     float colorKeep = PopColorKeep(col, _PopWarmSatMin);
 
+                    // SignPop (_PopDetGate = 1): the ROG keep must be confirmed by the baked
+                    // detection mask — only actual traffic lights / signs get the full kept
+                    // treatment. Undetected ROG (neon, ads, brake lights — or a bake miss)
+                    // degrades to a partial keep (_PopDetFallback) instead of full grey, so
+                    // a missed real signal is dimmed, never hidden. Gate = 0 is plain ColorPop.
+                    colorKeep *= lerp(1.0, lerp(_PopDetFallback, 1.0, detHighlight), _PopDetGate);
+
                     float maxC = max(col.r, max(col.g, col.b));
                     float minC = min(col.r, min(col.g, col.b));
                     float sat  = (maxC > 0.001) ? (maxC - minC) / maxC : 0.0;
@@ -498,20 +516,20 @@ Shader "Meta/PCA/CameraSphereVignette"
                     col  = lerp(col, col * (_PopGlareKnee / max(grey, 1e-3)), glareStr);
                     grey = dot(col, float3(0.299, 0.587, 0.114));
 
-                    // "Other" track: near-natural inside (slight desat) -> dim grey outside.
-                    float3 mutedTarget = grey * lerp(1.0, _PopGreyDim, t);
-                    float3 muted = lerp(col, mutedTarget, lerp(_PopInsideDesat, 1.0, t));
-                    // ROG track: sat boost + sigmoidal midtone contrast (Sutton UIST 2022)
-                    // + brightness lift inside -> natural-but-dimmed outside.
-                    float satB   = lerp(_PopSatBoost, 1.0, t);
-                    float bright = lerp(_PopBrightIn, _PopBrightOut, t);
-                    float3 vivid = saturate((col - grey) * satB + grey);
-                    vivid = SigmoidContrast(vivid, _PopSigmoid * (1.0 - t)) * bright;
+                    // Selected window shows NATURAL colour (no popping); periphery is flattened
+                    // (desaturated) and dimmed, with ROG kept partly visible so signals aren't
+                    // lost. The tuned constants below intentionally override the _Pop* uniforms.
+                    // "Other" (non-ROG) track: natural inside -> dim flat grey outside.
+                    float3 mutedTarget = grey * lerp(1.0, 0.15, t);   // dimmer periphery grey
+                    float3 muted = lerp(col, mutedTarget, t);         // natural inside -> flat grey outside
+                    // ROG track: NO boost inside (natural); desaturated + dimmed outside, no sigmoid pop.
+                    float satB   = lerp(1.0, 0.55, t);                // 1.0 inside = no saturation boost
+                    float bright = lerp(1.0, 0.60, t);                // 1.0 inside = no brightness lift
+                    float3 vivid = saturate((col - grey) * satB + grey) * bright;
 
                     periColor = lerp(muted, vivid, colorKeep);
-                    // Overall periphery dim: pulls the whole unselected region (ROG included)
-                    // down a notch so the window also wins on plain luminance.
-                    periColor *= lerp(1.0, _PopPeriphDim, t);
+                    // Overall periphery dim so the natural window also wins on plain luminance.
+                    periColor *= lerp(1.0, 0.44, t);
                     // Video mode grades the whole sphere (window included); passthrough mode
                     // stays periphery-only — the window must remain transparent there.
                     periAlpha = lerp(1.0, t, _PassthroughMode) * _VignetteStrength;
@@ -536,6 +554,13 @@ Shader "Meta/PCA/CameraSphereVignette"
                     float  outLum = lerp(lumC, lumM, _SqueezeLum    * tEff);
                     float3 outChr = lerp(chrC, chrM, _SqueezeChroma * tEff);
                     periColor = saturate(outLum + outChr);
+
+                    // Flatten extras: gentle global desaturation + a little dimming on top of
+                    // the local contrast balancing. Goal is "nothing pops out", not darkness.
+                    float sqLum = dot(periColor, float3(0.299, 0.587, 0.114));
+                    periColor = lerp(periColor, sqLum.xxx, _SqueezeDesat * tEff);
+                    periColor *= lerp(1.0, _SqueezeDim, tEff);
+
                     periAlpha = t * _VignetteStrength;
                 }
                 else if (_GrainMode > 0.5)

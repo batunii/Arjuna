@@ -32,18 +32,25 @@ namespace PassthroughCameraSamples.ShaderSample
         public float interval = 0.25f;
         public List<BakedSample> samples = new();
 
-        // Nearest sample at or before videoTime; null if the track has gone stale there.
-        public BakedSample Lookup(double videoTime)
+        // Index of the nearest sample at or before videoTime; -1 if the track has gone
+        // stale there. Exposed so playback can bracket-lerp between samples[i] and [i+1].
+        public int LookupIndex(double videoTime)
         {
-            if (samples == null || samples.Count == 0) return null;
+            if (samples == null || samples.Count == 0) return -1;
             int lo = 0, hi = samples.Count - 1;
             while (lo < hi)
             {
                 int mid = (lo + hi + 1) / 2;
                 if (samples[mid].t <= videoTime) lo = mid; else hi = mid - 1;
             }
-            var s = samples[lo];
-            return (videoTime - s.t) <= interval * 1.5f ? s : null;
+            return (videoTime - samples[lo].t) <= interval * 1.5f ? lo : -1;
+        }
+
+        // Nearest sample at or before videoTime; null if the track has gone stale there.
+        public BakedSample Lookup(double videoTime)
+        {
+            int i = LookupIndex(videoTime);
+            return i >= 0 ? samples[i] : null;
         }
 
         // On Android, StreamingAssets lives inside the APK (jar: URL) — needs UnityWebRequest.

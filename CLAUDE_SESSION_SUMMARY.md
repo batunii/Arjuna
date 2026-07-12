@@ -149,6 +149,102 @@ All in the Inspector on `CameraSphereSphere > CameraSphereVignetteManager`:
 
 ## Change log
 
+### 2026-07-09 (later) — Stimulus swap: NoHo 8K 360° drive replaces Times Square; flat mode shelved
+
+On-headset verdict: LISA flat clip + Times Square surround was not immersive (empty/limited
+periphery around the 60° sector). New stimulus (user-chosen): **"360° VR NYC Drive on a Cloudy
+Day – NoHo in 8K"** (youtube ovmsxpbaGvk). Cut **402–560 s** (158 s of continuously-moving
+Herald Square/34th St driving — verified frame-by-frame; long red-light stop after 560 s
+excluded), transcoded **7680×3840 AV1 → 5760×2880 H.265** (fills the 6K sphere RT 1:1 at last;
+Quest 5.7K h265 decode is in-spec). Installed as `StreamingAssets/DebugVideo.mp4`.
+
+- **Bake** (yolo11l, forward crop, 0.5 s interval): 373 lights/signs over 316 samples, 49%
+  coverage, median ≤1 per sample — sparse by nature (cloudy NoHo has 1-2 real signals in view),
+  which is the intended contrast with Times Square's 97%/median-12 wall of ROG.
+- **Scene**: `m_flatClipMode` back to 0 (flat mode + code kept, just off).
+- **StreamingAssets cleaned**: Times Square clip+bake, LISA FlatClip+ground truth, and the
+  stale 419 MB `DebugVideo_original.mp4` all moved to `DevVideos/` — APK 946 → 558 MB.
+- 8K master kept in the session scratchpad (temp — will vanish with the job); DevVideos holds
+  all prior stimuli. Re-cut source: `yt-dlp -f "571+bestaudio" ovmsxpbaGvk`.
+- Ops notes: `BuildVideoTestScene` launch line fixed (stale package name → `Application.identifier`);
+  editor `delayCall` builds stall while the editor is unfocused — direct `execute_script` of
+  `BuildVideoTestScene.Execute` works (blocks the editor; MCP request times out at 60 s but the
+  build completes).
+
+### 2026-07-09 — Flat Clip Mode: LISA ground-truth stimulus on the video sphere
+
+Motivation: demo-design research (`.agent-docs/research/demo-design-research.md`) concluded
+the stimulus should be validated/annotated footage; the LISA Traffic Light Dataset
+(kaggle.com/datasets/mbornoe/lisa-traffic-light-dataset — continuous US driving video,
+113k hand-annotated light boxes) provides ground truth, which removes the detector as a
+confound entirely (SignPop gated by hand annotations, not YOLO).
+
+Files: `Resources/FlatClipToEquirect.shader` (new), `VideoTestSceneManager.cs`,
+`Tools/lisa_to_detections.py` (new).
+
+1. **Flat Clip Mode** (`m_flatClipMode` on `VideoTestSceneManager`): plays a flat
+   (perspective/dashcam) clip **reprojected onto the forward sector** of the sphere —
+   proper pinhole→equirect reprojection at the clip camera's FOV (`m_flatHFovDeg`, default
+   60°), NOT stretched. Rest of the sphere = `m_flatSurroundColor`. The clip is composited
+   into the equirect RT each frame (viewport quad over the sector only, one-time surround
+   clear), so the vignette shader, focus window, SignPop, and detection mapping all work
+   unchanged in equirect space.
+2. Clip resolution: `persistentDataPath/flat_clip.mp4` (sideload) else
+   `StreamingAssets/FlatClip.mp4`; detections JSON is looked up next to the clip
+   (same name, `.detections.json`).
+3. **`Tools/lisa_to_detections.py`**: LISA frames+CSV → mp4 (ffmpeg concat, `--fps 16`)
+   + detections.json with ground-truth boxes mapped through the same pinhole→equirect
+   math (`--hfov` must equal `m_flatHFovDeg`, `--el-center-deg` = `m_flatElCenterDeg`).
+   Video time = frame/fps by construction, so alignment is exact. All light states map to
+   class 9. Not yet run (LISA must be downloaded from Kaggle first).
+4. Shader lives in `Resources/` (Resources.Load — survives Android stripping; the
+   Shader.Find lesson).
+
+Verified compiling (C# + shader import clean). Not yet exercised with a real LISA clip.
+
+### 2026-07-09 — SignPop: detection-gated ColorPop (video scene)
+
+Motivation: on Times-Square-style footage the ColorPop null result was diagnosed as a
+task/stimulus problem — the ROG colour gate can't tell a traffic light from neon/ads/brake
+lights, so it boosts targets and look-alike distractors identically (search difficulty is set
+by target-distractor similarity, which the filter preserves). Research grounding:
+`.agent-docs/research/demo-design-research.md` (hazard-perception demo design + conspicuity
+ceiling, Rusch 2013). Fix: gate the ROG keep by the **baked YOLO detections** the project
+already has (offline full-res bake, 9,170 lights/signs, 97% sample coverage).
+
+Files: `CameraSphereVignette.shader`, `VideoTestSceneManager.cs`, `VideoDetectionTrack.cs`,
+`CameraSphereVignetteManager.cs` (enum only).
+
+1. **New mode `VignetteMode.SignPop` (= 10)**, video scene A-cycle is now ColorPop → SignPop
+   → SoftDark → HardDark. The study still uses only the original three (testing-strategy-v2
+   states ColorPop is detector-free by design — SignPop is a new design-space point, not a
+   change to ColorPop). Passthrough scene unaffected (snaps unknown modes to its own cycle).
+2. **Shader**: `_PopDetGate` (0 = plain ColorPop, 1 = SignPop) and `_PopDetFallback` (0.35).
+   In the pop branch: `colorKeep *= lerp(1, lerp(_PopDetFallback, 1, detHighlight), _PopDetGate)`
+   — only detection-confirmed ROG gets the kept treatment; undetected ROG degrades to a
+   partial keep (graceful miss: a bake miss dims a real signal, never hides it). Detected
+   objects additionally get the existing t-clear + `_DetectionEnhance` breathing boost.
+3. **Detection slots 8 → 16** (`_DetectionRects[16]`, `k_maxDetections`) — the bake's median
+   is 12 lights/signs per sample, so 8 slots dropped ~a third.
+4. **Baked-track playback now interpolates**: boxes matched across bracketing samples
+   (class + centre proximity, radius scaled to box size), lerped by video time, and held
+   `m_signDetHoldSec` (0.5 s) after vanishing — pops no longer blink at 0.25–0.5 s sample
+   boundaries. Tracker clears on video loop/seek-back. `VideoDetectionTrack.LookupIndex()`
+   added for bracketing.
+5. Inspector: "Sign Pop" header on `VideoTestSceneManager` — `m_signRogFallback`,
+   `m_signDetHoldSec`. Toast warns "NO DETECTION TRACK" if SignPop runs without a bake.
+6. **Baker upgraded** (`Tools/bake_detections.py`): default model yolo11s → **yolo11l**;
+   bakes only the **forward view by default** (az ±85°, el ±50°, flags `--az-fov/--el-fov/
+   --az-center-deg`; `--az-fov 360 --el-fov 180 --cols 3 --rows 2` restores the full bake).
+   Same tile budget over half the pixels ≈ 2× angular resolution per tile; rear/pole junk
+   no longer eats runtime slots. Boxes still written full-frame-normalized — JSON schema and
+   Unity unchanged. Smoke-tested (crop math + coordinate write-back verified). The real
+   re-bake (`uv run Tools/bake_detections.py`, ~1–2 h CPU with yolo11l) has NOT been run —
+   the existing 2026-07-04 full bake is still the active JSON. COCO limit stated in-script:
+   only traffic lights + stop signs exist as classes; other road signs need an MTSD-tuned model.
+
+Verified compiling in Unity (no errors). Not yet run on device.
+
 ### 2026-07-03 — ColorPop rework: four-level ROG hierarchy + headlight glare suppression
 
 Context: after on-headset testing, ColorPop was the standout mode; YOLO pre-baked detections

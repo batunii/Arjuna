@@ -1,0 +1,213 @@
+{
+  "main": {
+    "id": "8a9e0db7e44ad7dc",
+    "type": "split",
+    "children": [
+      {
+        "id": "d7a8c37b51474597",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "26ff0ce98beb2043",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "chapters/ch3-design-space.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "ch3-design-space"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "ee60101c310941df",
+    "type": "split",
+    "children": [
+      {
+        "id": "9b4b705dc35fe610",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "476a1626f283d291",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "758478c1b4852ba4",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "47889ec17987fa77",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "28c4c76c86fc27aa",
+    "type": "split",
+    "children": [
+      {
+        "id": "7c885dea8f49cb59",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "471fddd53292fefa",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "testing-strategy-v2.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for testing-strategy-v2"
+            }
+          },
+          {
+            "id": "d54a03dabc549532",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "testing-strategy-v2.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from testing-strategy-v2"
+            }
+          },
+          {
+            "id": "937a8cd0a2b73fcd",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "01284e42a9d9be78",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "1429fb6bdbd110c1",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "testing-strategy-v2.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of testing-strategy-v2"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "26ff0ce98beb2043",
+  "lastOpenFiles": [
+    "chapters/ch2-related-work.md",
+    "chapters/ch1-introduction.md",
+    "testing-strategy-v2.md",
+    "framing.md",
+    "chapters/front-matter.md",
+    "chapters/VERIFY-citations.md",
+    "chapters/00-README.md",
+    "lit-review-48papers.md",
+    "chapters/ch6-user-study.md.tmp.15784.7e21b8f1b5a7",
+    "testing-strategy-v2.md.tmp.15784.3135f6b6f444",
+    "testing-strategy-v2.md.tmp.15784.3d2534419685",
+    "chapters/00-README.md.tmp.15784.6438b4d0a81a",
+    "chapters/ch6-user-study.md.tmp.15784.2247d0e7b735",
+    "chapters/ch6-user-study.md.tmp.15784.de40b6429f0c",
+    "testing-strategy-v2.md.tmp.15784.80c49ae1d31e",
+    "chapters/ch4-system.md.tmp.15784.9d84f8e69699",
+    "framing.md.tmp.15784.09b1c980efae",
+    "framing.md.tmp.15784.7299e920fc9d",
+    "chapters/ch4-system.md",
+    "chapters/ch7-discussion.md",
+    "chapters/ch6-user-study.md",
+    "chapters/ch5-technical-evaluation.md",
+    "chapters/ch3-design-space.md",
+    "chapters/ch8-conclusion.md"
+  ]
+}

@@ -1,17 +1,4 @@
 <!-- rtk-instructions v2 -->
-# Project context (read first)
-
-This repo is the implementation for an MSc dissertation: a multi-mode **Diminished Reality
-attention-guidance** system on **Quest 3 passthrough** (built on Meta's Unity-PassthroughCameraApiSamples).
-The active work is the **Focus Vignette** effect (`Assets/FocusVignette.unity` + `ShaderSample/`).
-
-**To resume, read `CLAUDE_SESSION_SUMMARY.md`** (current state, controls, lessons, next steps). Deeper
-detail: `.agent-docs/systems/focus-vignette.md`. Dissertation plan: `Dissertation/dissertation_progress_report.md`.
-Key constraint learned: the system passthrough can't be shaded (OS-owned); the effect dims/blacks-out
-the periphery via a translucent overlay (subtractive DR), keeping full passthrough quality.
-
----
-
 # RTK (Rust Token Killer) - Token-Optimized Commands
 
 ## Golden Rule

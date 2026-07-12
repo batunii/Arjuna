@@ -15,11 +15,19 @@ IMPORTANT: bake from the exact clip the headset plays
 (Assets/StreamingAssets/DebugVideo.mp4) — the track is keyed by video time.
 Baking from the long DevVideos source would misalign every timestamp.
 
+By default only the FORWARD view is baked (az ±85°, el ±50° around the video
+centre) — the driver never looks behind, rear/pole detections wasted runtime
+slots, and concentrating the tile budget on the forward crop roughly doubles
+the angular resolution per tile (better small-light recall at the same cost).
+Boxes are still written in FULL-frame normalized coords, so the JSON schema
+and Unity side are unchanged. Note: if the scene's m_videoUOffset is nonzero,
+pass --az-center-deg = -(m_videoUOffset * 360) so the crop tracks video-forward.
+
 Usage (from the repo root — uv resolves the dependencies automatically):
-    uv run Tools/bake_detections.py                      # sensible defaults
-    uv run Tools/bake_detections.py --max-seconds 10     # quick smoke test
-    uv run Tools/bake_detections.py --model yolo11m.pt --imgsz 1280
-    uv run Tools/bake_detections.py --interval 0.5       # faster on CPU
+    uv run Tools/bake_detections.py                      # forward crop, yolo11l
+    uv run Tools/bake_detections.py --max-seconds 10 --model yolo11s.pt  # smoke test
+    uv run Tools/bake_detections.py --model yolo11x.pt   # max recall (slow)
+    uv run Tools/bake_detections.py --az-fov 360 --el-fov 180 --cols 3 --rows 2  # full 360 bake
 
 Output: Assets/StreamingAssets/DebugVideo.detections.json
 
@@ -44,7 +52,9 @@ DEFAULT_VIDEO = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.mp4"
 DEFAULT_OUT = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.detections.json"
 
 # COCO ids the runtime treats as first-class (traffic light, stop sign).
-# They sort first within each sample so the runtime's 8-slot cap keeps them.
+# They sort first within each sample so the runtime's 16-slot cap keeps them.
+# NOTE: COCO has no generic road-sign class — anything beyond stop signs needs
+# a model fine-tuned on a traffic-sign dataset (e.g. Mapillary MTSD).
 PRIORITY_CLASSES = {9, 11}
 
 
@@ -129,15 +139,24 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--video", type=Path, default=DEFAULT_VIDEO)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
-    ap.add_argument("--model", default="yolo11s.pt",
-                    help="ultralytics model (auto-downloads); yolo11m.pt = better recall, slower")
+    ap.add_argument("--model", default="yolo11l.pt",
+                    help="ultralytics model (auto-downloads); yolo11x.pt = max recall (slow), "
+                         "yolo11s.pt = fast smoke tests")
     ap.add_argument("--interval", type=float, default=0.25,
                     help="seconds between samples (runtime lookup tolerates 1.5x)")
     ap.add_argument("--imgsz", type=int, default=960,
                     help="inference size per tile; 1280 = better small-object recall")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--iou", type=float, default=0.5, help="cross-tile merge NMS IoU")
-    ap.add_argument("--cols", type=int, default=3)
+    ap.add_argument("--az-fov", type=float, default=170.0,
+                    help="horizontal FOV (deg) to bake, centred on video-forward; 360 = full")
+    ap.add_argument("--el-fov", type=float, default=100.0,
+                    help="vertical FOV (deg) to bake, centred on the horizon; 180 = full")
+    ap.add_argument("--az-center-deg", type=float, default=0.0,
+                    help="crop centre azimuth (deg); use -(m_videoUOffset * 360) if the scene "
+                         "shifts the video. Must not wrap the equirect seam (az ±180)")
+    ap.add_argument("--cols", type=int, default=2,
+                    help="tile columns over the crop (use 3 for a full-360 bake)")
     ap.add_argument("--rows", type=int, default=2)
     ap.add_argument("--overlap", type=int, default=96, help="tile overlap in pixels")
     ap.add_argument("--max-seconds", type=float, default=0.0,
@@ -162,12 +181,23 @@ def main() -> int:
     width, height, duration = probe_video(args.video)
     if args.max_seconds > 0:
         duration = min(duration, args.max_seconds)
-    tiles = make_tiles(width, height, args.cols, args.rows, args.overlap)
+
+    # Forward-view crop (equirect: az 0 = video-forward at u 0.5, el 0 at v 0.5).
+    # Tiling runs over the crop; boxes are written back in full-frame coords.
+    az_fov = min(max(args.az_fov, 10.0), 360.0)
+    el_fov = min(max(args.el_fov, 10.0), 180.0)
+    crop_w = min(width,  int(round(width  * az_fov / 360.0)))
+    crop_h = min(height, int(round(height * el_fov / 180.0)))
+    u_center = 0.5 + args.az_center_deg / 360.0
+    cx0 = max(0, min(width - crop_w, int(round(u_center * width - crop_w / 2))))
+    cy0 = (height - crop_h) // 2
+    tiles = make_tiles(crop_w, crop_h, args.cols, args.rows, args.overlap)
     total = int(duration / args.interval)
 
     print(f"Video : {args.video} ({width}x{height}, {duration:.1f}s)")
     print(f"Model : {args.model} @ imgsz {args.imgsz}, conf {args.conf}")
-    print(f"Tiles : {args.cols}x{args.rows} +full frame ({len(tiles)} inferences/sample)")
+    print(f"Crop  : az {az_fov:.0f}° x el {el_fov:.0f}° -> {crop_w}x{crop_h} px at ({cx0},{cy0})")
+    print(f"Tiles : {args.cols}x{args.rows} +full crop ({len(tiles)} inferences/sample)")
     print(f"Plan  : {total} samples every {args.interval}s", flush=True)
 
     model = YOLO(args.model)
@@ -179,27 +209,31 @@ def main() -> int:
         if t >= duration:
             break
 
+        # Forward-view region; tile coords are relative to this crop.
+        fwd = frame[cy0:cy0 + crop_h, cx0:cx0 + crop_w]
+
         # BGR crops for ultralytics (cv2 convention); batch all tiles in one call.
-        crops = [np.ascontiguousarray(frame[y0:y1, x0:x1, ::-1])
+        crops = [np.ascontiguousarray(fwd[y0:y1, x0:x1, ::-1])
                  for (x0, y0, x1, y1) in tiles]
         results = model.predict(crops, imgsz=args.imgsz, conf=args.conf, verbose=False)
 
         dets = []
         for (x0, y0, x1, y1), res in zip(tiles, results):
-            tw, th = x1 - x0, y1 - y0
             for box, cls, conf in zip(res.boxes.xyxy.tolist(),
                                       res.boxes.cls.tolist(),
                                       res.boxes.conf.tolist()):
                 dets.append({
                     "c": int(cls),
-                    "x1": (x0 + box[0]) / width, "y1": (y0 + box[1]) / height,
-                    "x2": (x0 + box[2]) / width, "y2": (y0 + box[3]) / height,
+                    # Written in FULL-frame normalized coords (crop offset added back)
+                    # so the JSON schema and Unity playback are unchanged.
+                    "x1": (cx0 + x0 + box[0]) / width, "y1": (cy0 + y0 + box[1]) / height,
+                    "x2": (cx0 + x0 + box[2]) / width, "y2": (cy0 + y0 + box[3]) / height,
                     "conf": float(conf),
                 })
 
         merged = nms_per_class(dets, args.iou)
         # Priority classes first, then larger boxes — the runtime keeps the
-        # first 8 that pass its class filter, so ordering decides survival.
+        # first 16 that pass its class filter, so ordering decides survival.
         merged.sort(key=lambda d: (
             0 if d["c"] in PRIORITY_CLASSES else 1,
             -((d["x2"] - d["x1"]) * (d["y2"] - d["y1"])),

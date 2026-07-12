@@ -183,8 +183,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
             float size = 2f * m_probeDistance * Mathf.Tan(0.5f * m_probeSizeDeg * Mathf.Deg2Rad);
             m_probeGO.transform.position   = head.position + dir * m_probeDistance;
-            m_probeGO.transform.rotation   = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 0f, 45f); // diamond
-            m_probeGO.transform.localScale = new Vector3(size, size, 1f);
+            // 45° roll turns the cube's square silhouette into a diamond.
+            m_probeGO.transform.rotation   = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 0f, 45f);
+            m_probeGO.transform.localScale = new Vector3(size, size, size * 0.15f);
             m_probeGO.SetActive(true);
 
             m_activeId      = p.id;
@@ -201,7 +202,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private void EnsureProbeObject()
         {
             if (m_probeGO != null) return;
-            m_probeGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            // A thin cube, not a quad: a quad is single-sided and back-face culling can make it
+            // invisible depending on the mesh's facing convention — a solid can never be culled
+            // away. Same reason the selection dots are spheres.
+            m_probeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             m_probeGO.name = "StudyProbe";
             Destroy(m_probeGO.GetComponent<Collider>());
             m_probeMat = m_probeMaterialTemplate != null

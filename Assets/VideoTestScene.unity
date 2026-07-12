@@ -724,8 +724,14 @@ MonoBehaviour:
   m_cameraRig: {fileID: 1441500616}
   m_flipVideoY: 0
   m_videoUOffset: 0
-  m_videoVOffset: -0.2
-  m_softEdgeDeg: 20
+  m_videoVOffset: 0
+  m_flatClipMode: 0
+  m_flatHFovDeg: 60
+  m_flatElCenterDeg: 0
+  m_flatSurroundColor: {r: 0.05, g: 0.05, b: 0.06, a: 1}
+  m_flatFlipY: 0
+  m_flatSurround360: 1
+  m_softEdgeDeg: 18
   m_vignetteMode: 5
   m_vignetteFormTime: 3
   m_mode2MaxAlpha: 0.75
@@ -752,7 +758,7 @@ MonoBehaviour:
   m_popSatBoost: 1.5
   m_popInsideDesat: 0.3
   m_popBrightInside: 1.15
-  m_popBrightOutside: 0.8
+  m_popBrightOutside: 0.65
   m_popWarmSatMin: 0.35
   m_popSigmoid: 0.6
   m_popPeriphDim: 0.85
@@ -760,14 +766,16 @@ MonoBehaviour:
   m_popGlareInside: 0.35
   m_popGlareOutside: 0.85
   m_popGuardRadius: 0.008
-  m_popSoftEdgeDeg: 32
+  m_popSoftEdgeDeg: 24
+  m_signRogFallback: 0.35
+  m_signDetHoldSec: 0.5
   m_yoloRunner: {fileID: 0}
-  m_detectionLifetime: 0.6
+  m_detectionLifetime: 0.85
   m_yoloFlipY: 1
   m_detectionSoftEdgeDeg: 3
-  m_detectionEnhance: 0.4
-  m_detectionSurround: 0.15
-  m_detectionPulseAmp: 0.35
+  m_detectionEnhance: 1
+  m_detectionSurround: 0.4
+  m_detectionPulseAmp: 0.45
   m_useBakedDetections: 1
   m_debugVideoPreview: 1
 --- !u!114 &949970470
@@ -1393,6 +1401,129 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef9a7893e57c04c0db4114c70954b915, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1831243158
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1831243162}
+  - component: {fileID: 1831243161}
+  - component: {fileID: 1831243160}
+  - component: {fileID: 1831243159}
+  - component: {fileID: 1831243163}
+  - component: {fileID: 1831243164}
+  m_Layer: 0
+  m_Name: StudyRig
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1831243159
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b4de67f2ee288f42a42cc281faea738, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_scheduleB1: {fileID: 4900000, guid: e14c1efd0510b47418f5ddbf54e01ca6, type: 3}
+  m_scheduleB2: {fileID: 4900000, guid: b384719ff6da9b24b94746bb361df13f, type: 3}
+  m_probeMaterialTemplate: {fileID: 2100000, guid: b18da3256e7208b41853d86c2d948044, type: 2}
+  m_probeColor: {r: 1, g: 0.92, b: 0.25, a: 1}
+  m_probeDistance: 8.5
+  m_probeSizeDeg: 2
+  m_deferYawDeg: 20
+--- !u!114 &1831243160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c70ab65ffc476040ac5ee80c7331a63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_plan: 1
+  m_participantId: 0
+  m_vignetteManagerBehaviour: {fileID: 949970469}
+  m_logger: {fileID: 1831243161}
+  m_cptPanel: {fileID: 0}
+  m_probeScheduler: {fileID: 1831243159}
+  m_useCptPanel: 1
+  m_autoFixConfig: 1
+  m_fixedWindowDeg: {x: -25, y: 25, z: -15, w: 10}
+--- !u!114 &1831243161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4d4a8192a677044199d7661929bfcef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &1831243162
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1831243163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5472bd22c613f5478f881d18abcefa5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_passthroughSceneName: CameraSphereVignette
+  m_videoSceneName: VideoTestScene
+  m_holdSeconds: 1
+--- !u!114 &1831243164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831243158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa61bbcc1f371e6428dc0d5e12f5d61b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_video: {fileID: 949970469}
+  m_logger: {fileID: 1831243161}
+  m_reticleTemplate: {fileID: 2100000, guid: b18da3256e7208b41853d86c2d948044, type: 2}
+  m_autoOpenSession: 1
+  m_pid: 999
+  m_reticleDistance: 6
+  m_reticleSize: 0.06
+  m_reticleColor: {r: 0.2, g: 0.9, b: 1, a: 1}
 --- !u!1 &1848740387
 GameObject:
   m_ObjectHideFlags: 0
@@ -1648,3 +1779,4 @@ SceneRoots:
   - {fileID: 1608124431}
   - {fileID: 949970467}
   - {fileID: 293639988}
+  - {fileID: 1831243162}

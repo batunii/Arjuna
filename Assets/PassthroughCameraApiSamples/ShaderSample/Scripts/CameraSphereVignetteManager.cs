@@ -20,6 +20,8 @@ namespace PassthroughCameraSamples.ShaderSample
         GranulatedPeriphery= 7, // World-locked noise grains, density ramps with eccentricity (Cao 2021)
         OutlinedDark       = 8, // Near-blackout with luminance edges kept (Cheng 2022)
         SpotLift           = 9, // Focus window brightened + soft peripheral dim (video mode)
+        SignPop            = 10,// Video only: ColorPop gated by baked detections — only actual
+                                // traffic lights/signs pop; ROG look-alikes (neon, ads) muted
     }
 
     [System.Serializable]
@@ -109,6 +111,10 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0.005f, 0.08f)] private float m_squeezeRadius = 0.015f;
         [SerializeField, Range(0f, 1f)]        private float m_squeezeLum    = 0.5f;
         [SerializeField, Range(0f, 1f)]        private float m_squeezeChroma = 0.85f;
+        [Tooltip("Gentle global desaturation on top of the local flattening (0 = off, keep light).")]
+        [SerializeField, Range(0f, 1f)]        private float m_squeezeDesat  = 0.25f;
+        [Tooltip("Peripheral luminance multiplier (1 = no dimming; 'a little dimming' ~0.9).")]
+        [SerializeField, Range(0.5f, 1f)]      private float m_squeezeDim    = 0.9f;
 
         [Header("Granulated Periphery")]
         [SerializeField, Range(8f, 256f)] private float m_grainScale      = 90f;
@@ -176,6 +182,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_squeezeRadiusId  = Shader.PropertyToID("_SqueezeRadius");
         private static readonly int s_squeezeLumId     = Shader.PropertyToID("_SqueezeLum");
         private static readonly int s_squeezeChromaId  = Shader.PropertyToID("_SqueezeChroma");
+        private static readonly int s_squeezeDesatId   = Shader.PropertyToID("_SqueezeDesat");
+        private static readonly int s_squeezeDimId     = Shader.PropertyToID("_SqueezeDim");
         private static readonly int s_grainModeId       = Shader.PropertyToID("_GrainMode");
         private static readonly int s_grainScaleId      = Shader.PropertyToID("_GrainScale");
         private static readonly int s_grainDensityMinId = Shader.PropertyToID("_GrainDensityMin");
@@ -253,6 +261,15 @@ namespace PassthroughCameraSamples.ShaderSample
         private static bool IsCameraMode(VignetteMode mode) =>
             mode == VignetteMode.Blur || mode == VignetteMode.ChromaticCool || mode == VignetteMode.ColorPop
             || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
+
+        // A-button cycle — the kept modes. Legacy modes stay in the enum and shader but are
+        // no longer reachable from the controller. ConspicuitySqueeze is surfaced as "Flatten":
+        // contrast balanced toward the local mean + gentle desaturation + slight dim.
+        private static readonly VignetteMode[] k_modeCycle =
+        {
+            VignetteMode.Blur, VignetteMode.SoftDark, VignetteMode.HardDark,
+            VignetteMode.ColorPop, VignetteMode.ConspicuitySqueeze,
+        };
 
         // ---- Unity lifecycle ----
 
@@ -460,6 +477,8 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_squeezeRadiusId,   m_squeezeRadius);
             m_material.SetFloat(s_squeezeLumId,      m_squeezeLum);
             m_material.SetFloat(s_squeezeChromaId,   m_squeezeChroma);
+            m_material.SetFloat(s_squeezeDesatId,    m_squeezeDesat);
+            m_material.SetFloat(s_squeezeDimId,      m_squeezeDim);
             m_material.SetFloat(s_grainScaleId,      m_grainScale);
             m_material.SetFloat(s_grainDensityMinId, m_grainDensityMin);
             m_material.SetFloat(s_grainDensityMaxId, m_grainDensityMax);
@@ -606,7 +625,8 @@ namespace PassthroughCameraSamples.ShaderSample
             // A button: cycle through all 6 modes
             if (aPressed)
             {
-                m_vignetteMode = (VignetteMode)(((int)m_vignetteMode + 1) % 10);
+                int cyclePos = System.Array.IndexOf(k_modeCycle, m_vignetteMode);
+                m_vignetteMode = k_modeCycle[(cyclePos + 1) % k_modeCycle.Length];
                 // Reset motion state so the new mode's thresholds apply from a clean slate
                 m_motionDisableTimer = 0f;
                 m_motionSuppression  = 0f;
@@ -762,6 +782,10 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateModeUniforms()
         {
+            // Snap any stale serialized/legacy mode into the kept cycle.
+            if (System.Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
+                m_vignetteMode = VignetteMode.Blur;
+
             bool isColorPop = m_vignetteMode == VignetteMode.ColorPop;
             bool isSimple   = m_vignetteMode == VignetteMode.SoftDark || m_vignetteMode == VignetteMode.HardDark;
             bool isTinted   = m_vignetteMode == VignetteMode.TintedDark;
@@ -970,8 +994,9 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             if (m_modeNameText == null) return;
 
-            int idx  = (int)m_vignetteMode + 1;
-            int total = 10;
+            int cyclePos = System.Array.IndexOf(k_modeCycle, m_vignetteMode);
+            int idx   = cyclePos >= 0 ? cyclePos + 1 : 1;
+            int total = k_modeCycle.Length;
             string modeName = m_vignetteMode switch
             {
                 VignetteMode.Blur                => "BLUR",
@@ -980,7 +1005,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 VignetteMode.TintedDark          => "TINTED DARK",
                 VignetteMode.ChromaticCool       => "CHROMA COOL",
                 VignetteMode.ColorPop            => "COLOR POP",
-                VignetteMode.ConspicuitySqueeze  => "SQUEEZE",
+                VignetteMode.ConspicuitySqueeze  => "FLATTEN",
                 VignetteMode.GranulatedPeriphery => "GRAIN",
                 VignetteMode.OutlinedDark        => "OUTLINE DARK",
                 _                                => "SPOTLIGHT"
@@ -993,7 +1018,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 VignetteMode.TintedDark          => "Coloured dark vignette",
                 VignetteMode.ChromaticCool       => "Warm focus / cool periphery",
                 VignetteMode.ColorPop            => "Muted grey periphery; vivid colors pop",
-                VignetteMode.ConspicuitySqueeze  => "Periphery contrast flattened (subtle)",
+                VignetteMode.ConspicuitySqueeze  => "Contrast balanced, gently desaturated + dimmed",
                 VignetteMode.GranulatedPeriphery => "Static noise grains in periphery",
                 VignetteMode.OutlinedDark        => "Blackout with edge outlines kept",
                 _                                => "Brightened focus, soft dim periphery"

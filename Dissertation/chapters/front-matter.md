@@ -12,7 +12,7 @@
 
 <br>
 
-**[AUTHOR NAME]**
+**[SHREYANSH SONI]**
 
 <br>
 
@@ -28,7 +28,7 @@ School of Computer Science and Statistics
 
 <br>
 
-Supervisor: **[SUPERVISOR NAME]**
+Supervisor: **[Dr. JOHN DIGLIANA]**
 
 August 2026
 

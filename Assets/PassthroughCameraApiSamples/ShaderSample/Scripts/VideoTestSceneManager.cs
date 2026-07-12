@@ -47,6 +47,20 @@ namespace PassthroughCameraSamples.ShaderSample
         [Tooltip("Shift the 360° video vertically (e.g. −0.25 raises horizon by 45°).")]
         [SerializeField, Range(-0.5f, 0.5f)] private float m_videoVOffset = 0f;
 
+        [Header("Flat Clip Mode")]
+        [Tooltip("Play a FLAT (perspective/dashcam) clip reprojected onto the forward sector of the sphere instead of a 360 equirect video. Clip: persistentDataPath/flat_clip.mp4, else StreamingAssets/FlatClip.mp4. The detection track is looked up next to the clip (same name, .detections.json) — build both with Tools/lisa_to_detections.py.")]
+        [SerializeField] private bool m_flatClipMode = false;
+        [Tooltip("Horizontal FOV of the clip's source camera (deg). MUST match the --hfov used by Tools/lisa_to_detections.py or the detection boxes won't line up.")]
+        [SerializeField, Range(30f, 120f)] private float m_flatHFovDeg = 60f;
+        [Tooltip("Elevation of the clip centre on the sphere (deg, positive = up). Must match --el-center-deg in the converter.")]
+        [SerializeField, Range(-30f, 30f)] private float m_flatElCenterDeg = 0f;
+        [Tooltip("Colour of the sphere outside the flat clip (dim surround).")]
+        [SerializeField] private Color m_flatSurroundColor = new Color(0.05f, 0.05f, 0.06f, 1f);
+        [Tooltip("Flip the flat clip vertically if it appears upside-down.")]
+        [SerializeField] private bool m_flatFlipY = false;
+        [Tooltip("Fill the sphere around the flat clip with the standard 360 video (study_video.mp4 override, else DebugVideo.mp4) so the periphery has real motion/clutter for the filters to suppress. Off = plain surround colour.")]
+        [SerializeField] private bool m_flatSurround360 = true;
+
         [Header("Filter")]
         [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
 
@@ -86,7 +100,7 @@ namespace PassthroughCameraSamples.ShaderSample
         [Tooltip("Brightness multiplier on ROG colors inside the window (>1 lifts them above the scene).")]
         [SerializeField, Range(1f, 1.5f)] private float m_popBrightInside = 1.15f;
         [Tooltip("Brightness multiplier on ROG colors outside the window (<1 keeps them below the true scene but above the grey periphery).")]
-        [SerializeField, Range(0.3f, 1f)] private float m_popBrightOutside = 0.8f;
+        [SerializeField, Range(0.3f, 1f)] private float m_popBrightOutside = 0.65f;
         [Tooltip("Saturation floor for the red/orange band — keeps warm-white headlights from passing as orange.")]
         [SerializeField, Range(0f, 0.8f)] private float m_popWarmSatMin = 0.35f;
         [Tooltip("Sigmoidal midtone contrast on ROG colors inside the window (Sutton 2022, alpha=10 beta=0.5). 0 = linear boost only.")]
@@ -103,6 +117,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 0.03f)] private float m_popGuardRadius = 0.008f;
         [Tooltip("ColorPop uses its own (wider) focus-window soft edge — a colour/grey boundary reads harsher than a blur boundary.")]
         [SerializeField, Range(1f, 60f)]  private float m_popSoftEdgeDeg = 32f;
+
+        [Header("Sign Pop")]
+        [Tooltip("Graceful miss: how much of the kept-ROG treatment UNDETECTED ROG pixels retain (0 = full grey like other colours, 1 = identical to ColorPop). A bake miss dims a real signal instead of hiding it.")]
+        [SerializeField, Range(0f, 1f)] private float m_signRogFallback = 0.35f;
+        [Tooltip("Hold a baked detection for this many video-seconds after it vanishes from the track, so pops don't blink between bake samples.")]
+        [SerializeField, Range(0f, 2f)] private float m_signDetHoldSec = 0.5f;
 
         [Header("YOLO Detection")]
         [Tooltip("Drag the YoloRunner component here; it will read from the video RenderTexture instead of the passthrough camera.")]
@@ -162,15 +182,25 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_popGlareInsideId    = Shader.PropertyToID("_PopGlareInside");
         private static readonly int s_popGlareOutsideId   = Shader.PropertyToID("_PopGlareOutside");
         private static readonly int s_popGuardRadiusId    = Shader.PropertyToID("_PopGuardRadius");
+        private static readonly int s_popDetGateId        = Shader.PropertyToID("_PopDetGate");
+        private static readonly int s_popDetFallbackId    = Shader.PropertyToID("_PopDetFallback");
         private static readonly int s_eqCamSamplingId     = Shader.PropertyToID("_EqCamSampling");
         private static readonly int s_passThroughModeId   = Shader.PropertyToID("_PassthroughMode");
         private static readonly int s_flipYId             = Shader.PropertyToID("_FlipY");
         private static readonly int s_eqUOffsetId         = Shader.PropertyToID("_EqUOffset");
         private static readonly int s_eqVOffsetId         = Shader.PropertyToID("_EqVOffset");
 
-        // A-button cycle: the study runs only these three modes, in this order.
+        // FlatClipToEquirect composite material (flat clip mode)
+        private static readonly int s_flatMainTexId  = Shader.PropertyToID("_MainTex");
+        private static readonly int s_flatTanHalfId  = Shader.PropertyToID("_TanHalf");
+        private static readonly int s_flatAzElHalfId = Shader.PropertyToID("_AzElHalf");
+        private static readonly int s_flatSurroundId = Shader.PropertyToID("_Surround");
+        private static readonly int s_flatFlipYId    = Shader.PropertyToID("_FlipY");
+
+        // A-button cycle. The study still uses only ColorPop / SoftDark / HardDark;
+        // SignPop (detection-gated ColorPop) is a free-play/demo mode.
         private static readonly VignetteMode[] k_modeCycle =
-            { VignetteMode.ColorPop, VignetteMode.SoftDark, VignetteMode.HardDark };
+            { VignetteMode.ColorPop, VignetteMode.SignPop, VignetteMode.SoftDark, VignetteMode.HardDark };
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
@@ -181,6 +211,14 @@ namespace PassthroughCameraSamples.ShaderSample
         private RenderTexture m_yoloRT;   // small downsampled RT for YOLO — avoids reading 4K on GPU
         private VideoPlayer   m_videoPlayer;
         private GameObject    m_videoPreviewRoot;
+
+        // Flat clip mode
+        private RenderTexture m_flatRT;           // native-res decode target
+        private Material      m_flatCompositeMat; // FlatClipToEquirect
+        private bool          m_flatCleared;
+        private string        m_resolvedVideoUrl;
+        private VideoPlayer   m_surroundPlayer;   // 360 periphery around the flat clip
+        private RenderTexture m_surroundRT;
 
         private GameObject[]  m_selectionDots;
         private Material[]    m_dotMats;
@@ -208,11 +246,21 @@ namespace PassthroughCameraSamples.ShaderSample
         private const float k_modeUIShowTime = 2.8f;
         private const float k_modeUIFadeDur  = 0.35f;
 
-        private const int k_maxDetections = 8;
+        // 16 slots (matches _DetectionRects[16] in the shader): the full-res bake finds a
+        // median of 12 lights/signs per sample, so 8 slots dropped ~a third of them.
+        private const int k_maxDetections = 16;
         private readonly Vector4[] m_detectionRects      = new Vector4[k_maxDetections];
         private readonly float[]   m_detectionTimestamps = new float[k_maxDetections];
         // COCO: 9 = traffic light, 11 = stop sign. Signs only — vehicles/people excluded.
         private static readonly HashSet<int> k_targetClasses = new() { 9, 11 };
+
+        // SignPop detection tracker: bake samples are 0.25-0.5 s apart, so raw per-sample
+        // slot fills blink as boxes come and go. Identities are matched across the two
+        // bracketing samples (class + centre proximity), lerped between them, and held
+        // for m_signDetHoldSec after they vanish. Boxes tracked in normalized video space.
+        private struct TrackedDet { public Vector4 box; public int cls; public float lastSeenVt; }
+        private readonly List<TrackedDet> m_trackedDets = new();
+        private float m_lastVideoVt = -1f;
 
         // ---- lifecycle ----
 
@@ -230,8 +278,8 @@ namespace PassthroughCameraSamples.ShaderSample
             InitSelectionDots();
             InitModeUI();
 
-            // Only ColorPop / SoftDark / HardDark remain in the study; snap any stale
-            // serialized mode (e.g. Blur from an old scene save) into the cycle.
+            // Free-play cycle is ColorPop / SignPop / SoftDark / HardDark (the study uses
+            // only the original three); snap any stale serialized mode into the cycle.
             if (Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
                 m_vignetteMode = VignetteMode.ColorPop;
 
@@ -269,8 +317,23 @@ namespace PassthroughCameraSamples.ShaderSample
 
             if (m_useBakedDetections)
             {
-                string path = System.IO.Path.Combine(
-                    Application.streamingAssetsPath, "DebugVideo.detections.json");
+                string path;
+                if (m_flatClipMode)
+                {
+                    // Flat mode: the track lives next to the resolved clip (same name,
+                    // .detections.json) — works for sideloaded, bundled, and jar: URLs.
+                    path = m_resolvedVideoUrl.Replace(".mp4", ".detections.json");
+                }
+                else
+                {
+                    // Prefer sideloaded detections that match the sideloaded study video
+                    // (adb push to persistentDataPath/study_video.detections.json); else
+                    // the bundled bake for DebugVideo.mp4.
+                    string overrideDet = System.IO.Path.Combine(Application.persistentDataPath, "study_video.detections.json");
+                    path = System.IO.File.Exists(overrideDet)
+                        ? overrideDet
+                        : System.IO.Path.Combine(Application.streamingAssetsPath, "DebugVideo.detections.json");
+                }
                 yield return VideoDetectionTrack.Load(path, tr => m_bakedTrack = tr);
                 if (m_bakedTrack != null && m_bakedTrack.samples.Count > 0)
                 {
@@ -333,7 +396,11 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void SetupVideoSphere()
         {
-            m_videoRT = new RenderTexture(3840, 2160, 0, RenderTextureFormat.ARGB32);
+            // 2:1 equirectangular target — matches the 360 study clip so the shader's
+            // [0,1] UVs map 1:1 onto the sphere (no letterbox/stretch distortion).
+            // 6K (5760x2880) preserves the higher-res transcode instead of squeezing to 4K;
+            // if this costs framerate on-device, step back down to 3840x1920.
+            m_videoRT = new RenderTexture(5760, 2880, 0, RenderTextureFormat.ARGB32);
             m_videoRT.Create();
 
             // The vignette sphere is the only renderer — no separate background sphere.
@@ -341,14 +408,132 @@ namespace PassthroughCameraSamples.ShaderSample
             m_videoPlayer               = gameObject.AddComponent<VideoPlayer>();
             m_videoPlayer.playOnAwake   = false;
             m_videoPlayer.renderMode    = VideoRenderMode.RenderTexture;
-            m_videoPlayer.targetTexture = m_videoRT;
             m_videoPlayer.isLooping     = true;
             m_videoPlayer.skipOnDrop    = true;
-            m_videoPlayer.url           = System.IO.Path.Combine(
-                Application.streamingAssetsPath, "DebugVideo.mp4");
-            m_videoPlayer.Play();
+            // Prefer a sideloaded video (adb push to persistentDataPath) so large clips
+            // stay OUT of the APK; fall back to the bundled StreamingAssets file.
+            string overrideName = m_flatClipMode ? "flat_clip.mp4" : "study_video.mp4";
+            string bundledName  = m_flatClipMode ? "FlatClip.mp4"  : "DebugVideo.mp4";
+            string overridePath = System.IO.Path.Combine(Application.persistentDataPath, overrideName);
+            m_videoPlayer.url = System.IO.File.Exists(overridePath)
+                ? overridePath
+                : System.IO.Path.Combine(Application.streamingAssetsPath, bundledName);
+            m_resolvedVideoUrl = m_videoPlayer.url;
+            m_videoPlayer.aspectRatio = UnityEngine.Video.VideoAspectRatio.Stretch;
+            Debug.Log($"[VideoTestScene] Video source: {m_videoPlayer.url}" +
+                      (m_flatClipMode ? " (flat clip mode)" : ""));
+
+            if (m_flatClipMode)
+            {
+                // Flat clip: decode into a native-res RT (created once dimensions are
+                // known), then reproject into the equirect RT every frame — everything
+                // downstream (vignette shader, focus window, detection mapping) keeps
+                // working in unchanged equirect space.
+                var flatShader = Resources.Load<Shader>("FlatClipToEquirect");
+                if (flatShader != null) m_flatCompositeMat = new Material(flatShader);
+                else Debug.LogError("[VideoTestScene] FlatClipToEquirect shader not found in Resources.");
+                m_videoPlayer.prepareCompleted += OnFlatClipPrepared;
+                m_videoPlayer.Prepare();
+                if (m_flatSurround360) SetupSurroundVideo();
+            }
+            else
+            {
+                m_videoPlayer.targetTexture = m_videoRT;
+                m_videoPlayer.Play();
+            }
 
             m_material.SetTexture(s_mainTexLId, m_videoRT);
+        }
+
+        // Second decoder: the standard 360 clip fills the periphery around the flat
+        // clip, so the DR modes have real visual noise to suppress — an empty dark
+        // surround gives the vignette nothing to do and kills immersion.
+        private void SetupSurroundVideo()
+        {
+            string overridePath = System.IO.Path.Combine(Application.persistentDataPath, "study_video.mp4");
+            string url = System.IO.File.Exists(overridePath)
+                ? overridePath
+                : System.IO.Path.Combine(Application.streamingAssetsPath, "DebugVideo.mp4");
+
+            // Half-res equirect target — periphery sits at low visual acuity, and this
+            // keeps the extra decode+blit cost modest on the XR2.
+            m_surroundRT = new RenderTexture(2880, 1440, 0, RenderTextureFormat.ARGB32);
+            m_surroundRT.Create();
+
+            m_surroundPlayer                 = gameObject.AddComponent<VideoPlayer>();
+            m_surroundPlayer.playOnAwake     = false;
+            m_surroundPlayer.renderMode      = VideoRenderMode.RenderTexture;
+            m_surroundPlayer.targetTexture   = m_surroundRT;
+            m_surroundPlayer.isLooping       = true;
+            m_surroundPlayer.skipOnDrop      = true;
+            m_surroundPlayer.audioOutputMode = VideoAudioOutputMode.None; // no double audio
+            m_surroundPlayer.url             = url;
+            m_surroundPlayer.Play();
+            Debug.Log($"[VideoTestScene] Peripheral surround video: {url}");
+        }
+
+        private void OnFlatClipPrepared(VideoPlayer vp)
+        {
+            vp.prepareCompleted -= OnFlatClipPrepared;
+            m_flatRT = new RenderTexture((int)vp.width, (int)vp.height, 0, RenderTextureFormat.ARGB32);
+            m_flatRT.Create();
+            vp.targetTexture = m_flatRT;
+            vp.Play();
+            Debug.Log($"[VideoTestScene] Flat clip {vp.width}x{vp.height}, hfov {m_flatHFovDeg}°.");
+        }
+
+        // Draw the flat clip into the forward sector of the equirect RT (pinhole →
+        // equirect reprojection, FlatClipToEquirect.shader). Only the sector's az/el
+        // bounding box is rasterized each frame; the rest of the RT keeps the surround
+        // colour from a one-time clear.
+        private void CompositeFlatToEquirect()
+        {
+            if (m_flatRT == null || m_flatCompositeMat == null || m_videoRT == null) return;
+
+            float azHalf = 0.5f * m_flatHFovDeg * Mathf.Deg2Rad;
+            float elHalf = Mathf.Atan(Mathf.Tan(azHalf) * m_flatRT.height / m_flatRT.width);
+            float elC    = m_flatElCenterDeg * Mathf.Deg2Rad;
+
+            m_flatCompositeMat.SetTexture(s_flatMainTexId, m_flatRT);
+            m_flatCompositeMat.SetVector(s_flatTanHalfId,
+                new Vector4(Mathf.Tan(azHalf), Mathf.Tan(elHalf), 0f, 0f));
+            m_flatCompositeMat.SetVector(s_flatAzElHalfId, new Vector4(azHalf, elHalf, 0f, 0f));
+            m_flatCompositeMat.SetColor(s_flatSurroundId, m_flatSurroundColor);
+            m_flatCompositeMat.SetFloat(s_flatFlipYId, m_flatFlipY ? 1f : 0f);
+
+            // Periphery fill: live 360 video when available (real suppressible
+            // noise), else a one-time flat-colour clear.
+            bool surroundLive = m_flatSurround360 && m_surroundRT != null
+                             && m_surroundPlayer != null && m_surroundPlayer.isPrepared;
+            if (surroundLive) Graphics.Blit(m_surroundRT, m_videoRT);
+
+            var prev = RenderTexture.active;
+            RenderTexture.active = m_videoRT;
+            if (!surroundLive && !m_flatCleared)
+            {
+                GL.Clear(false, true, m_flatSurroundColor);
+                m_flatCleared = true;
+            }
+
+            // Sector bounding box in RT uv space — mirrors the vignette shader's
+            // u = 0.5 + az/2π + uOffset, v = 0.5 + el/π + vOffset mapping, so the clip
+            // lands exactly where the shader (and the converter's boxes) expect it.
+            float u0 = 0.5f - azHalf / (2f * Mathf.PI) + m_videoUOffset;
+            float u1 = 0.5f + azHalf / (2f * Mathf.PI) + m_videoUOffset;
+            float v0 = 0.5f + (elC - elHalf) / Mathf.PI + m_videoVOffset;
+            float v1 = 0.5f + (elC + elHalf) / Mathf.PI + m_videoVOffset;
+
+            GL.PushMatrix();
+            GL.LoadOrtho();
+            m_flatCompositeMat.SetPass(0);
+            GL.Begin(GL.QUADS);
+            GL.TexCoord2(0f, 0f); GL.Vertex3(u0, v0, 0f);
+            GL.TexCoord2(1f, 0f); GL.Vertex3(u1, v0, 0f);
+            GL.TexCoord2(1f, 1f); GL.Vertex3(u1, v1, 0f);
+            GL.TexCoord2(0f, 1f); GL.Vertex3(u0, v1, 0f);
+            GL.End();
+            GL.PopMatrix();
+            RenderTexture.active = prev;
         }
 
         private void OnDestroy()
@@ -362,6 +547,9 @@ namespace PassthroughCameraSamples.ShaderSample
             if (m_modeUIRoot != null) Destroy(m_modeUIRoot);
             if (m_modeUIMat  != null) Destroy(m_modeUIMat);
             if (m_videoPreviewRoot != null) Destroy(m_videoPreviewRoot);
+            if (m_flatCompositeMat != null) Destroy(m_flatCompositeMat);
+            if (m_flatRT     != null) { m_flatRT.Release();     Destroy(m_flatRT);     }
+            if (m_surroundRT != null) { m_surroundRT.Release(); Destroy(m_surroundRT); }
             if (m_yoloRT  != null) { m_yoloRT.Release();  Destroy(m_yoloRT);  }
             if (m_videoRT != null) { m_videoRT.Release(); Destroy(m_videoRT); }
         }
@@ -369,6 +557,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private void LateUpdate()
         {
             if (m_material == null) return;
+            if (m_flatClipMode) CompositeFlatToEquirect();
             UpdateSpherePosition();
             UpdateCameraUniforms();
             UpdateFilterUniforms();
@@ -412,9 +601,9 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateFilterUniforms()
         {
-            // ColorPop gets a wider soft edge: a colour/grey boundary reads harsher
+            // ColorPop/SignPop get a wider soft edge: a colour/grey boundary reads harsher
             // than a blur or dark boundary, so the transition needs to be more gradual.
-            float softEdgeDeg = m_vignetteMode == VignetteMode.ColorPop ? m_popSoftEdgeDeg : m_softEdgeDeg;
+            float softEdgeDeg = IsPopMode(m_vignetteMode) ? m_popSoftEdgeDeg : m_softEdgeDeg;
             m_material.SetFloat(s_softEdgeId,       softEdgeDeg     * Mathf.Deg2Rad);
             if (m_frostTex != null) m_material.SetTexture(s_frostTexId, m_frostTex);
             m_material.SetFloat(s_popGreyDimId,      m_popGreyDim);
@@ -450,23 +639,92 @@ namespace PassthroughCameraSamples.ShaderSample
         }
 
         // Drive detection slots from the baked track, keyed by video time.
+        // Boxes are lerped between the two bracketing samples and held briefly after
+        // vanishing (see m_trackedDets) so SignPop's pops don't blink at sample edges.
         private void UpdateBakedDetections()
         {
             if (m_bakedTrack == null || m_videoPlayer == null) return;
-            var sample = m_bakedTrack.Lookup(m_videoPlayer.time);
-            if (sample == null) return;
+            float vt = (float)m_videoPlayer.time;
+            if (vt < m_lastVideoVt - 0.5f) m_trackedDets.Clear(); // video looped / seeked back
+            m_lastVideoVt = vt;
+
+            int i0 = m_bakedTrack.LookupIndex(vt);
+            if (i0 >= 0)
+            {
+                var s0 = m_bakedTrack.samples[i0];
+                var s1 = i0 + 1 < m_bakedTrack.samples.Count ? m_bakedTrack.samples[i0 + 1] : null;
+                float frac = s1 != null && s1.t > s0.t
+                    ? Mathf.Clamp01((vt - s0.t) / (s1.t - s0.t)) : 0f;
+
+                foreach (var det in s0.d)
+                {
+                    if (k_targetClasses != null && !k_targetClasses.Contains(det.c)) continue;
+                    var box = new Vector4(det.x1, det.y1, det.x2, det.y2);
+                    if (s1 != null)
+                    {
+                        var match = FindMatch(s1, det);
+                        if (match != null)
+                            box = Vector4.Lerp(box,
+                                new Vector4(match.x1, match.y1, match.x2, match.y2), frac);
+                    }
+                    UpsertTracked(box, det.c, vt);
+                }
+            }
+
+            m_trackedDets.RemoveAll(tr => vt - tr.lastSeenVt > m_signDetHoldSec);
 
             int slot = 0;
-            foreach (var det in sample.d)
+            foreach (var tr in m_trackedDets)
             {
                 if (slot >= k_maxDetections) break;
-                if (k_targetClasses != null && !k_targetClasses.Contains(det.c)) continue;
                 // Boxes are stored normalized — inputSize (1,1) reuses the same conversion.
-                m_detectionRects[slot] = BoxToAzElRectEQ(
-                    new Vector4(det.x1, det.y1, det.x2, det.y2), Vector2Int.one);
+                m_detectionRects[slot]      = BoxToAzElRectEQ(tr.box, Vector2Int.one);
                 m_detectionTimestamps[slot] = Time.time;
                 slot++;
             }
+            // Expire unused tail slots so the count drops immediately instead of
+            // ghosting stale rects for m_detectionLifetime.
+            for (int i = slot; i < k_maxDetections; i++)
+                m_detectionTimestamps[i] = float.NegativeInfinity;
+        }
+
+        // Nearest same-class detection in the next sample, within a radius scaled to the
+        // box size — the identity match that makes bracket-lerping possible.
+        private static BakedDetection FindMatch(BakedSample sample, BakedDetection det)
+        {
+            float cx = (det.x1 + det.x2) * 0.5f, cy = (det.y1 + det.y2) * 0.5f;
+            float size = Mathf.Max(det.x2 - det.x1, det.y2 - det.y1);
+            float best = Mathf.Max(size, 0.01f) * 1.5f;
+            BakedDetection found = null;
+            foreach (var cand in sample.d)
+            {
+                if (cand.c != det.c) continue;
+                float dx = (cand.x1 + cand.x2) * 0.5f - cx;
+                float dy = (cand.y1 + cand.y2) * 0.5f - cy;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                if (dist < best) { best = dist; found = cand; }
+            }
+            return found;
+        }
+
+        private void UpsertTracked(Vector4 box, int cls, float vt)
+        {
+            float cx = (box.x + box.z) * 0.5f, cy = (box.y + box.w) * 0.5f;
+            float size = Mathf.Max(box.z - box.x, box.w - box.y);
+            float thresh = Mathf.Max(size, 0.01f) * 1.5f;
+            for (int i = 0; i < m_trackedDets.Count; i++)
+            {
+                var tr = m_trackedDets[i];
+                if (tr.cls != cls) continue;
+                float dx = (tr.box.x + tr.box.z) * 0.5f - cx;
+                float dy = (tr.box.y + tr.box.w) * 0.5f - cy;
+                if (Mathf.Sqrt(dx * dx + dy * dy) < thresh)
+                {
+                    m_trackedDets[i] = new TrackedDet { box = box, cls = cls, lastSeenVt = vt };
+                    return;
+                }
+            }
+            m_trackedDets.Add(new TrackedDet { box = box, cls = cls, lastSeenVt = vt });
         }
 
         private void UpdateDetectionUniforms()
@@ -517,6 +775,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private MotionSettings CurrentMotionSettings => m_vignetteMode switch
         {
             VignetteMode.ColorPop => m_motionColorPop,
+            VignetteMode.SignPop  => m_motionColorPop,
             VignetteMode.SoftDark => m_motionSoftDark,
             _                     => m_motionHardDark
         };
@@ -564,6 +823,27 @@ namespace PassthroughCameraSamples.ShaderSample
         public bool StudyEffectSuppressed { get; set; }
         public bool MotionEnabled { get => m_enableMotion; set => m_enableMotion = value; }
 
+        // ---- click-capture support (ClickProbeTest) ----
+
+        /// <summary>Current video playhead time in seconds — the key that aligns clicks with
+        /// the per-frame YOLO bake (DebugVideo.detections.json). -1 if no player.</summary>
+        public float VideoTime => m_videoPlayer != null ? (float)m_videoPlayer.time : -1f;
+        public float VideoUOffset => m_videoUOffset;
+        public float VideoVOffset => m_videoVOffset;
+        public bool  VideoFlipY   => m_flipVideoY;
+
+        /// <summary>World-direction aim of the LEFT controller as azimuth/elevation (radians).</summary>
+        public void GetLeftControllerAzEl(out float az, out float el)
+        {
+            var rot = OVRInput.GetLocalControllerRotation(OVRInput.Controller.LTouch);
+            Vector3 worldDir = m_cameraRig != null
+                ? m_cameraRig.TransformDirection(rot * Vector3.forward)
+                : rot * Vector3.forward;
+            worldDir = worldDir.normalized;
+            az = Mathf.Atan2(worldDir.x, worldDir.z);
+            el = Mathf.Asin(Mathf.Clamp(worldDir.y, -1f, 1f));
+        }
+
         public void StudySetMode(VignetteMode mode)
         {
             if (Array.IndexOf(k_modeCycle, mode) < 0) mode = VignetteMode.ColorPop;
@@ -597,8 +877,12 @@ namespace PassthroughCameraSamples.ShaderSample
         private bool        m_isPainting;
         private const float k_brushPad = 0.12f;
 
+        // Pop family: ColorPop + its detection-gated variant SignPop.
+        private static bool IsPopMode(VignetteMode mode) =>
+            mode == VignetteMode.ColorPop || mode == VignetteMode.SignPop;
+
         // "Camera" modes render the source texture (instant, no formation animation).
-        private static bool IsCameraMode(VignetteMode mode) => mode == VignetteMode.ColorPop;
+        private static bool IsCameraMode(VignetteMode mode) => IsPopMode(mode);
 
         private void HandleSelection()
         {
@@ -709,7 +993,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateModeUniforms()
         {
-            bool isColorPop = m_vignetteMode == VignetteMode.ColorPop;
+            bool isPop = IsPopMode(m_vignetteMode);
 
             float effectiveStrength = StudyEffectSuppressed
                 ? 0f
@@ -717,14 +1001,16 @@ namespace PassthroughCameraSamples.ShaderSample
             CurrentEffectiveStrength = effectiveStrength;
             float maxAlpha = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
 
-            m_material.SetFloat(s_simpleModeId,       isColorPop ? 0f : 1f);
-            m_material.SetFloat(s_colorPopModeId,     isColorPop ? 1f : 0f);
+            m_material.SetFloat(s_simpleModeId,       isPop ? 0f : 1f);
+            m_material.SetFloat(s_colorPopModeId,     isPop ? 1f : 0f);
+            m_material.SetFloat(s_popDetGateId,       m_vignetteMode == VignetteMode.SignPop ? 1f : 0f);
+            m_material.SetFloat(s_popDetFallbackId,   m_signRogFallback);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
 
-            // ColorPop: when no selection is painted, auto-follow head gaze so the effect
-            // is always visible without needing to hold trigger first.
-            if (isColorPop && m_activeRect == k_fullSphere)
+            // ColorPop/SignPop: when no selection is painted, auto-follow head gaze so the
+            // effect is always visible without needing to hold trigger first.
+            if (isPop && m_activeRect == k_fullSphere)
             {
                 Transform head = Camera.main != null ? Camera.main.transform : transform;
                 float headAz   = Mathf.Atan2(head.forward.x, head.forward.z);
@@ -913,12 +1199,16 @@ namespace PassthroughCameraSamples.ShaderSample
             string modeName = m_vignetteMode switch
             {
                 VignetteMode.ColorPop => "COLOR POP",
+                VignetteMode.SignPop  => "SIGN POP",
                 VignetteMode.SoftDark => "SOFT DARK",
                 _                     => "HARD DARK"
             };
             string desc = m_vignetteMode switch
             {
                 VignetteMode.ColorPop => "Red/orange/green pop in window, kept outside; glare dimmed",
+                VignetteMode.SignPop  => m_bakedTrack != null
+                    ? "Only DETECTED lights & signs pop; other colours muted"
+                    : "NO DETECTION TRACK — all ROG at fallback dim",
                 VignetteMode.SoftDark => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
                 _                     => "Full black-out vignette"
             };
@@ -932,6 +1222,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private Color ModeAccentColor() => m_vignetteMode switch
         {
             VignetteMode.ColorPop => new Color(1.00f, 0.80f, 0.10f, 1f),
+            VignetteMode.SignPop  => new Color(0.20f, 0.85f, 0.35f, 1f),
             VignetteMode.SoftDark => new Color(1.00f, 0.65f, 0.10f, 1f),
             _                     => new Color(0.90f, 0.15f, 0.15f, 1f)
         };

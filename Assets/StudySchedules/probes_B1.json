@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "condition": "B1",
+  "seed": 101,
+  "probes": [
+    {
+      "id": 0,
+      "t": 6.32,
+      "az_deg": -30.93,
+      "el_deg": 7.47,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 1,
+      "t": 14.82,
+      "az_deg": 4.42,
+      "el_deg": 0.43,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 2,
+      "t": 23.08,
+      "az_deg": -4.16,
+      "el_deg": 6.38,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 3,
+      "t": 30.52,
+      "az_deg": -29.18,
+      "el_deg": -9.89,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 4,
+      "t": 37.64,
+      "az_deg": 27.03,
+      "el_deg": -2.38,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 5,
+      "t": 48.97,
+      "az_deg": 4.46,
+      "el_deg": 1.59,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 6,
+      "t": 57.65,
+      "az_deg": 2.67,
+      "el_deg": -7.28,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 7,
+      "t": 64.26,
+      "az_deg": -29.88,
+      "el_deg": 12.61,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 8,
+      "t": 74.6,
+      "az_deg": 37.94,
+      "el_deg": 7.17,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 9,
+      "t": 83.08,
+      "az_deg": 6.09,
+      "el_deg": 1.4,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 10,
+      "t": 92.6,
+      "az_deg": -30.3,
+      "el_deg": 14.53,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 11,
+      "t": 104.58,
+      "az_deg": 33.62,
+      "el_deg": -10.52,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 12,
+      "t": 110.72,
+      "az_deg": 4.63,
+      "el_deg": 2.14,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 13,
+      "t": 120.56,
+      "az_deg": 30.27,
+      "el_deg": -12.71,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 14,
+      "t": 128.08,
+      "az_deg": -2.24,
+      "el_deg": -2.26,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 15,
+      "t": 139.03,
+      "az_deg": 33.48,
+      "el_deg": -3.9,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 16,
+      "t": 149.46,
+      "az_deg": 2.88,
+      "el_deg": 7.22,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 17,
+      "t": 158.14,
+      "az_deg": -2.84,
+      "el_deg": 4.82,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 18,
+      "t": 165.42,
+      "az_deg": -27.03,
+      "el_deg": 7.7,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 19,
+      "t": 172.49,
+      "az_deg": 30.25,
+      "el_deg": -9.11,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 20,
+      "t": 182.23,
+      "az_deg": 3.09,
+      "el_deg": -0.16,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 21,
+      "t": 192.44,
+      "az_deg": -2.65,
+      "el_deg": 3.7,
+      "band": "central",
+      "duration_ms": 300
+    },
+    {
+      "id": 22,
+      "t": 198.84,
+      "az_deg": -27.88,
+      "el_deg": 14.6,
+      "band": "peripheral",
+      "duration_ms": 300
+    },
+    {
+      "id": 23,
+      "t": 209.24,
+      "az_deg": 2.93,
+      "el_deg": 4.49,
+      "band": "central",
+      "duration_ms": 300
+    }
+  ]
+}

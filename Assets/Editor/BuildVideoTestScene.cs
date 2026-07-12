@@ -48,8 +48,8 @@ public class BuildVideoTestScene
         // 3. Install APK
         Adb($"-s {k_serial} install -r \"{apkPath}\"", "install");
 
-        // 4. Launch
-        Adb($"-s {k_serial} shell am start -n com.DefaultCompany.PassthroughCameraApiSamples/com.unity3d.player.UnityPlayerGameActivity", "launch");
+        // 4. Launch (package id from PlayerSettings — was previously a stale hard-coded name)
+        Adb($"-s {k_serial} shell am start -n {Application.identifier}/com.unity3d.player.UnityPlayerGameActivity", "launch");
 
         UnityEngine.Debug.Log("[BuildVideoTestScene] Deployed and launched.");
     }

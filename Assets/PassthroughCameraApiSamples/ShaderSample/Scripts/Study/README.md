@@ -36,7 +36,9 @@ paper sheets; the sequencer then only marks conditions and the sheets are scored
 
 ## Experimenter controls (over the existing adb/scrcpy connection)
 
-`adb shell input keyevent <code>`:
+**Easiest path:** `Tools\study-console.ps1` wraps everything below into friendly commands
+(`pid 12`, `space`, `tlx`, `practice`, `pull`, `install`, …) and finds adb automatically —
+see its header for the full list. Raw equivalents, `adb shell input keyevent <code>`:
 
 | Key | keyevent | Action |
 |---|---|---|
@@ -49,8 +51,16 @@ paper sheets; the sequencer then only marks conditions and the sheets are scored
 | K | 39 | skip Block C (pre-registered fatigue/overrun rule) |
 | I | 37 | INCIDENT marker (details go in the paper incident log) |
 | E | 33 | end session (writes SESSION_END, closes the file) |
+| V | 50 | switch environment: passthrough scene ↔ video scene (`SceneSwitcher`) |
 
-Controller fallback for SPACE: click **both thumbsticks** and hold ~1 s.
+Advancing is keyboard SPACE only (the thumbstick-click chord was removed — a headset-wearing
+solo operator triggered it by accident, jumping the session into a block).
+After a session ends (E), the app returns to "type participant ID" automatically — no relaunch
+needed between participants.
+Environment switch from inside the headset: **hold Y (left controller) ~1 s**. Both scenes ship in
+one APK (boot scene: VideoTestScene). The switch is **blocked while a session is recording** — end
+with E first so the CSV closes cleanly; a full scene load re-initialises the target environment
+(passthrough cameras / video player) from scratch.
 All state transitions print `[Sequencer]` lines — watch `adb logcat -s Unity` next to scrcpy.
 
 ## Session-day sequence (per participant)

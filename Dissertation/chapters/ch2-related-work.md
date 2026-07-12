@@ -20,7 +20,7 @@ Two housekeeping notes. First, this project's modes were renamed during developm
 work motivated an earlier design (Dynamic / Semi-Dynamic / Static, or the superseded Blur mode), the
 text maps it onto the current system (ColorPop, Soft Dark, Hard Dark; see Chapter 4). Second,
 citations whose full bibliographic identity could not be confirmed against the source PDF at the
-time of writing are marked **[VERIFY]** and collected in the reference list for resolution before
+time of writing are marked **[[VERIFY-citations]]** and collected in the reference list for resolution before
 submission.
 
 ---
