@@ -17,6 +17,7 @@ RuntimeActionBindings.json.meta
 ProjectSettings\Packages\com.unity.testtools.codecoverage\Settings.json
 PerformanceTestRun*.*
 StreamingAssets*
+/DevVideos/
 buildInfo.txt
 Packages/packages-lock.json
 
