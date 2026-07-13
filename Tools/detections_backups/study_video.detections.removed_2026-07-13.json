@@ -1,0 +1,29 @@
+{
+  "source_file": "Builds/StudyVideo/study_video.detections.json",
+  "removed_on": "2026-07-13",
+  "method": "Extracted the source video frame at each detection's timestamp/box (ffmpeg crop), visually inspected each one, and removed only the ones confirmed NOT to be a real traffic light or stop sign.",
+  "class": 9,
+  "class_name": "traffic light (COCO id 9)",
+  "count_removed": 17,
+  "count_before": 4203,
+  "count_after": 4186,
+  "entries": [
+    { "t": 29.5,   "x1": 0.2876, "y1": 0.2501, "x2": 0.3116, "y2": 0.3236, "reason": "Building windows (Flatiron-area facade)" },
+    { "t": 325.5,  "x1": 0.7088, "y1": 0.2226, "x2": 0.7330, "y2": 0.2844, "reason": "Apartment building balcony/window facade" },
+    { "t": 189.5,  "x1": 0.6252, "y1": 0.2988, "x2": 0.6398, "y2": 0.3635, "reason": "Building window with decorative railing above a storefront banner (not the nearby MTA bus-stop sign)" },
+    { "t": 302.0,  "x1": 0.3449, "y1": 0.3150, "x2": 0.3624, "y2": 0.3638, "reason": "Building windows (arched facade)" },
+    { "t": 29.5,   "x1": 0.2922, "y1": 0.2501, "x2": 0.3110, "y2": 0.2941, "reason": "Building windows (same facade as the 29.5s entry above, different box)" },
+    { "t": 154.5,  "x1": 0.6116, "y1": 0.4122, "x2": 0.6416, "y2": 0.4395, "reason": "Rear of a yellow school bus" },
+    { "t": 276.0,  "x1": 0.6665, "y1": 0.2552, "x2": 0.6824, "y2": 0.3037, "reason": "Construction scaffolding with a \"KINGS\" sign" },
+    { "t": 257.5,  "x1": 0.3771, "y1": 0.2226, "x2": 0.3916, "y2": 0.2748, "reason": "Blank hazy sky, nothing visible in the box" },
+    { "t": 459.5,  "x1": 0.6616, "y1": 0.4444, "x2": 0.6877, "y2": 0.4729, "reason": "Dentist billboard text (\"VIVIANE TRINH, DMD\")" },
+    { "t": 459.0,  "x1": 0.5198, "y1": 0.2527, "x2": 0.5361, "y2": 0.2956, "reason": "Blank hazy sky, nothing visible in the box" },
+    { "t": 153.0,  "x1": 0.6550, "y1": 0.2223, "x2": 0.6755, "y2": 0.2548, "reason": "Building windows" },
+    { "t": 467.5,  "x1": 0.3531, "y1": 0.2659, "x2": 0.3678, "y2": 0.3104, "reason": "Building windows" },
+    { "t": 460.0,  "x1": 0.3559, "y1": 0.2572, "x2": 0.3711, "y2": 0.2994, "reason": "Building windows" },
+    { "t": 276.0,  "x1": 0.6817, "y1": 0.2639, "x2": 0.6952, "y2": 0.3103, "reason": "Construction scaffolding (same scene as the other 276.0s entry, different box)" },
+    { "t": 349.0,  "x1": 0.6827, "y1": 0.2992, "x2": 0.6959, "y2": 0.3457, "reason": "Building windows" },
+    { "t": 194.0,  "x1": 0.3308, "y1": 0.3338, "x2": 0.3435, "y2": 0.3808, "reason": "Tree canopy, no light visible" },
+    { "t": 257.5,  "x1": 0.6614, "y1": 0.2479, "x2": 0.6766, "y2": 0.2863, "reason": "Blank stone wall between two windows" }
+  ]
+}
