@@ -51,8 +51,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [Tooltip("Force fixable config flags (Block B motion suppression) instead of refusing.")]
         [SerializeField] private bool m_autoFixConfig = true;
 
-        [Header("Blocks B/C fixed focus window (degrees: azMin, azMax, elMin, elMax)")]
-        [SerializeField] private Vector4 m_fixedWindowDeg = new(-25f, 25f, -15f, 10f);
+        [Header("Blocks B/C fixed focus window")]
+        [Tooltip("Vertical centre (deg) of the fixed Blocks B/C window; negative = below straight-ahead " +
+                 "(approximates a windscreen sightline). Size comes from the active manager's " +
+                 "DefaultWindowHalfWidthDeg (shared with the free-play brush seed), not from here.")]
+        [SerializeField] private float m_windscreenElCenterDeg = -2.5f;
 
         // Nominal durations — MUST match Tools/validate_session.py (±5 % tolerance there).
         private const float k_durA = 210f;
@@ -248,7 +251,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 m_ctrl.StudyInputLock = true;
                 m_ctrl.StudySetMode(VignetteMode.ColorPop);
                 m_ctrl.StudyEffectSuppressed = true;
-                m_ctrl.StudySetWindow(DegWindowToRad(m_fixedWindowDeg));
+                float half = m_ctrl.DefaultWindowHalfWidthDeg;
+                var fixedWindowDeg = new Vector4(-half, half,
+                    m_windscreenElCenterDeg - half, m_windscreenElCenterDeg + half);
+                m_ctrl.StudySetWindow(DegWindowToRad(fixedWindowDeg));
                 m_logger.LogEvent("WINDOW_LOCKED", WindowPayload(m_ctrl.ActiveRect) + ";source=fixed");
             }
             else
@@ -295,7 +301,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             C($"plan={m_plan}");
             C($"pid={m_pid}");
             C($"motion_enabled={m_ctrl.MotionEnabled};autofix={m_autoFixConfig}");
-            C($"fixed_window_deg={m_fixedWindowDeg.x}/{m_fixedWindowDeg.y}/{m_fixedWindowDeg.z}/{m_fixedWindowDeg.w}");
+            C($"fixed_window_half_width_deg={m_ctrl.DefaultWindowHalfWidthDeg};el_center_deg={m_windscreenElCenterDeg}");
             C($"nominal_s=A:{k_durA};B:{k_durB};C:{k_durC}");
             if (m_plan == StudyPlan.PassthroughScene_BlockA)
             {

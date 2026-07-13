@@ -88,6 +88,13 @@ let mode = null;       // 'black' | 'reel'
 let startTime = null;  // performance.now() at playback start
 let resetTimer = null;
 
+// ?embedded=1: hosted inside another page's own fullscreen (e.g. PilotTools' margin
+// iframes) instead of standalone on a study tablet. A document can only have one
+// fullscreen element at a time, so the embedding parent already owns it — this flag
+// just skips this page's own (redundant, likely-rejected) fullscreen request.
+// Standalone tablet usage (no query param) is completely unaffected.
+const EMBEDDED = new URLSearchParams(location.search).get('embedded') === '1';
+
 function selectMode(m) {
   mode = m;
   document.getElementById('btn-black').classList.toggle('selected', m === 'black');
@@ -118,7 +125,7 @@ function selectModeFullscreen() {
 function startPlayback() {
   if (!mode) return;
   document.getElementById('setup').style.display = 'none';
-  selectModeFullscreen();
+  if (!EMBEDDED) selectModeFullscreen();
   acquireWakeLock();
   startTime = performance.now();
   requestAnimationFrame(tick);

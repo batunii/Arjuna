@@ -18,6 +18,14 @@ namespace PassthroughCameraSamples.ShaderSample
         Vector4 ActiveRect { get; }
 
         /// <summary>
+        /// Default focus-window half-width (deg), applied symmetrically to az/el. Seeds both
+        /// the free-play painted-brush size and the fixed Blocks B/C windscreen window, so
+        /// there is one shared, Inspector-tunable source for "how big is the window by default"
+        /// (see CameraSphereVignetteManager/VideoTestSceneManager, Filter header).
+        /// </summary>
+        float DefaultWindowHalfWidthDeg { get; }
+
+        /// <summary>
         /// Effect strength actually sent to the shader this frame (0..1), after motion
         /// suppression and study overrides. Logged by StudyLogger as dr_intensity.
         /// </summary>

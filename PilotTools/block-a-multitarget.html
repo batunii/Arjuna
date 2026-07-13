@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Block A — Multi-Target Pilot Tool</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0b0b0d; color: #eee; font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    user-select: none;
+  }
+  .screen { width: min(92vw, 680px); padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sub { color: #999; font-size: 0.85rem; margin-bottom: 20px; }
+  label { display: block; margin: 14px 0 6px; font-size: 0.9rem; color: #ccc; }
+  input, select {
+    width: 100%; padding: 10px; font-size: 1rem; background: #1a1a1d; color: #eee;
+    border: 1px solid #333; border-radius: 6px;
+  }
+  button {
+    margin-top: 20px; padding: 12px 20px; font-size: 1rem; font-weight: 600;
+    background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;
+  }
+  button.secondary { background: #333; }
+  button.danger { background: #7a2020; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  /* ---- task screen ---- */
+  #task { display: none; flex-direction: column; align-items: center; }
+  #hint { color: #888; font-size: 0.85rem; margin-bottom: 6px; text-align: center; }
+  #timer { color: #666; font-size: 0.85rem; margin-bottom: 14px; }
+  #arena {
+    position: relative; width: min(90vw, 640px); height: min(70vw, 440px);
+    background: #17171a; border-radius: 12px; overflow: hidden;
+  }
+  .shape {
+    position: absolute; width: 70px; height: 70px; background: #fff;
+    transform: translate(-50%, -50%); cursor: pointer;
+  }
+  .shape.target { border-radius: 50%; }
+  .shape.decoy { border-radius: 8px; }
+  #arenaFlash {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0; border-radius: 12px;
+    transition: opacity 0.15s ease-out;
+  }
+  #arenaFlash.hit { background: rgba(59,130,246,0.30); opacity: 1; }
+  #arenaFlash.error { background: rgba(220,38,38,0.30); opacity: 1; }
+  #abortBtn { margin-top: 20px; }
+
+  /* ---- results screen ---- */
+  #results { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.92rem; }
+  td { padding: 6px 4px; border-bottom: 1px solid #222; }
+  td:last-child { text-align: right; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP ============ -->
+<div class="screen" id="setup">
+  <h1>Block A — Multi-Target Pilot Tool</h1>
+  <div class="sub">
+    Exploratory alternative to the sequential Go/No-Go CPT (<code>block-a-cpt.html</code>) —
+    NOT part of the current dissertation spec (testing-strategy-v2.md §4.1 still specifies
+    the sequential CPT). Use this to pilot the "click the target among decoys, continuous
+    respawn" idea before deciding whether to adopt it. See PilotTools/README.md.
+  </div>
+
+  <label for="pid">Participant ID</label>
+  <input id="pid" type="number" min="0" value="0" inputmode="numeric">
+
+  <label for="condition">Condition label</label>
+  <select id="condition">
+    <option value="A1">A1</option>
+    <option value="A2">A2</option>
+    <option value="A3">A3</option>
+    <option value="A4">A4</option>
+    <option value="PRACTICE">Practice</option>
+  </select>
+
+  <label for="difficulty">Difficulty</label>
+  <select id="difficulty">
+    <option value="easy">Easy — 3-5 shapes, 70px</option>
+    <option value="medium">Medium — 5-7 shapes, 55px</option>
+    <option value="hard" selected>Hard — 6-9 shapes, 42px</option>
+  </select>
+
+  <button id="startBtn">Start (3.5 min session)</button>
+</div>
+
+<!-- ============ TASK ============ -->
+<div class="screen" id="task">
+  <div id="hint">Click the <strong>circle</strong>. Squares are decoys — clicking one is an error.</div>
+  <div id="timer">3:30 remaining</div>
+  <div id="arena">
+    <div id="arenaFlash"></div>
+  </div>
+  <button id="abortBtn" class="danger">Abort session</button>
+</div>
+
+<!-- ============ RESULTS ============ -->
+<div class="screen" id="results">
+  <h1 id="resultsTitle">Session complete</h1>
+  <table id="statsTable"></table>
+  <div class="row">
+    <button id="saveCsvBtn" class="secondary">Save CSV log</button>
+    <button id="againBtn">Run again</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SESSION_DURATION_S = 210; // 3.5 min, matches Block A condition length
+const RESPAWN_DELAY_MS = 180; // lets the hit/error flash register before the next round
+
+// Difficulty presets: fewer/bigger/more-separated shapes = easier visual search.
+// "Hard" is the default per pilot feedback that Easy (the original-only settings) had no
+// real search demand — shapes were big and well-spaced enough to just glance-and-click.
+const DIFFICULTY_PRESETS = {
+  easy:   { countMin: 3, countMax: 5, sizePx: 70 },
+  medium: { countMin: 5, countMax: 7, sizePx: 55 },
+  hard:   { countMin: 6, countMax: 9, sizePx: 42 },
+};
+
+// ---- seeded PRNG (mulberry32) — see PilotTools/README.md for the same "not bit-identical
+// to any .NET-based sequence" caveat as block-a-cpt.html. Used here purely for reproducible
+// piloting (same participant+condition -> same round sequence), not to match any Unity code
+// (there is no Unity implementation of this task — it isn't part of the current spec).
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ---- CSV log, same header as StudyLogger.cs; head-pose columns blank (no VR here) ----
+const CSV_HEADER =
+  't_ms,pid,block,condition,yaw_deg,pitch_deg,roll_deg,head_speed_dps,dr_intensity,mode,event,payload';
+let csvRows = [];
+
+function sanitize(s) { return String(s).replace(/,/g, ';').replace(/\n/g, ' ').replace(/\r/g, ' '); }
+
+function logEvent(pid, condition, label, payload) {
+  csvRows.push([
+    Date.now(), pid, 'A', condition, '', '', '', '', '', 'MULTITARGET_PILOT',
+    label, sanitize(payload || ''),
+  ].join(','));
+}
+
+// ---- DOM refs ----
+const setupEl = document.getElementById('setup');
+const taskEl = document.getElementById('task');
+const resultsEl = document.getElementById('results');
+const arenaEl = document.getElementById('arena');
+const arenaFlashEl = document.getElementById('arenaFlash');
+const timerEl = document.getElementById('timer');
+
+let state = null;
+
+document.getElementById('startBtn').addEventListener('click', startSession);
+document.getElementById('abortBtn').addEventListener('click', () => endSession(true));
+document.getElementById('againBtn').addEventListener('click', () => {
+  resultsEl.style.display = 'none';
+  setupEl.style.display = 'block';
+});
+document.getElementById('saveCsvBtn').addEventListener('click', saveCsv);
+
+// Best-effort, same pattern as TabletApp/distractor-reel.html: hides browser chrome so the
+// task fills the screen. Must be called synchronously from the click handler (a user gesture)
+// or browsers reject the request. Older WebViews without the API just fall back silently.
+function requestFullscreenBestEffort() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if (!req) return;
+  try {
+    const p = req.call(el);
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* best-effort */ }
+}
+
+function startSession() {
+  requestFullscreenBestEffort();
+  const pid = document.getElementById('pid').value.trim() || '0';
+  const condition = document.getElementById('condition').value;
+  const difficulty = document.getElementById('difficulty').value;
+  const preset = DIFFICULTY_PRESETS[difficulty];
+  // Same seed formula spirit as CPTPanel/ConditionSequencer (pid*10 + slot), slot from
+  // condition label; PRACTICE fixed at 999, matching the CPT tool's convention.
+  const slotMap = { A1: 0, A2: 1, A3: 2, A4: 3, PRACTICE: null };
+  const slot = slotMap[condition];
+  const seed = slot === null ? 999 : (parseInt(pid, 10) * 10 + slot);
+
+  state = {
+    pid, condition, difficulty, preset, rand: mulberry32(seed),
+    rounds: 0, hits: 0, errors: 0, hitRTs: [],
+    roundOnset: 0, endAt: 0, tickTimer: null, respawnTimer: null,
+    shapes: [], // [{el, isTarget}]
+  };
+  csvRows = [];
+  logEvent(pid, condition, 'MT_SESSION_START',
+    `duration_s=${SESSION_DURATION_S};seed=${seed};difficulty=${difficulty};` +
+    `count=${preset.countMin}-${preset.countMax};size_px=${preset.sizePx}`);
+
+  setupEl.style.display = 'none';
+  resultsEl.style.display = 'none';
+  taskEl.style.display = 'flex';
+
+  state.endAt = performance.now() + SESSION_DURATION_S * 1000;
+  state.tickTimer = setInterval(tickTimer, 200);
+  spawnRound();
+  tickTimer();
+}
+
+function tickTimer() {
+  if (!state) return;
+  const remainingS = Math.max(0, Math.round((state.endAt - performance.now()) / 1000));
+  const m = Math.floor(remainingS / 60), s = remainingS % 60;
+  timerEl.textContent = `${m}:${String(s).padStart(2, '0')} remaining`;
+  if (remainingS <= 0) endSession(false);
+}
+
+function randInt(rand, maxExclusive) { return Math.floor(rand() * maxExclusive); }
+
+function spawnRound() {
+  if (!state) return;
+  clearArena();
+  arenaFlashEl.className = '';
+
+  const { countMin, countMax, sizePx } = state.preset;
+  const minSeparationPx = sizePx * 1.3;
+  const count = countMin + randInt(state.rand, countMax - countMin + 1);
+  const targetIdx = randInt(state.rand, count);
+  const bounds = arenaEl.getBoundingClientRect();
+  const positions = [];
+
+  for (let i = 0; i < count; i++) {
+    let pos, attempts = 0;
+    do {
+      pos = {
+        x: sizePx / 2 + state.rand() * (bounds.width - sizePx),
+        y: sizePx / 2 + state.rand() * (bounds.height - sizePx),
+      };
+      attempts++;
+    } while (
+      attempts < 200 &&
+      positions.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < minSeparationPx)
+    );
+    positions.push(pos);
+
+    const isTarget = i === targetIdx;
+    const el = document.createElement('div');
+    el.className = `shape ${isTarget ? 'target' : 'decoy'}`;
+    el.style.width = `${sizePx}px`;
+    el.style.height = `${sizePx}px`;
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y}px`;
+    el.addEventListener('click', () => onShapeClick(isTarget));
+    arenaEl.appendChild(el);
+    state.shapes.push({ el, isTarget });
+  }
+
+  state.roundOnset = performance.now();
+  logEvent(state.pid, state.condition, 'MT_ROUND_START', `n=${count};target_idx=${targetIdx}`);
+}
+
+function clearArena() {
+  if (!state) return;
+  for (const s of state.shapes) s.el.remove();
+  state.shapes = [];
+}
+
+function onShapeClick(isTarget) {
+  if (!state) return;
+  const rt = (performance.now() - state.roundOnset) / 1000;
+  state.rounds++;
+
+  if (isTarget) {
+    state.hits++;
+    state.hitRTs.push(rt);
+    arenaFlashEl.className = 'hit';
+    logEvent(state.pid, state.condition, 'MT_RESULT', `outcome=hit;rt_ms=${Math.round(rt * 1000)}`);
+  } else {
+    state.errors++;
+    arenaFlashEl.className = 'error';
+    logEvent(state.pid, state.condition, 'MT_RESULT', `outcome=error;rt_ms=${Math.round(rt * 1000)}`);
+  }
+
+  // Ignore further clicks on this round's shapes while the flash/respawn transition plays.
+  for (const s of state.shapes) s.el.style.pointerEvents = 'none';
+  state.respawnTimer = setTimeout(spawnRound, RESPAWN_DELAY_MS);
+}
+
+function endSession(aborted) {
+  if (!state) return;
+  clearInterval(state.tickTimer);
+  clearTimeout(state.respawnTimer);
+  clearArena();
+
+  logEvent(state.pid, state.condition, aborted ? 'MT_SESSION_ABORTED' : 'MT_SESSION_END',
+    `rounds=${state.rounds};hits=${state.hits};errors=${state.errors}`);
+
+  taskEl.style.display = 'none';
+  showResults(aborted);
+}
+
+function meanRT(rts) { return rts.length ? rts.reduce((a, b) => a + b, 0) / rts.length : null; }
+function medianRT(rts) {
+  if (!rts.length) return null;
+  const s = [...rts].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+function showResults(aborted) {
+  document.getElementById('resultsTitle').textContent =
+    aborted ? 'Session aborted' : `${state.condition} session complete`;
+
+  const totalClicks = state.hits + state.errors;
+  const hitRate = totalClicks > 0 ? state.hits / totalClicks : 0;
+  const rows = [
+    ['Participant', state.pid],
+    ['Condition', state.condition],
+    ['Difficulty', `${state.difficulty} (${state.preset.countMin}-${state.preset.countMax} shapes, ${state.preset.sizePx}px)`],
+    ['Rounds completed', state.rounds],
+    ['Hits (target clicked)', state.hits],
+    ['Errors (decoy clicked)', state.errors],
+    ['Accuracy (hit rate)', `${(hitRate * 100).toFixed(1)}%`],
+    ['Mean RT (hits)', state.hitRTs.length ? `${Math.round(meanRT(state.hitRTs) * 1000)} ms` : '—'],
+    ['Median RT (hits)', state.hitRTs.length ? `${Math.round(medianRT(state.hitRTs) * 1000)} ms` : '—'],
+    ['Throughput', `${(state.rounds / (SESSION_DURATION_S / 60)).toFixed(1)} rounds/min`],
+  ];
+
+  const table = document.getElementById('statsTable');
+  table.innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  resultsEl.style.display = 'block';
+}
+
+function saveCsv() {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const blob = new Blob([CSV_HEADER + '\n' + csvRows.join('\n') + '\n'], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `blockA_multitarget_P${state.pid}_${state.condition}_${state.difficulty}_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>

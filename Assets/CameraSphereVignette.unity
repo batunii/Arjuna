@@ -626,6 +626,7 @@ MonoBehaviour:
   m_cameraRig: {fileID: 0}
   m_debugText: {fileID: 7828524204933019467}
   m_softEdgeDeg: 16
+  m_defaultWindowHalfWidthDeg: 0
   m_maxBlurRadius: 0.01
   m_blurCurveExp: 3
   m_blurDelay: 0.5

@@ -63,6 +63,12 @@ namespace PassthroughCameraSamples.ShaderSample
 
         [Header("Filter")]
         [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
+        [Tooltip("Default half-width (deg), applied symmetrically to az/el, of the focus window. " +
+                 "Seeds the free-play brush size AND the fixed Blocks B/C windscreen window (single " +
+                 "shared source). 0 = start from nothing and build the window entirely by painting " +
+                 "(no forced minimum size). Originally set to 15° per Ball & Owsley UFOV central-field " +
+                 "reasoning, but on-device testing found that felt too large in practice — tune to taste.")]
+        [SerializeField, Range(0f, 30f)] private float m_defaultWindowHalfWidthDeg = 0f;
 
         [Header("Mode")]
         [SerializeField] private VignetteMode m_vignetteMode = VignetteMode.ColorPop;
@@ -123,6 +129,18 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 1f)] private float m_signRogFallback = 0.35f;
         [Tooltip("Hold a baked detection for this many video-seconds after it vanishes from the track, so pops don't blink between bake samples.")]
         [SerializeField, Range(0f, 2f)] private float m_signDetHoldSec = 0.5f;
+
+        [Header("Person Detection")]
+        [Tooltip("Minimum apparent box height (deg) for a detected person to count as 'close' — bigger box = closer. " +
+                 "This is a box-size proxy for distance: the bake is monocular/offline with no depth sensor, and " +
+                 "YOLO11 has no built-in distance estimation, so apparent size is the practical signal. Tune live; " +
+                 "no re-bake needed.")]
+        [SerializeField, Range(0f, 30f)] private float m_personMinBoxHeightDeg = 6f;
+        [Tooltip("Maximum angular distance (deg) OUTSIDE the focus window for a close-enough person to still " +
+                 "count as entering/exiting it. Only matters when the person is outside the window — a close-" +
+                 "enough person already INSIDE the window is always shown, regardless of this value. No region " +
+                 "active = no persons shown (undefined 'edge').")]
+        [SerializeField, Range(0f, 30f)] private float m_personMaxEdgeDistDeg = 8f;
 
         [Header("YOLO Detection")]
         [Tooltip("Drag the YoloRunner component here; it will read from the video RenderTexture instead of the passthrough camera.")]
@@ -251,8 +269,11 @@ namespace PassthroughCameraSamples.ShaderSample
         private const int k_maxDetections = 16;
         private readonly Vector4[] m_detectionRects      = new Vector4[k_maxDetections];
         private readonly float[]   m_detectionTimestamps = new float[k_maxDetections];
-        // COCO: 9 = traffic light, 11 = stop sign. Signs only — vehicles/people excluded.
-        private static readonly HashSet<int> k_targetClasses = new() { 9, 11 };
+        // COCO: 9 = traffic light, 11 = stop sign, 0 = person. Person detections pass this
+        // class filter but are then further gated by PassesPersonGate (below) — only people
+        // near the focus-window edge AND close to the camera are ever shown.
+        private static readonly HashSet<int> k_targetClasses = new() { 0, 9, 11 };
+        private const int k_personClassId = 0;
 
         // SignPop detection tracker: bake samples are 0.25-0.5 s apart, so raw per-sample
         // slot fills blink as boxes come and go. Identities are matched across the two
@@ -632,10 +653,38 @@ namespace PassthroughCameraSamples.ShaderSample
             {
                 if (slot >= k_maxDetections) break;
                 if (k_targetClasses != null && !k_targetClasses.Contains(classId)) continue;
-                m_detectionRects[slot]      = BoxToAzElRectEQ(box, inputSize);
+                var rect = BoxToAzElRectEQ(box, inputSize);
+                if (classId == k_personClassId && !PassesPersonGate(rect)) continue;
+                m_detectionRects[slot]      = rect;
                 m_detectionTimestamps[slot] = Time.time;
                 slot++;
             }
+        }
+
+        // A detected person is shown only if close to the camera (apparent box height above
+        // threshold — a monocular distance proxy). Given that, they're shown either because
+        // they're ALREADY inside the focus window (position within it doesn't matter — dead
+        // center counts the same as just inside the wall), OR because they're outside it but
+        // near enough to the boundary to read as entering/exiting. Traffic-light/stop-sign
+        // detections never call this — they're always shown, inside or outside the window,
+        // same as this eventually is for people too. No active region = fail closed, since
+        // "the region" is undefined without one.
+        private bool PassesPersonGate(Vector4 azElRect)
+        {
+            if (m_activeRect == k_fullSphere) return false;
+
+            float heightDeg = (azElRect.w - azElRect.z) * Mathf.Rad2Deg;
+            if (heightDeg < m_personMinBoxHeightDeg) return false;
+
+            float cx = (azElRect.x + azElRect.y) * 0.5f;
+            float cy = (azElRect.z + azElRect.w) * 0.5f;
+            float dxOutside = Mathf.Max(0f, m_activeRect.x - cx, cx - m_activeRect.y);
+            float dyOutside = Mathf.Max(0f, m_activeRect.z - cy, cy - m_activeRect.w);
+            if (dxOutside <= 0f && dyOutside <= 0f) return true; // inside the window: always shown
+
+            // Outside the window: only near enough to the boundary to read as entering/exiting.
+            float edgeDistRad = Mathf.Sqrt(dxOutside * dxOutside + dyOutside * dyOutside);
+            return edgeDistRad * Mathf.Rad2Deg <= m_personMaxEdgeDistDeg;
         }
 
         // Drive detection slots from the baked track, keyed by video time.
@@ -667,6 +716,8 @@ namespace PassthroughCameraSamples.ShaderSample
                             box = Vector4.Lerp(box,
                                 new Vector4(match.x1, match.y1, match.x2, match.y2), frac);
                     }
+                    if (det.c == k_personClassId && !PassesPersonGate(BoxToAzElRectEQ(box, Vector2Int.one)))
+                        continue;
                     UpsertTracked(box, det.c, vt);
                 }
             }
@@ -818,6 +869,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         public VignetteMode CurrentMode => m_vignetteMode;
         public Vector4 ActiveRect => m_activeRect;
+        public float DefaultWindowHalfWidthDeg => m_defaultWindowHalfWidthDeg;
         public float CurrentEffectiveStrength { get; private set; }
         public bool StudyInputLock { get; set; }
         public bool StudyEffectSuppressed { get; set; }
@@ -874,8 +926,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- selection ----
 
-        private bool        m_isPainting;
-        private const float k_brushPad = 0.12f;
+        private bool m_isPainting;
+        private float BrushPadRad => m_defaultWindowHalfWidthDeg * Mathf.Deg2Rad;
 
         // Pop family: ColorPop + its detection-gated variant SignPop.
         private static bool IsPopMode(VignetteMode mode) =>
@@ -943,16 +995,16 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_cornerDotsHidden = false;
                 RestoreDotsScale();
                 if (!IsCameraMode(m_vignetteMode)) { StopFormCoroutine(); m_vignetteStrength = 0f; }
-                m_activeRect = new Vector4(az - k_brushPad, az + k_brushPad,
-                                          el - k_brushPad, el + k_brushPad);
+                m_activeRect = new Vector4(az - BrushPadRad, az + BrushPadRad,
+                                          el - BrushPadRad, el + BrushPadRad);
                 m_material.SetVector(s_focusRectId, m_activeRect);
                 m_isPainting = true;
             }
             else if (held && m_isPainting)
             {
                 m_activeRect = new Vector4(
-                    Mathf.Min(m_activeRect.x, az - k_brushPad), Mathf.Max(m_activeRect.y, az + k_brushPad),
-                    Mathf.Min(m_activeRect.z, el - k_brushPad), Mathf.Max(m_activeRect.w, el + k_brushPad));
+                    Mathf.Min(m_activeRect.x, az - BrushPadRad), Mathf.Max(m_activeRect.y, az + BrushPadRad),
+                    Mathf.Min(m_activeRect.z, el - BrushPadRad), Mathf.Max(m_activeRect.w, el + BrushPadRad));
                 m_material.SetVector(s_focusRectId, m_activeRect);
             }
 

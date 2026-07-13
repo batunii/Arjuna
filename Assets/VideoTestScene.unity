@@ -732,6 +732,7 @@ MonoBehaviour:
   m_flatFlipY: 0
   m_flatSurround360: 1
   m_softEdgeDeg: 18
+  m_defaultWindowHalfWidthDeg: 0
   m_vignetteMode: 5
   m_vignetteFormTime: 3
   m_mode2MaxAlpha: 0.75
@@ -754,14 +755,14 @@ MonoBehaviour:
   m_dotColorLocked: {r: 1, g: 1, b: 1, a: 0.55}
   m_dotColorCursor: {r: 1, g: 0.9, b: 0.3, a: 1}
   m_frostTex: {fileID: 2800000, guid: 954a886c84ddc524085e7ac214d221bc, type: 3}
-  m_popGreyDim: 0.3
+  m_popGreyDim: 0.4
   m_popSatBoost: 1.5
   m_popInsideDesat: 0.3
   m_popBrightInside: 1.15
   m_popBrightOutside: 0.65
   m_popWarmSatMin: 0.35
   m_popSigmoid: 0.6
-  m_popPeriphDim: 0.85
+  m_popPeriphDim: 0.92
   m_popGlareKnee: 0.6
   m_popGlareInside: 0.35
   m_popGlareOutside: 0.85
@@ -769,6 +770,8 @@ MonoBehaviour:
   m_popSoftEdgeDeg: 24
   m_signRogFallback: 0.35
   m_signDetHoldSec: 0.5
+  m_personMinBoxHeightDeg: 6
+  m_personMaxEdgeDistDeg: 8
   m_yoloRunner: {fileID: 0}
   m_detectionLifetime: 0.85
   m_yoloFlipY: 1
@@ -1461,7 +1464,7 @@ MonoBehaviour:
   m_probeScheduler: {fileID: 1831243159}
   m_useCptPanel: 1
   m_autoFixConfig: 1
-  m_fixedWindowDeg: {x: -25, y: 25, z: -15, w: 10}
+  m_windscreenElCenterDeg: -2.5
 --- !u!114 &1831243161
 MonoBehaviour:
   m_ObjectHideFlags: 0

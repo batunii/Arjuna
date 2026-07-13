@@ -56,6 +56,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 0.9f)]  private float m_blurDelay     = 0.5f;
         [SerializeField, Range(0f, 0.9f)]  private float m_desatDelay    = 0.3f;
         [SerializeField, Range(0.5f, 4f)]  private float m_desatCurveExp = 3f;
+        [Tooltip("Default half-width (deg), applied symmetrically to az/el, of the focus window. " +
+                 "Seeds the free-play brush size AND the fixed Blocks B/C windscreen window (single " +
+                 "shared source). 0 = start from nothing and build the window entirely by painting " +
+                 "(no forced minimum size). Originally set to 15° per Ball & Owsley UFOV central-field " +
+                 "reasoning, but on-device testing found that felt too large in practice — tune to taste.")]
+        [SerializeField, Range(0f, 30f)] private float m_defaultWindowHalfWidthDeg = 0f;
 
         // m_selectionLine kept for scene serialisation compatibility — disabled at runtime
         [SerializeField] private LineRenderer m_selectionLine;
@@ -563,6 +569,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         public VignetteMode CurrentMode => m_vignetteMode;
         public Vector4 ActiveRect => m_activeRect;
+        public float DefaultWindowHalfWidthDeg => m_defaultWindowHalfWidthDeg;
         public float CurrentEffectiveStrength { get; private set; }
         public bool StudyInputLock { get; set; }
         public bool StudyEffectSuppressed { get; set; }
@@ -599,8 +606,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- selection (paint-while-holding) ----
 
-        private bool        m_isPainting;
-        private const float k_brushPad = 0.12f;
+        private bool m_isPainting;
+        private float BrushPadRad => m_defaultWindowHalfWidthDeg * Mathf.Deg2Rad;
 
         private void HandleSelection()
         {
@@ -676,18 +683,18 @@ namespace PassthroughCameraSamples.ShaderSample
                 }
 
                 m_activeRect = new Vector4(
-                    az - k_brushPad, az + k_brushPad,
-                    el - k_brushPad, el + k_brushPad);
+                    az - BrushPadRad, az + BrushPadRad,
+                    el - BrushPadRad, el + BrushPadRad);
                 m_material.SetVector(s_focusRectId, m_activeRect);
                 m_isPainting = true;
             }
             else if (held && m_isPainting)
             {
                 m_activeRect = new Vector4(
-                    Mathf.Min(m_activeRect.x, az - k_brushPad),
-                    Mathf.Max(m_activeRect.y, az + k_brushPad),
-                    Mathf.Min(m_activeRect.z, el - k_brushPad),
-                    Mathf.Max(m_activeRect.w, el + k_brushPad));
+                    Mathf.Min(m_activeRect.x, az - BrushPadRad),
+                    Mathf.Max(m_activeRect.y, az + BrushPadRad),
+                    Mathf.Min(m_activeRect.z, el - BrushPadRad),
+                    Mathf.Max(m_activeRect.w, el + BrushPadRad));
                 m_material.SetVector(s_focusRectId, m_activeRect);
             }
 

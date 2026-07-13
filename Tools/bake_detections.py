@@ -35,6 +35,12 @@ Box convention: normalized [0,1], standard image coords (y=0 at top).
 VideoTestSceneManager.m_yoloFlipY = true (the default) converts these to the
 shader's bottom-up video-texture coords. If detection zones ever appear at
 mirror-image elevations, toggle that flag rather than editing this script.
+
+Also bakes person (class 0) detections alongside traffic lights/stop signs
+(see --max-person-per-sample). Unity filters these further at runtime to only
+people near the focus-window edge and close to the camera (box-size proxy) —
+see VideoTestSceneManager.PassesPersonGate. No color/red-light filtering is
+applied to traffic lights; all phases are baked as before.
 """
 
 import argparse
@@ -51,11 +57,19 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VIDEO = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.mp4"
 DEFAULT_OUT = REPO_ROOT / "Assets/StreamingAssets/DebugVideo.detections.json"
 
-# COCO ids the runtime treats as first-class (traffic light, stop sign).
-# They sort first within each sample so the runtime's 16-slot cap keeps them.
+# COCO ids the runtime treats as first-class (traffic light, stop sign) — always kept,
+# ahead of everything else, so the runtime's 16-slot cap keeps them.
 # NOTE: COCO has no generic road-sign class — anything beyond stop signs needs
 # a model fine-tuned on a traffic-sign dataset (e.g. Mapillary MTSD).
 PRIORITY_CLASSES = {9, 11}
+
+# Person detections are also baked (capped separately below — far more numerous per frame
+# than lights/signs), but NOT filtered by proximity/edge-distance here: this script has no
+# notion of the focus window, which can move at runtime (repainted). That filtering happens
+# live in Unity (VideoTestSceneManager.PassesPersonGate), gated on two adjustable Inspector
+# thresholds (apparent box height "closeness", and angular distance to the focus-window edge).
+PERSON_CLASS = 0
+BAKED_CLASSES = PRIORITY_CLASSES | {PERSON_CLASS}
 
 
 def probe_video(path: Path) -> tuple[int, int, float]:
@@ -163,6 +177,18 @@ def main() -> int:
                     help="bake only the first N seconds (0 = all); use for smoke tests")
     ap.add_argument("--max-per-sample", type=int, default=24,
                     help="cap stored detections per sample (priority classes kept first)")
+    ap.add_argument("--max-person-per-sample", type=int, default=12,
+                    help="separate cap on person detections per sample, applied before "
+                         "--max-per-sample (person boxes are far more numerous per frame "
+                         "than lights/signs)")
+    ap.add_argument("--batch-size", type=int, default=4,
+                    help="max tiles per model.predict() call (CPU inference has no GPU to "
+                         "offload to, so a large model at a large --imgsz batched over all "
+                         "tiles at once can exhaust system RAM — confirmed on-device 2026-07-13: "
+                         "yolo11l @ imgsz 1280 x 13 tiles/sample in one batch drove a 16GB "
+                         "machine down to <1GB free and stalled for hours. Chunking the same "
+                         "tiles into smaller batches keeps peak memory bounded regardless of "
+                         "--cols/--rows or --model size.")
     args = ap.parse_args()
 
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
@@ -212,16 +238,23 @@ def main() -> int:
         # Forward-view region; tile coords are relative to this crop.
         fwd = frame[cy0:cy0 + crop_h, cx0:cx0 + crop_w]
 
-        # BGR crops for ultralytics (cv2 convention); batch all tiles in one call.
+        # BGR crops for ultralytics (cv2 convention). Predict in chunks of --batch-size
+        # tiles (not all at once) — see --batch-size help for why: unbounded batching
+        # is what exhausted system RAM on CPU-only inference.
         crops = [np.ascontiguousarray(fwd[y0:y1, x0:x1, ::-1])
                  for (x0, y0, x1, y1) in tiles]
-        results = model.predict(crops, imgsz=args.imgsz, conf=args.conf, verbose=False)
+        results = []
+        for b0 in range(0, len(crops), args.batch_size):
+            chunk = crops[b0:b0 + args.batch_size]
+            results.extend(model.predict(chunk, imgsz=args.imgsz, conf=args.conf, verbose=False))
 
         dets = []
         for (x0, y0, x1, y1), res in zip(tiles, results):
             for box, cls, conf in zip(res.boxes.xyxy.tolist(),
                                       res.boxes.cls.tolist(),
                                       res.boxes.conf.tolist()):
+                if int(cls) not in BAKED_CLASSES:
+                    continue
                 dets.append({
                     "c": int(cls),
                     # Written in FULL-frame normalized coords (crop offset added back)
@@ -232,13 +265,14 @@ def main() -> int:
                 })
 
         merged = nms_per_class(dets, args.iou)
-        # Priority classes first, then larger boxes — the runtime keeps the
-        # first 16 that pass its class filter, so ordering decides survival.
-        merged.sort(key=lambda d: (
-            0 if d["c"] in PRIORITY_CLASSES else 1,
-            -((d["x2"] - d["x1"]) * (d["y2"] - d["y1"])),
-        ))
-        merged = merged[: args.max_per_sample]
+        # Larger boxes first (stable sort keeps this order within each group below) — a
+        # free bias toward closer/larger people surviving the per-class and shared caps.
+        merged.sort(key=lambda d: -((d["x2"] - d["x1"]) * (d["y2"] - d["y1"])))
+        priority = [d for d in merged if d["c"] in PRIORITY_CLASSES]
+        persons = [d for d in merged if d["c"] == PERSON_CLASS][: args.max_person_per_sample]
+        # Priority classes always kept; person cap applied first since persons are far more
+        # numerous per frame; the shared cap below is then just a safety net.
+        merged = (priority + persons)[: args.max_per_sample]
 
         samples.append({
             "t": round(t, 3),
@@ -252,15 +286,18 @@ def main() -> int:
             elapsed = time.time() - start
             rate = elapsed / (k + 1)
             n_prio = sum(1 for d in merged if d["c"] in PRIORITY_CLASSES)
+            n_person = sum(1 for d in merged if d["c"] == PERSON_CLASS)
             print(f"[{k + 1}/{total}] t={t:6.2f}s  {len(merged):2d} dets "
-                  f"({n_prio} lights/signs)  ~{rate * (total - k - 1) / 60:.1f} min left",
+                  f"({n_prio} lights/signs, {n_person} people)  "
+                  f"~{rate * (total - k - 1) / 60:.1f} min left",
                   flush=True)  # visible immediately when stdout is a log file
 
     args.out.write_text(json.dumps({"interval": args.interval, "samples": samples},
                                    separators=(",", ":")))
     prio_total = sum(1 for s in samples for d in s["d"] if d["c"] in PRIORITY_CLASSES)
+    person_total = sum(1 for s in samples for d in s["d"] if d["c"] == PERSON_CLASS)
     print(f"\nDONE — {len(samples)} samples, {prio_total} traffic-light/stop-sign "
-          f"detections total\n  -> {args.out}")
+          f"detections, {person_total} person detections total\n  -> {args.out}")
     print("The scene loads this automatically (m_useBakedDetections). "
           "Disable BakeOnPlay on VideoDetectionBaker so it doesn't overwrite it.")
     return 0
