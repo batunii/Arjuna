@@ -54,6 +54,13 @@ namespace PassthroughCameraSamples.ShaderSample
         /// <summary>Set a mode at full formed strength, without the mode toast.</summary>
         void StudySetMode(VignetteMode mode);
 
+        /// <summary>
+        /// Explicit on/off toggle, independent of StudySetMode: true ramps the effect in via
+        /// the same gradual formation free-play uses (instant for camera modes — ColorPop/
+        /// SignPop/Blur/etc. — which have no formation animation); false resets to 0 instantly.
+        /// </summary>
+        void StudySetActive(bool active);
+
         /// <summary>Lock a focus window programmatically (az/el radians).</summary>
         void StudySetWindow(Vector4 azElRadians);
 

@@ -586,6 +586,14 @@ namespace PassthroughCameraSamples.ShaderSample
             m_vignetteStrength = 1f; // conditions start fully formed; baselines use StudyEffectSuppressed
         }
 
+        public void StudySetActive(bool active)
+        {
+            StopFormCoroutine();
+            if (!active) { m_vignetteStrength = 0f; return; }
+            m_vignetteStrength = IsCameraMode(m_vignetteMode) ? 1f : 0f;
+            if (!IsCameraMode(m_vignetteMode)) m_formCoroutine = StartCoroutine(FormVignette());
+        }
+
         public void StudySetWindow(Vector4 azElRadians)
         {
             m_activeRect = azElRadians;
@@ -1134,10 +1142,17 @@ namespace PassthroughCameraSamples.ShaderSample
         private void UpdateDetectionUniforms()
         {
             int count = 0;
-            for (int i = 0; i < k_maxDetections; i++)
+            // StudyEffectSuppressed means "effect forced invisible" — the detection-highlight
+            // boost is part of that effect (it saturates/brightens detected objects
+            // independently of _VignetteStrength), so it must be suppressed too, or a
+            // baseline/no-filter condition would still visibly highlight detected objects.
+            if (!StudyEffectSuppressed)
             {
-                if (Time.time - m_detectionTimestamp[i] < m_detectionLifetime)
-                    count = i + 1;
+                for (int i = 0; i < k_maxDetections; i++)
+                {
+                    if (Time.time - m_detectionTimestamp[i] < m_detectionLifetime)
+                        count = i + 1;
+                }
             }
             m_material.SetInt(s_detectionCountId,         count);
             m_material.SetVectorArray(s_detectionRectsId, m_detectionRects);

@@ -40,6 +40,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [Header("Video")]
         [Tooltip("Flip the video texture vertically (platform-dependent — try toggling if video is upside-down).")]
         [SerializeField] private bool m_flipVideoY = false;
+        [Tooltip("Filename to use from StreamingAssets (e.g. \"DebugVideo.mp4\") instead of the built-in " +
+                 "default. Leave empty for the normal resolution order (persistentDataPath override, " +
+                 "else the flat-clip/360 default). A persistentDataPath file of the SAME name still wins, " +
+                 "same as the default behaviour — this only changes the STREAMING ASSETS fallback name, " +
+                 "so TestModeSequencer's video-based modes can point at a specific clip from the Inspector.")]
+        [SerializeField] private string m_videoFileNameOverride = "";
 
         [Header("UV Offset — Video Mode")]
         [Tooltip("Shift the 360° video horizontally without rotating the sphere.")]
@@ -434,7 +440,9 @@ namespace PassthroughCameraSamples.ShaderSample
             // Prefer a sideloaded video (adb push to persistentDataPath) so large clips
             // stay OUT of the APK; fall back to the bundled StreamingAssets file.
             string overrideName = m_flatClipMode ? "flat_clip.mp4" : "study_video.mp4";
-            string bundledName  = m_flatClipMode ? "FlatClip.mp4"  : "DebugVideo.mp4";
+            string bundledName  = !string.IsNullOrEmpty(m_videoFileNameOverride)
+                ? m_videoFileNameOverride
+                : (m_flatClipMode ? "FlatClip.mp4" : "DebugVideo.mp4");
             string overridePath = System.IO.Path.Combine(Application.persistentDataPath, overrideName);
             m_videoPlayer.url = System.IO.File.Exists(overridePath)
                 ? overridePath
@@ -781,10 +789,17 @@ namespace PassthroughCameraSamples.ShaderSample
         private void UpdateDetectionUniforms()
         {
             int count = 0;
-            for (int i = 0; i < k_maxDetections; i++)
+            // StudyEffectSuppressed means "effect forced invisible" — the detection-highlight
+            // boost below is part of that effect (it saturates/brightens detected objects
+            // independently of _VignetteStrength), so it must be suppressed too, or a
+            // baseline/no-filter condition would still visibly highlight lights and signs.
+            if (!StudyEffectSuppressed)
             {
-                if (Time.time - m_detectionTimestamps[i] < m_detectionLifetime)
-                    count = i + 1;
+                for (int i = 0; i < k_maxDetections; i++)
+                {
+                    if (Time.time - m_detectionTimestamps[i] < m_detectionLifetime)
+                        count = i + 1;
+                }
             }
             m_material.SetInt(s_detectionCountId,          count);
             m_material.SetVectorArray(s_detectionRectsId,  m_detectionRects);
@@ -904,6 +919,23 @@ namespace PassthroughCameraSamples.ShaderSample
             m_motionSuppression  = 0f;
             StopFormCoroutine();
             m_vignetteStrength = 1f; // conditions start fully formed; baselines use StudyEffectSuppressed
+        }
+
+        public void StudySetActive(bool active)
+        {
+            StopFormCoroutine();
+            if (!active) { m_vignetteStrength = 0f; return; }
+            m_vignetteStrength = IsCameraMode(m_vignetteMode) ? 1f : 0f;
+            if (!IsCameraMode(m_vignetteMode)) m_formCoroutine = StartCoroutine(FormVignette());
+        }
+
+        /// <summary>Play/pause the video (TestModeSequencer's X toggle). No-op if flat-clip
+        /// surround player is active — only the primary player is under test-mode control.</summary>
+        public void SetVideoPlaying(bool playing)
+        {
+            if (m_videoPlayer == null) return;
+            if (playing) m_videoPlayer.Play();
+            else m_videoPlayer.Pause();
         }
 
         public void StudySetWindow(Vector4 azElRadians)
