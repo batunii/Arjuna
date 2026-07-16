@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Video Reel — Exploratory Distractor Stimulus</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #000; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; touch-action: none; overscroll-behavior: none;
+  }
+  video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+  #hud {
+    position: fixed; left: 8px; bottom: 6px; z-index: 5;
+    color: rgba(255,255,255,0.35); font: 12px -apple-system, Segoe UI, Roboto, sans-serif;
+    pointer-events: none; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+</style>
+</head>
+<body oncontextmenu="return false">
+
+<!-- Exploratory alternative to TabletApp/distractor-reel.html's deterministic canvas reel --
+     plays a real pre-rendered clip (e.g. Tools/tiktok_captions.py output) instead of the
+     procedural shapes/bursts. NOT the real study's checked-in stimulus (testing-strategy-v2
+     §10.1 "no improvised stimuli" applies to what actually ships in a session, not to trying
+     ideas here) -- for piloting how real high-motion footage feels as peripheral distraction,
+     side by side with the real distractor-reel.html option. Muted + looped: same "pure visual
+     distractor, no audio" convention as the real reel. -->
+<video id="v" autoplay loop muted playsinline></video>
+<div id="hud"></div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const src = params.get('src');
+const embedded = params.get('embedded') === '1';
+
+const v = document.getElementById('v');
+const hud = document.getElementById('hud');
+
+if (src) {
+  v.src = src;
+  hud.textContent = decodeURIComponent(src).split('/').pop();
+} else {
+  hud.textContent = 'no ?src= given';
+}
+
+// Same device-robustness pattern as distractor-reel.html.
+let wakeLock = null;
+async function acquireWakeLock() {
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }
+  catch (e) { /* best effort */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') acquireWakeLock();
+});
+
+function requestFsBestEffort() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (req) { try { req.call(el); } catch (e) { /* best effort */ } }
+}
+
+v.addEventListener('play', () => {
+  acquireWakeLock();
+  if (!embedded) requestFsBestEffort();
+}, { once: true });
+</script>
+</body>
+</html>

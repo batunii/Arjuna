@@ -17,14 +17,32 @@
      central-task + peripheral-distraction interaction on one screen. See PilotTools/README.md
      — this is NOT equivalent to the real study's controlled ±35° tablet placement; achieved
      eccentricity depends on your monitor size and how close you sit. Fine for piloting feel,
-     not for anything you'd draw study conclusions from. */
-  #distractorLeft, #distractorRight { flex: 1 1 0; min-width: 0; }
-  #distractorLeft iframe, #distractorRight iframe { width: 100%; height: 100%; border: 0; display: block; }
+     not for anything you'd draw study conclusions from.
+     The frame itself is sized like a real phone/tablet propped on the desk (not stretched to
+     fill the whole margin edge-to-edge) so it reads as a side prop, not a wall of video. */
+  #distractorLeft, #distractorRight {
+    flex: 1 1 0; min-width: 0; display: flex; align-items: center;
+  }
+  /* Pushed outward toward the screen edges (not centred in the margin) so they sit further
+     from the task, with a little breathing room off the browser edge itself. */
+  #distractorLeft   { justify-content: flex-start; padding-left: 18px; }
+  #distractorRight   { justify-content: flex-end; padding-right: 18px; }
+  #distractorLeft iframe, #distractorRight iframe {
+    width: min(34vw, 440px); height: min(66vh, 740px); border: 0; display: block;
+    border-radius: 26px; background: #000;
+    box-shadow: 0 0 0 8px #1c1c1f, 0 0 0 9px #333, 0 12px 40px rgba(0,0,0,0.55);
+  }
   #centerCol {
     flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
     justify-content: center;
   }
-  .screen { width: min(92vw, 640px); padding: 24px; }
+  /* Framed to match the side video props (same border/shadow language) so all three working
+     areas -- left distractor, central task, right distractor -- read as one consistent set. */
+  .screen {
+    width: min(96vw, 1100px); padding: 32px;
+    background: #131316; border-radius: 22px;
+    box-shadow: 0 0 0 2px #26262a, 0 0 0 3px #38383e, 0 14px 44px rgba(0,0,0,0.5);
+  }
   h1 { font-size: 1.3rem; margin: 0 0 4px; }
   .sub { color: #999; font-size: 0.85rem; margin-bottom: 20px; }
   label { display: block; margin: 14px 0 6px; font-size: 0.9rem; color: #ccc; }
@@ -47,10 +65,10 @@
   #hint { color: #888; font-size: 0.85rem; margin-bottom: 8px; }
   #trialCount { color: #666; font-size: 0.8rem; margin-bottom: 18px; }
   #panel {
-    width: 280px; height: 280px; background: #17171a; border-radius: 12px;
+    width: 500px; height: 500px; background: #17171a; border-radius: 18px;
     display: flex; align-items: center; justify-content: center; position: relative;
   }
-  #shape { width: 110px; height: 110px; background: #fff; visibility: hidden; }
+  #shape { width: 196px; height: 196px; background: #fff; visibility: hidden; }
   #shape.circle { border-radius: 50%; }
   #flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; }
   #flash.hit { background: rgba(59,130,246,0.35); }
@@ -103,6 +121,12 @@
     <option value="either">Space bar or mouse click (either)</option>
     <option value="space">Space bar only</option>
     <option value="click">Mouse click only</option>
+  </select>
+
+  <label for="distractorContent">Distractor content (side margins)</label>
+  <select id="distractorContent">
+    <option value="video" selected>Video clips (exploratory — real footage, not the study's stimulus)</option>
+    <option value="reel">Procedural reel (real study asset — TabletApp/distractor-reel.html)</option>
   </select>
 
   <button id="startBtn">Start</button>
@@ -228,8 +252,27 @@ const panelEl = document.getElementById('panel');
 const shapeEl = document.getElementById('shape');
 const flashEl = document.getElementById('flash');
 const trialCountEl = document.getElementById('trialCount');
+const distractorContentEl = document.getElementById('distractorContent');
+const distractorLeftIframe = document.querySelector('#distractorLeft iframe');
+const distractorRightIframe = document.querySelector('#distractorRight iframe');
 
 let state = null; // set when a run starts
+
+// Swaps the side-margin iframes between the real study asset (TabletApp/distractor-reel.html)
+// and the exploratory real-footage player (video-reel.html, Tools/tiktok_captions.py output).
+// Only (re)loads the video iframe src when actually selected, so the ~80MB clips aren't
+// fetched unless you ask for them.
+function applyDistractorContent() {
+  if (distractorContentEl.value === 'video') {
+    distractorLeftIframe.src = 'video-reel.html?src=' + encodeURIComponent('../Assets/_Scratch/tiktok_5min_1.mp4') + '&embedded=1';
+    distractorRightIframe.src = 'video-reel.html?src=' + encodeURIComponent('../Assets/_Scratch/tiktok_5min_2.mp4') + '&embedded=1';
+  } else {
+    distractorLeftIframe.src = '../TabletApp/distractor-reel.html?embedded=1';
+    distractorRightIframe.src = '../TabletApp/distractor-reel.html?embedded=1';
+  }
+}
+distractorContentEl.addEventListener('change', applyDistractorContent);
+applyDistractorContent(); // apply the default selection (video) on page load, not just on change
 
 document.getElementById('startBtn').addEventListener('click', startRun);
 document.getElementById('abortBtn').addEventListener('click', () => endRun(true));
