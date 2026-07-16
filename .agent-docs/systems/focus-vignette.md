@@ -1,11 +1,19 @@
 # System: CameraSphereVignette (DR attention-guidance overlay)
 
-Last updated: 2026-06-22. Branch: `feature/PolishingModes`.
+Last updated: 2026-07-16.
 
-Multi-mode Diminished Reality attention-guidance prototype for the MSc dissertation. One shader + one
-manager on a **head-centered inverted sphere** (~10 m radius, `Cull Front`). The sphere renders as
-transparent inside the focus window so OS passthrough (full ~110° FOV, OS quality) shows through;
-the DR effect lives only in the periphery.
+Multi-mode Diminished Reality attention-guidance prototype for the MSc dissertation. One shader +
+**two** managers on a **head-centered inverted sphere** (~10 m radius, `Cull Front`):
+`CameraSphereVignetteManager` (live passthrough cameras, this doc) and
+[`VideoTestSceneManager`](<video-test-scene.md>) (looping 360° video instead of live cameras, same
+shader/enum/API — see that doc for video-specific behaviour: SignPop detection gating, baked
+detection lifetimes, flat-clip mode). The sphere renders as transparent inside the focus window so
+OS passthrough (full ~110° FOV, OS quality) shows through; the DR effect lives only in the periphery.
+
+Both managers implement [`IStudyVignetteControl`](#study-api-istudyvignettecontrol), the shared
+API [Study Tooling](<study-tooling.md>) (formal `ConditionSequencer` and the informal
+`TestModeSequencer`/`BlobTargetController`) drives them through — study code never needs to know
+which scene/manager it's talking to.
 
 ---
 
@@ -24,25 +32,27 @@ GameObject in scene: `CameraSphereSphere`. Manager lives on it.
 
 ## Modes
 
-### Mode 1 — Blur (`VignetteMode.Blur`)
+`VignetteMode` enum (`CameraSphereVignetteManager.cs`) — 11 values total. The study proper only
+uses Blur / SoftDark / HardDark / ColorPop (one per block, see
+[study-tooling.md](<study-tooling.md>)); the rest are free-play/exploratory or video-only.
 
-Both passthrough cameras (Left + Right `PassthroughCameraAccess`) are sampled. A **hard-split blend**
-picks the camera with the higher in-FOV weight at each fragment (`inFovL >= inFovR ? sampledL :
-sampledR`) — no alpha crossfade avoids ghosting. The periphery is **blurred** (9-tap offset kernel,
-radius scales with `tEff`) and **desaturated** (greyscale lerp, delayed by `_DesatDelay`).
+| # | Mode | Summary |
+|---|---|---|
+| 0 | **Blur** | Both PCA cameras sampled; hard-split blend picks whichever has higher in-FOV weight per fragment (no alpha crossfade → no ghosting). Periphery blurred (9-tap kernel, radius scales with `tEff`) + desaturated (delayed by `_DesatDelay`). Strength always 1 (no formation animation) — focus window transparent, OS passthrough shows through. |
+| 1 | **SoftDark** | `_SimpleMode=1`: shader skips camera sampling, returns `fixed4(0,0,0, t*_VignetteStrength*_MaxVignetteAlpha)`. `_MaxVignetteAlpha = m_mode2MaxAlpha` (0.75) — never fully opaque. Strength animates 0→1 via `FormVignette()` (SmoothStep over `m_vignetteFormTime`). |
+| 2 | **HardDark** | Same as SoftDark but `_MaxVignetteAlpha=1.0` — complete black-out in periphery. |
+| 3 | TintedDark | Configurable-colour dark overlay, gradual formation (same mechanism as SoftDark/HardDark). |
+| 4 | ChromaticCool | Camera mode: warm focus, cool blue periphery shift. |
+| 5 | **ColorPop** | Camera mode: muted grey periphery; saturated warm/green (ROG-band) colours boosted vivid inside the window. Heavily tunable (`m_pop*` fields — sat boost, glare compression, sigmoid contrast, etc). |
+| 6 | ConspicuitySqueeze | Camera mode: periphery contrast flattened toward local mean (Veas 2011). |
+| 7 | GranulatedPeriphery | World-locked noise grains, density ramps with eccentricity (Cao 2021). |
+| 8 | OutlinedDark | Near-blackout with luminance edges kept (Cheng 2022). |
+| 9 | SpotLift | Focus window brightened + soft peripheral dim (video mode). |
+| 10 | SignPop | **Video only** — ColorPop gated by baked detections; only actual traffic lights/signs pop, ROG look-alikes stay muted. See [video-test-scene.md](<video-test-scene.md>#signpop-detection-gated-colorpop). |
 
-Vignette strength is always 1 (no formation animation). Focus window is transparent → OS passthrough shows through.
-
-### Mode 2 — Soft Dark (`VignetteMode.SoftDark`)
-
-`_SimpleMode = 1`: shader skips all camera sampling, returns `fixed4(0, 0, 0, t * _VignetteStrength * _MaxVignetteAlpha)`.
-`_MaxVignetteAlpha` = `m_mode2MaxAlpha` (default 0.75) — periphery never fully opaque.
-`_VignetteStrength` is animated 0→1 by `FormVignette()` coroutine (SmoothStep over `m_vignetteFormTime`),
-triggered on right trigger release.
-
-### Mode 3 — Hard Dark (`VignetteMode.HardDark`)
-
-Same as Soft Dark but `_MaxVignetteAlpha = 1.0` → complete black-out in periphery.
+"Camera" modes (Blur, ChromaticCool, ColorPop, ConspicuitySqueeze, SignPop) render the source
+texture instantly with no formation animation — `IsCameraMode(mode)` gates this. All other modes
+ramp in via `FormVignette()`.
 
 ---
 
@@ -80,6 +90,38 @@ controller forward. Recomputed every frame → world-locked even as head moves.
 **B** = clear rect, cancel formation, hide dots immediately.
 **A** = cycle mode (Blur → SoftDark → HardDark → Blur); if rect exists in new Modes 2/3, starts
 formation immediately.
+
+### World anchor (Hard Dark real-object lock) — added 2026-07-16
+
+Base behaviour (above) keeps `_FocusRect` fixed in *bearing* (az/el), recomputed every frame from
+the head's **current** position — so it doesn't rotate with head turns, but it does translate with
+the user, i.e. it's a fixed direction-cone from wherever the eyes currently are, not a lock onto a
+real 3D point. `TryWorldAnchorSelection()` / `UpdateWorldAnchorRect()` add an opt-in second mode,
+**Hard Dark only**, that locks the window onto an actual physical object so it stays put as the
+user walks toward/away/around it — like a real hole cut in a wall, growing/shrinking angularly with
+distance exactly as looking at a fixed object would.
+
+- **Trigger:** on trigger-release (`HandleSelection`'s existing paint gesture), if
+  `m_vignetteMode == HardDark` and `m_raycastManager` is assigned, `TryWorldAnchorSelection()`
+  raycasts the 4 corners of the just-locked `m_activeRect` (via `Meta.XR.EnvironmentRaycastManager.Raycast`,
+  MRUK v81+ depth API, no separate `EnvironmentDepthManager` needed at the installed MRUK v201) and
+  stores the 4 world-space hit points (`m_anchorBL/BR/TL/TR`) if all 4 hit real geometry.
+- **Per-frame:** `UpdateWorldAnchorRect()` (called from `LateUpdate` right after `HandleSelection`)
+  re-derives az/el for each of the 4 stored world points from the **current** head position every
+  frame, and rebuilds `_FocusRect` as their min/max — this is what makes it perspective-correct
+  without any shader changes (the shader already just consumes `_FocusRect` in az/el space).
+- **Fails gracefully:** if any corner ray misses (out of depth range, outside the depth camera
+  frustum, reflective/transparent surface), `m_hasWorldAnchor` stays false and that selection just
+  behaves like the legacy head-relative bearing — logged via `SetDebug()`.
+- **Cleared** on: new paint (`justPressed`), B-button clear, mode cycle (A button), `StudySetMode`,
+  `StudySetWindow`/`StudyClearWindow` — so a stale anchor never silently reactivates after a mode
+  switch back to Hard Dark.
+- **Scene wiring:** `CameraSphereVignette.unity` gained a plain `EnvironmentRaycastManager`
+  GameObject, wired to the new `m_raycastManager` serialized field on `CameraSphereSphere`. See
+  [Environment Raycast](<environment-raycast.md>) for the underlying component.
+- **Not yet done:** on-device verification (Depth API raycasts don't function in Editor/XR
+  Simulator — Quest 3/3S only); no cross-session persistence of the anchor (would need
+  `OVRSpatialAnchor`, per Environment Raycast's own docs on world-locking without MRUK).
 
 ### Vignette formation (`FormVignette` coroutine)
 
@@ -136,13 +178,35 @@ Cancelled and restored (`RestoreDotsScale`) on next trigger press.
 
 ---
 
+## Study API (`IStudyVignetteControl`)
+
+`Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/Study/IStudyVignetteControl.cs`.
+Implemented identically by `CameraSphereVignetteManager` and `VideoTestSceneManager` so
+[study code](<study-tooling.md>) never depends on which scene is active.
+
+| Member | Purpose |
+|---|---|
+| `CurrentMode`, `ActiveRect`, `DefaultWindowHalfWidthDeg`, `CurrentEffectiveStrength` | Read-only state. |
+| `StudyInputLock` | True: participant A/B/paint free-play input is ignored (`HandleSelection`'s top-of-function guard). MUST be true while a formal condition runs — the trigger belongs to the task. `TestModeSequencer` deliberately never sets this (it has no competing task to protect). |
+| `StudyEffectSuppressed` | True: effect forced invisible (baseline conditions) *without* changing mode/window. Also now correctly suppresses the detection-highlight boost (`UpdateDetectionUniforms` gates `_DetectionCount` on this — was a real bug, see [study-tooling.md](<study-tooling.md>#bugs-fixed-while-building-this-apply-beyond-the-test-branch)). |
+| `MotionEnabled` | Passthrough manager: always true. Video manager: serialized field, default false — the sequencer's config guard asserts/fixes this for Block B. |
+| `StudySetMode(mode)` | Set a mode at **full formed strength instantly**, no toast. |
+| `StudySetActive(bool)` | *(Added 2026-07)* Explicit on/off toggle, independent of `StudySetMode`: `true` ramps in via the same `FormVignette()` coroutine free-play uses (instant for camera modes, which have no formation animation); `false` resets to 0 instantly. Lets a caller show "off, then form in on demand" instead of `StudySetMode`'s implicit snap-to-1. Added for `TestModeSequencer`'s X-toggle in passthrough modes. |
+| `StudySetWindow(azElRadians)` / `StudyClearWindow()` | Lock/clear the focus window programmatically. |
+
+---
+
 ## Known constraints / not yet done
 
 - On-device parameter tuning (motion thresholds, formation time, blur curve, soft edge) — not done yet
 - YOLO salience disabled (`m_sentisModel: {fileID: 0}` — unassigned intentionally to avoid build failure)
-- No session persistence for selected region
+- No session persistence for selected region (world-anchored Hard Dark selections included — the
+  anchor lives only in memory for the current app session, no `OVRSpatialAnchor`)
 - Hand-tracking input disabled; right-hand controller only
 - `m_blurCurveExp` is 3.0 in scene YAML (was intended to be 4.0 — CoPlay reset it during a save)
+- World-anchor (Hard Dark) has not been verified on-device yet — Depth API raycasts return nothing
+  in Editor/XR Simulator, so `TryWorldAnchorSelection`'s success path is untested outside a real
+  Quest 3/3S
 
 ---
 
@@ -158,6 +222,7 @@ Cancelled and restored (`RestoreDotsScale`) on next trigger press.
 | Mode | `m_vignetteMode` | Blur | Starting mode |
 | Mode | `m_vignetteFormTime` | 3 s | SmoothStep formation duration (Modes 2/3) |
 | Mode | `m_mode2MaxAlpha` | 0.75 | Soft Dark max overlay opacity |
+| World Anchor | `m_raycastManager` | None | Optional `Meta.XR.EnvironmentRaycastManager` ref — leave unassigned to keep legacy head-relative-bearing behaviour for Hard Dark; assign to enable world-locking (see "World anchor" above) |
 | Motion | `m_motionBlur.speedThreshDeg` | 30°/s | |
 | Motion | `m_motionSoftDark.speedThreshDeg` | 50°/s | |
 | Motion | `m_motionHardDark.speedThreshDeg` | 70°/s | |
@@ -166,4 +231,5 @@ Cancelled and restored (`RestoreDotsScale`) on next trigger press.
 | Dots | `m_dotSize` | 0.055 | World-space sphere radius |
 | Dots | `m_dotHideDelay` | 3 s | Seconds before corner dots shrink away |
 
-Related: [[dissertation-attention-guidance]], [[pca-mono-camera-stereo-comfort]]
+Related: [Video Test Scene](<video-test-scene.md>), [Study Tooling](<study-tooling.md>),
+[[dissertation-attention-guidance]], [[pca-mono-camera-stereo-comfort]]

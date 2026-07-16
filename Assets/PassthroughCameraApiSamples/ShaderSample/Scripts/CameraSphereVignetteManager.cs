@@ -51,6 +51,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         [Header("Filter")]
         [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
+        [Tooltip("Hard Dark uses its own, much narrower soft edge — once a selection is locked in, everything outside it should read as black almost immediately, not fade through a wide gradient buffer.")]
+        [SerializeField, Range(0.5f, 20f)] private float m_hardDarkSoftEdgeDeg = 2f;
         [SerializeField, Range(0f, 0.15f)] private float m_maxBlurRadius = 0.01f;
         [SerializeField, Range(0.5f, 8f)]  private float m_blurCurveExp  = 1.5f;
         [SerializeField, Range(0f, 0.9f)]  private float m_blurDelay     = 0.5f;
@@ -70,6 +72,15 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField] private VignetteMode m_vignetteMode    = VignetteMode.Blur;
         [SerializeField, Range(0.5f, 10f)]   private float m_vignetteFormTime = 3f;
         [SerializeField, Range(0.1f, 0.95f)] private float m_mode2MaxAlpha    = 0.75f;
+
+        [Header("World Anchor (Hard Dark)")]
+        [Tooltip("Optional. When set, releasing the trigger in Hard Dark raycasts the painted " +
+                 "window's corners against live depth data (Meta.XR.EnvironmentRaycastManager) " +
+                 "and pins the window to that real-world point — it re-projects from the current " +
+                 "head position every frame, so walking toward/away/around the target keeps the " +
+                 "window on the real object instead of it translating with the headset. Leave " +
+                 "unassigned to keep the legacy head-relative-bearing behaviour.")]
+        [SerializeField] private EnvironmentRaycastManager m_raycastManager;
 
         [Header("Motion Disable — Per Mode")]
         [SerializeField] private MotionSettings m_motionBlur          = new MotionSettings { speedThreshDeg = 30f,  holdSeconds = 0.6f };
@@ -146,6 +157,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 0.5f)] private float m_detectionSurround = 0.15f;
         [Tooltip("Amplitude of the gentle ~1 Hz breathing on the object boost (0 = static).")]
         [SerializeField, Range(0f, 1f)] private float m_detectionPulseAmp = 0.25f;
+        [Tooltip("How long (seconds) a detection's window/highlight takes to fade in when it first appears.")]
+        [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeInSeconds = 0.2f;
+        [Tooltip("How long (seconds) a detection's window/highlight takes to fade out after it vanishes/holds out.")]
+        [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeOutSeconds = 0.5f;
+        [Tooltip("Scales the saliency-boost highlight down for detections OUTSIDE the active focus window — the window opening around the object is already enough there, so the extra pop stays subtle.")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionOutsideFocusScale = 0.35f;
 
         [Header("Debug")]
         [SerializeField] private bool m_debugCamOverlay;
@@ -183,6 +200,9 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_detectionEnhanceId   = Shader.PropertyToID("_DetectionEnhance");
         private static readonly int s_detectionSurroundId  = Shader.PropertyToID("_DetectionSurround");
         private static readonly int s_detectionPulseAmpId  = Shader.PropertyToID("_DetectionPulseAmp");
+        private static readonly int s_detectionFadeId          = Shader.PropertyToID("_DetectionFade");
+        private static readonly int s_detectionOutsideScaleId  = Shader.PropertyToID("_DetectionOutsideScale");
+        private static readonly int s_suppressDetectionWindowsId = Shader.PropertyToID("_SuppressDetectionWindows");
         private static readonly int s_blurContrastRestoreId = Shader.PropertyToID("_BlurContrastRestore");
         private static readonly int s_squeezeModeId    = Shader.PropertyToID("_SqueezeMode");
         private static readonly int s_squeezeRadiusId  = Shader.PropertyToID("_SqueezeRadius");
@@ -222,8 +242,15 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly HashSet<int> k_targetClasses = new() { 9, 11 };
 
         private const int k_maxDetections = 8;
-        private readonly Vector4[] m_detectionRects     = new Vector4[k_maxDetections];
-        private readonly float[]   m_detectionTimestamp = new float[k_maxDetections];
+        private readonly Vector4[] m_detectionRects = new Vector4[k_maxDetections];
+        private readonly float[]   m_detectionFade  = new float[k_maxDetections];
+
+        // Live per-frame YOLO detections have no persistent identity of their own, so the
+        // same nearest-centre matching heuristic used by VideoTestSceneManager is applied
+        // here too — that's what lets `presence` ramp smoothly per real object instead of
+        // per array slot (slot indices aren't stable frame to frame otherwise).
+        private struct TrackedDet { public Vector4 rect; public float lastSeenTime; public float presence; }
+        private readonly List<TrackedDet> m_trackedDets = new();
 
         private Material m_material;
         private bool     m_rightCamTexSet;
@@ -239,6 +266,11 @@ namespace PassthroughCameraSamples.ShaderSample
         private Vector2 m_tanHalfFov;
 
         private Vector4 m_activeRect = k_fullSphere;
+
+        // World anchor (Hard Dark only): 4 depth-raycast hit points for the painted rect's
+        // corners, re-projected to az/el from the current head position every frame.
+        private bool    m_hasWorldAnchor;
+        private Vector3 m_anchorBL, m_anchorBR, m_anchorTL, m_anchorTR;
 
         // Mode / formation
         private float     m_vignetteStrength = 1f;
@@ -356,6 +388,7 @@ namespace PassthroughCameraSamples.ShaderSample
             UpdateDetectionUniforms();
             UpdateMotionDisable();
             HandleSelection();
+            UpdateWorldAnchorRect();
             UpdateModeUniforms();
             UpdateModeUI();
         }
@@ -468,7 +501,10 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateFilterUniforms()
         {
-            m_material.SetFloat(s_softEdgeId,        m_softEdgeDeg   * Mathf.Deg2Rad);
+            // Hard Dark uses a narrow edge so the black-out reads as an almost-binary
+            // "selection vs everything else" rather than a wide buffer zone.
+            float softEdgeDeg = m_vignetteMode == VignetteMode.HardDark ? m_hardDarkSoftEdgeDeg : m_softEdgeDeg;
+            m_material.SetFloat(s_softEdgeId,        softEdgeDeg   * Mathf.Deg2Rad);
             m_material.SetFloat(s_maxBlurRadId,      m_maxBlurRadius);
             m_material.SetFloat(s_blurCurveExpId,    m_blurCurveExp);
             m_material.SetFloat(s_blurDelayId,       m_blurDelay);
@@ -501,6 +537,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_detectionEnhanceId,  m_detectionEnhance);
             m_material.SetFloat(s_detectionSurroundId, m_detectionSurround);
             m_material.SetFloat(s_detectionPulseAmpId, m_detectionPulseAmp);
+            m_material.SetFloat(s_detectionOutsideScaleId, m_detectionOutsideFocusScale);
         }
 
         // ---- motion-based disable ----
@@ -582,6 +619,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_vignetteMode       = mode;
             m_motionDisableTimer = 0f;
             m_motionSuppression  = 0f;
+            m_hasWorldAnchor     = false;
             StopFormCoroutine();
             m_vignetteStrength = 1f; // conditions start fully formed; baselines use StudyEffectSuppressed
         }
@@ -596,7 +634,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         public void StudySetWindow(Vector4 azElRadians)
         {
-            m_activeRect = azElRadians;
+            m_activeRect     = azElRadians;
+            m_hasWorldAnchor = false;
             m_material.SetVector(s_focusRectId, m_activeRect);
             m_isPainting = false;
             CancelDotHide();
@@ -605,7 +644,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         public void StudyClearWindow()
         {
-            m_activeRect = k_fullSphere;
+            m_activeRect     = k_fullSphere;
+            m_hasWorldAnchor = false;
             m_material.SetVector(s_focusRectId, m_activeRect);
             m_isPainting = false;
             CancelDotHide();
@@ -645,6 +685,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 // Reset motion state so the new mode's thresholds apply from a clean slate
                 m_motionDisableTimer = 0f;
                 m_motionSuppression  = 0f;
+                m_hasWorldAnchor     = false;
                 bool hasRect         = m_activeRect != k_fullSphere;
 
                 if (IsCameraMode(m_vignetteMode))
@@ -666,7 +707,8 @@ namespace PassthroughCameraSamples.ShaderSample
             // B button: clear selection + reset
             if (bPressed)
             {
-                m_activeRect = k_fullSphere;
+                m_activeRect     = k_fullSphere;
+                m_hasWorldAnchor = false;
                 m_material.SetVector(s_focusRectId, m_activeRect);
                 StopFormCoroutine();
                 m_vignetteStrength = IsCameraMode(m_vignetteMode) ? 1f : 0f;
@@ -683,6 +725,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 CancelDotHide();
                 m_cornerDotsHidden = false;
                 RestoreDotsScale();
+                m_hasWorldAnchor = false;
 
                 if (!IsCameraMode(m_vignetteMode))
                 {
@@ -717,6 +760,7 @@ namespace PassthroughCameraSamples.ShaderSample
                     m_formCoroutine = StartCoroutine(FormVignette());
                 }
                 m_dotHideCoroutine = StartCoroutine(HideDotsCoro());
+                TryWorldAnchorSelection();
             }
 
             if (!held) m_isPainting = false;
@@ -833,6 +877,10 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_spotLiftModeId,     isSpotLift  ? 1f : 0f);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
+            // Hard Dark: once a selection is locked in, that exact painted rect is the only
+            // thing that's ever clear — suppress the generic per-detection carve-out/highlight
+            // entirely so a detected light/person elsewhere can't poke a hole in the black-out.
+            m_material.SetFloat(s_suppressDetectionWindowsId, m_vignetteMode == VignetteMode.HardDark ? 1f : 0f);
 
             // ColorPop: when no selection is painted, auto-follow head gaze so the effect
             // is always visible without needing to hold trigger first.
@@ -869,6 +917,76 @@ namespace PassthroughCameraSamples.ShaderSample
             worldDir = worldDir.normalized;
             az = Mathf.Atan2(worldDir.x, worldDir.z);
             el = Mathf.Asin(Mathf.Clamp(worldDir.y, -1f, 1f));
+        }
+
+        // ---- world anchor (Hard Dark) ----
+
+        // Raycasts the 4 corners of the just-locked selection against live depth data and, if
+        // every corner hits real geometry, stores those world points so the window can be
+        // re-projected from the current head position every frame instead of staying a fixed
+        // bearing from wherever the head happened to be while painting.
+        private void TryWorldAnchorSelection()
+        {
+            m_hasWorldAnchor = false;
+            if (m_raycastManager == null || m_vignetteMode != VignetteMode.HardDark) return;
+            if (!EnvironmentRaycastManager.IsSupported) return;
+            if (m_activeRect == k_fullSphere) return;
+
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            Vector3   org  = head.position;
+
+            bool ok = true;
+            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.z, out m_anchorBL);
+            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.z, out m_anchorBR);
+            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.w, out m_anchorTR);
+            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.w, out m_anchorTL);
+
+            m_hasWorldAnchor = ok;
+            SetDebug(ok
+                ? "World-anchored to real object — window stays put as you move."
+                : "World-anchor failed (no depth hit on selection) — window will follow head.");
+        }
+
+        private bool RaycastCorner(Vector3 origin, float az, float el, out Vector3 worldPoint)
+        {
+            var ray = new Ray(origin, DirFromAzEl(az, el));
+            if (m_raycastManager.Raycast(ray, out var hit))
+            {
+                worldPoint = hit.point;
+                return true;
+            }
+            worldPoint = Vector3.zero;
+            return false;
+        }
+
+        // Re-derives az/el bounds from the anchored world corners relative to the CURRENT head
+        // position every frame — this is what makes the window perspective-correct (it grows
+        // angularly as you approach the real object and shrinks as you back away, just like
+        // looking at a fixed object/window would), rather than a fixed angular size.
+        private void UpdateWorldAnchorRect()
+        {
+            if (!m_hasWorldAnchor || m_vignetteMode != VignetteMode.HardDark) return;
+
+            Transform head = Camera.main != null ? Camera.main.transform : transform;
+            Vector3   org  = head.position;
+
+            Vector2 bl = WorldPointToAzEl(org, m_anchorBL);
+            Vector2 br = WorldPointToAzEl(org, m_anchorBR);
+            Vector2 tl = WorldPointToAzEl(org, m_anchorTL);
+            Vector2 tr = WorldPointToAzEl(org, m_anchorTR);
+
+            m_activeRect = new Vector4(
+                Mathf.Min(bl.x, br.x, tl.x, tr.x), Mathf.Max(bl.x, br.x, tl.x, tr.x),
+                Mathf.Min(bl.y, br.y, tl.y, tr.y), Mathf.Max(bl.y, br.y, tl.y, tr.y));
+            m_material.SetVector(s_focusRectId, m_activeRect);
+        }
+
+        private static Vector2 WorldPointToAzEl(Vector3 origin, Vector3 worldPoint)
+        {
+            Vector3 dir = (worldPoint - origin).normalized;
+            return new Vector2(
+                Mathf.Atan2(dir.x, dir.z),
+                Mathf.Asin(Mathf.Clamp(dir.y, -1f, 1f)));
         }
 
         // ---- selection dots ----
@@ -1128,34 +1246,68 @@ namespace PassthroughCameraSamples.ShaderSample
         private void OnDetectionsReady(
             IReadOnlyList<(int classId, Vector4 box)> detections, Vector2Int inputSize)
         {
-            int slot = 0;
             foreach (var (classId, box) in detections)
             {
-                if (slot >= k_maxDetections) break;
                 if (!k_targetClasses.Contains(classId)) continue;
-                m_detectionRects[slot]     = BoxToAzElRect(box, inputSize);
-                m_detectionTimestamp[slot] = Time.time;
-                slot++;
+                UpsertTracked(BoxToAzElRect(box, inputSize));
             }
+        }
+
+        // Nearest existing track within a radius scaled to rect size — same identity heuristic
+        // VideoTestSceneManager uses (class + nearest centre), minus the class check since both
+        // target classes get identical treatment downstream here.
+        private void UpsertTracked(Vector4 rect)
+        {
+            float cx = (rect.x + rect.y) * 0.5f, cy = (rect.z + rect.w) * 0.5f;
+            float size = Mathf.Max(rect.y - rect.x, rect.w - rect.z);
+            float thresh = Mathf.Max(size, 0.01f) * 1.5f;
+            float now = Time.time;
+            for (int i = 0; i < m_trackedDets.Count; i++)
+            {
+                var tr = m_trackedDets[i];
+                float dx = (tr.rect.x + tr.rect.y) * 0.5f - cx;
+                float dy = (tr.rect.z + tr.rect.w) * 0.5f - cy;
+                if (Mathf.Sqrt(dx * dx + dy * dy) < thresh)
+                {
+                    m_trackedDets[i] = new TrackedDet { rect = rect, lastSeenTime = now, presence = tr.presence };
+                    return;
+                }
+            }
+            m_trackedDets.Add(new TrackedDet { rect = rect, lastSeenTime = now, presence = 0f });
         }
 
         private void UpdateDetectionUniforms()
         {
-            int count = 0;
             // StudyEffectSuppressed means "effect forced invisible" — the detection-highlight
             // boost is part of that effect (it saturates/brightens detected objects
             // independently of _VignetteStrength), so it must be suppressed too, or a
             // baseline/no-filter condition would still visibly highlight detected objects.
-            if (!StudyEffectSuppressed)
+            float now = Time.time;
+            for (int i = 0; i < m_trackedDets.Count; i++)
             {
-                for (int i = 0; i < k_maxDetections; i++)
-                {
-                    if (Time.time - m_detectionTimestamp[i] < m_detectionLifetime)
-                        count = i + 1;
-                }
+                var tr = m_trackedDets[i];
+                bool active = !StudyEffectSuppressed && now - tr.lastSeenTime <= m_detectionLifetime;
+                float rate = active ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
+                                     : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
+                tr.presence = Mathf.MoveTowards(tr.presence, active ? 1f : 0f, rate * Time.deltaTime);
+                m_trackedDets[i] = tr;
             }
-            m_material.SetInt(s_detectionCountId,         count);
+            m_trackedDets.RemoveAll(tr => now - tr.lastSeenTime > m_detectionLifetime && tr.presence <= 0.001f);
+
+            int slot = 0;
+            foreach (var tr in m_trackedDets)
+            {
+                if (slot >= k_maxDetections) break;
+                m_detectionRects[slot] = tr.rect;
+                m_detectionFade[slot]  = tr.presence;
+                slot++;
+            }
+            for (int i = slot; i < k_maxDetections; i++)
+                m_detectionFade[i] = 0f;
+
+            m_material.SetInt(s_detectionCountId,         slot);
             m_material.SetVectorArray(s_detectionRectsId, m_detectionRects);
+            m_material.SetFloatArray(s_detectionFadeId,   m_detectionFade);
         }
 
         private Vector4 BoxToAzElRect(Vector4 box, Vector2Int inputSize)
