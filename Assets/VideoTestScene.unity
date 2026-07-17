@@ -723,6 +723,7 @@ MonoBehaviour:
   m_rightControllerAnchor: {fileID: 123746824}
   m_cameraRig: {fileID: 1441500616}
   m_flipVideoY: 0
+  m_videoFileNameOverride: 
   m_videoUOffset: 0
   m_videoVOffset: 0
   m_flatClipMode: 0
@@ -732,6 +733,7 @@ MonoBehaviour:
   m_flatFlipY: 0
   m_flatSurround360: 1
   m_softEdgeDeg: 18
+  m_hardDarkSoftEdgeDeg: 2
   m_defaultWindowHalfWidthDeg: 0
   m_vignetteMode: 5
   m_vignetteFormTime: 3
@@ -779,6 +781,9 @@ MonoBehaviour:
   m_detectionEnhance: 1
   m_detectionSurround: 0.4
   m_detectionPulseAmp: 0.45
+  m_detectionFadeInSeconds: 0.2
+  m_detectionFadeOutSeconds: 0.5
+  m_detectionOutsideFocusScale: 0.35
   m_useBakedDetections: 1
   m_debugVideoPreview: 1
 --- !u!114 &949970470

@@ -69,6 +69,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         [Header("Filter")]
         [SerializeField, Range(1f, 45f)]   private float m_softEdgeDeg   = 20f;
+        [Tooltip("Hard Dark uses its own, much narrower soft edge — once a selection is locked in, everything outside it should read as black almost immediately, not fade through a wide gradient buffer.")]
+        [SerializeField, Range(0.5f, 20f)] private float m_hardDarkSoftEdgeDeg = 2f;
         [Tooltip("Default half-width (deg), applied symmetrically to az/el, of the focus window. " +
                  "Seeds the free-play brush size AND the fixed Blocks B/C windscreen window (single " +
                  "shared source). 0 = start from nothing and build the window entirely by painting " +
@@ -162,6 +164,12 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0f, 0.5f)] private float m_detectionSurround = 0.15f;
         [Tooltip("Amplitude of the gentle ~1 Hz breathing on the object boost (0 = static).")]
         [SerializeField, Range(0f, 1f)] private float m_detectionPulseAmp = 0.25f;
+        [Tooltip("How long (seconds) a detection's window/highlight takes to fade in when it first appears. Quick, so the effect still feels responsive.")]
+        [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeInSeconds = 0.2f;
+        [Tooltip("How long (seconds) a detection's window/highlight takes to fade out after it vanishes/holds out — gentler than fade-in so it doesn't snap away.")]
+        [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeOutSeconds = 0.5f;
+        [Tooltip("Scales the saliency-boost highlight (colour/brightness lift + surround dim) down for detections OUTSIDE the active focus window — the window opening around the object is already enough there, so the extra pop stays subtle. Detections INSIDE the window, or when no window is active, always get full strength; this only softens the periphery case.")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionOutsideFocusScale = 0.35f;
 
         [Header("Baked Detections")]
         [Tooltip("If a baked detection track exists (StreamingAssets/DebugVideo.detections.json), use it instead of live YOLO.")]
@@ -189,6 +197,9 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_detectionEnhanceId  = Shader.PropertyToID("_DetectionEnhance");
         private static readonly int s_detectionSurroundId   = Shader.PropertyToID("_DetectionSurround");
         private static readonly int s_detectionPulseAmpId   = Shader.PropertyToID("_DetectionPulseAmp");
+        private static readonly int s_detectionFadeId          = Shader.PropertyToID("_DetectionFade");
+        private static readonly int s_detectionOutsideScaleId  = Shader.PropertyToID("_DetectionOutsideScale");
+        private static readonly int s_suppressDetectionWindowsId = Shader.PropertyToID("_SuppressDetectionWindows");
         private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
         private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
         private static readonly int s_maxVignetteAlphaId  = Shader.PropertyToID("_MaxVignetteAlpha");
@@ -275,6 +286,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private const int k_maxDetections = 16;
         private readonly Vector4[] m_detectionRects      = new Vector4[k_maxDetections];
         private readonly float[]   m_detectionTimestamps = new float[k_maxDetections];
+        private readonly float[]   m_detectionFade       = new float[k_maxDetections];
         // COCO: 9 = traffic light, 11 = stop sign, 0 = person. Person detections pass this
         // class filter but are then further gated by PassesPersonGate (below) — only people
         // near the focus-window edge AND close to the camera are ever shown.
@@ -285,9 +297,113 @@ namespace PassthroughCameraSamples.ShaderSample
         // slot fills blink as boxes come and go. Identities are matched across the two
         // bracketing samples (class + centre proximity), lerped between them, and held
         // for m_signDetHoldSec after they vanish. Boxes tracked in normalized video space.
-        private struct TrackedDet { public Vector4 box; public int cls; public float lastSeenVt; }
+        // `presence` (0..1) drives the shader's fade in/out (see m_detectionFadeInSeconds/
+        // m_detectionFadeOutSeconds below) — it ramps toward 1 while the track is live/held
+        // and toward 0 once the hold window expires, so the "window" around a detection
+        // opens/closes smoothly instead of popping. Only removed from the list once it has
+        // fully faded out (presence <= 0), not the instant the hold window expires.
+        private struct TrackedDet { public Vector4 box; public int cls; public float lastSeenVt; public float presence; }
         private readonly List<TrackedDet> m_trackedDets = new();
         private float m_lastVideoVt = -1f;
+
+        // ---- Study/BlobTargetController support ----
+
+        /// <summary>One real-world object's full on-screen lifetime, reconstructed by walking the
+        /// whole baked track once (offline pass, not tied to the live playhead — contrast with
+        /// m_trackedDets, which is the rolling live tracker). Same identity heuristic as
+        /// UpsertTracked/FindMatch: same class, nearest centre within a radius scaled to box size.</summary>
+        public struct DetectionLifetime
+        {
+            public int cls;
+            public float tStart;
+            public float tEnd;
+            /// <summary>Raw normalized boxes at each sample this instance was seen, in order —
+            /// bracket-lerp between the two samples straddling a given time, same as the live tracker.</summary>
+            public List<(float t, Vector4 box)> samples;
+        }
+
+        private class OpenLifetime
+        {
+            public int cls;
+            public float cx, cy, sz;
+            public float tStart, tLast;
+            public List<(float t, Vector4 box)> samples = new();
+        }
+
+        /// <summary>Reconstructs every DetectionLifetime for the given classes across the entire
+        /// baked track (e.g. {9, 11} for traffic lights + stop signs — SignPop's "lights & signs").
+        /// Call once (it's an O(samples) pass, not per-frame) — e.g. when a test-mode blob
+        /// controller first needs a pool of real candidates to select from.</summary>
+        public List<DetectionLifetime> BuildDetectionLifetimes(HashSet<int> classIds, float holdSeconds)
+        {
+            var closed = new List<DetectionLifetime>();
+            if (m_bakedTrack == null) return closed;
+
+            var open = new List<OpenLifetime>();
+            foreach (var s in m_bakedTrack.samples)
+            {
+                float t = s.t;
+                var dets = new List<BakedDetection>();
+                foreach (var d in s.d) if (classIds.Contains(d.c)) dets.Add(d);
+
+                var matchedIdx = new HashSet<int>();
+                foreach (var tr in open)
+                {
+                    int bestI = -1;
+                    float bestDist = Mathf.Max(tr.sz, 0.01f) * 1.5f;
+                    for (int i = 0; i < dets.Count; i++)
+                    {
+                        if (matchedIdx.Contains(i) || dets[i].c != tr.cls) continue;
+                        var d = dets[i];
+                        float cx = (d.x1 + d.x2) * 0.5f, cy = (d.y1 + d.y2) * 0.5f;
+                        float dist = Mathf.Sqrt((cx - tr.cx) * (cx - tr.cx) + (cy - tr.cy) * (cy - tr.cy));
+                        if (dist < bestDist) { bestDist = dist; bestI = i; }
+                    }
+                    if (bestI >= 0)
+                    {
+                        matchedIdx.Add(bestI);
+                        var d = dets[bestI];
+                        tr.cx = (d.x1 + d.x2) * 0.5f; tr.cy = (d.y1 + d.y2) * 0.5f;
+                        tr.sz = Mathf.Max(d.x2 - d.x1, d.y2 - d.y1);
+                        tr.tLast = t;
+                        tr.samples.Add((t, new Vector4(d.x1, d.y1, d.x2, d.y2)));
+                    }
+                }
+
+                for (int i = open.Count - 1; i >= 0; i--)
+                {
+                    if (t - open[i].tLast > holdSeconds)
+                    {
+                        var tr = open[i];
+                        closed.Add(new DetectionLifetime { cls = tr.cls, tStart = tr.tStart, tEnd = tr.tLast, samples = tr.samples });
+                        open.RemoveAt(i);
+                    }
+                }
+
+                for (int i = 0; i < dets.Count; i++)
+                {
+                    if (matchedIdx.Contains(i)) continue;
+                    var d = dets[i];
+                    var tr = new OpenLifetime
+                    {
+                        cls = d.c,
+                        cx = (d.x1 + d.x2) * 0.5f, cy = (d.y1 + d.y2) * 0.5f,
+                        sz = Mathf.Max(d.x2 - d.x1, d.y2 - d.y1),
+                        tStart = t, tLast = t,
+                    };
+                    tr.samples.Add((t, new Vector4(d.x1, d.y1, d.x2, d.y2)));
+                    open.Add(tr);
+                }
+            }
+            foreach (var tr in open)
+                closed.Add(new DetectionLifetime { cls = tr.cls, tStart = tr.tStart, tEnd = tr.tLast, samples = tr.samples });
+            return closed;
+        }
+
+        /// <summary>Same normalized-box → az/el-rect (radians: azMin,azMax,elMin,elMax) conversion
+        /// UpdateBakedDetections uses to draw boxes — so a blob placed via this lines up exactly
+        /// with "where the box would have been".</summary>
+        public Vector4 DetectionBoxToAzElRect(Vector4 box) => BoxToAzElRectEQ(box, Vector2Int.one);
 
         // ---- lifecycle ----
 
@@ -632,7 +748,11 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             // ColorPop/SignPop get a wider soft edge: a colour/grey boundary reads harsher
             // than a blur or dark boundary, so the transition needs to be more gradual.
-            float softEdgeDeg = IsPopMode(m_vignetteMode) ? m_popSoftEdgeDeg : m_softEdgeDeg;
+            // Hard Dark goes the other way — a narrow edge so the black-out reads as an
+            // almost-binary "selection vs everything else" rather than a wide buffer zone.
+            float softEdgeDeg = IsPopMode(m_vignetteMode) ? m_popSoftEdgeDeg
+                               : m_vignetteMode == VignetteMode.HardDark ? m_hardDarkSoftEdgeDeg
+                               : m_softEdgeDeg;
             m_material.SetFloat(s_softEdgeId,       softEdgeDeg     * Mathf.Deg2Rad);
             if (m_frostTex != null) m_material.SetTexture(s_frostTexId, m_frostTex);
             m_material.SetFloat(s_popGreyDimId,      m_popGreyDim);
@@ -665,6 +785,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 if (classId == k_personClassId && !PassesPersonGate(rect)) continue;
                 m_detectionRects[slot]      = rect;
                 m_detectionTimestamps[slot] = Time.time;
+                m_detectionFade[slot]       = 1f; // live YOLO fallback has no persistent tracking to fade against yet
                 slot++;
             }
         }
@@ -730,7 +851,19 @@ namespace PassthroughCameraSamples.ShaderSample
                 }
             }
 
-            m_trackedDets.RemoveAll(tr => vt - tr.lastSeenVt > m_signDetHoldSec);
+            // Ramp presence toward 1 while still within the hold window (still "on screen" or
+            // recently so), toward 0 once past it — a track is only actually removed after it
+            // has fully faded out, so the window/highlight closes smoothly instead of popping.
+            for (int i = 0; i < m_trackedDets.Count; i++)
+            {
+                var tr = m_trackedDets[i];
+                bool active = vt - tr.lastSeenVt <= m_signDetHoldSec;
+                float rate = active ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
+                                     : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
+                tr.presence = Mathf.MoveTowards(tr.presence, active ? 1f : 0f, rate * Time.deltaTime);
+                m_trackedDets[i] = tr;
+            }
+            m_trackedDets.RemoveAll(tr => vt - tr.lastSeenVt > m_signDetHoldSec && tr.presence <= 0.001f);
 
             int slot = 0;
             foreach (var tr in m_trackedDets)
@@ -739,12 +872,16 @@ namespace PassthroughCameraSamples.ShaderSample
                 // Boxes are stored normalized — inputSize (1,1) reuses the same conversion.
                 m_detectionRects[slot]      = BoxToAzElRectEQ(tr.box, Vector2Int.one);
                 m_detectionTimestamps[slot] = Time.time;
+                m_detectionFade[slot]       = tr.presence;
                 slot++;
             }
             // Expire unused tail slots so the count drops immediately instead of
             // ghosting stale rects for m_detectionLifetime.
             for (int i = slot; i < k_maxDetections; i++)
+            {
                 m_detectionTimestamps[i] = float.NegativeInfinity;
+                m_detectionFade[i]       = 0f;
+            }
         }
 
         // Nearest same-class detection in the next sample, within a radius scaled to the
@@ -779,11 +916,11 @@ namespace PassthroughCameraSamples.ShaderSample
                 float dy = (tr.box.y + tr.box.w) * 0.5f - cy;
                 if (Mathf.Sqrt(dx * dx + dy * dy) < thresh)
                 {
-                    m_trackedDets[i] = new TrackedDet { box = box, cls = cls, lastSeenVt = vt };
+                    m_trackedDets[i] = new TrackedDet { box = box, cls = cls, lastSeenVt = vt, presence = tr.presence };
                     return;
                 }
             }
-            m_trackedDets.Add(new TrackedDet { box = box, cls = cls, lastSeenVt = vt });
+            m_trackedDets.Add(new TrackedDet { box = box, cls = cls, lastSeenVt = vt, presence = 0f });
         }
 
         private void UpdateDetectionUniforms()
@@ -803,10 +940,12 @@ namespace PassthroughCameraSamples.ShaderSample
             }
             m_material.SetInt(s_detectionCountId,          count);
             m_material.SetVectorArray(s_detectionRectsId,  m_detectionRects);
+            m_material.SetFloatArray(s_detectionFadeId,    m_detectionFade);
             m_material.SetFloat(s_detectionSoftEdgeId,     m_detectionSoftEdgeDeg * Mathf.Deg2Rad);
             m_material.SetFloat(s_detectionEnhanceId,      m_detectionEnhance);
             m_material.SetFloat(s_detectionSurroundId, m_detectionSurround);
             m_material.SetFloat(s_detectionPulseAmpId, m_detectionPulseAmp);
+            m_material.SetFloat(s_detectionOutsideScaleId, m_detectionOutsideFocusScale);
         }
 
         // EQ box → az/el rect.
@@ -1091,6 +1230,10 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_popDetFallbackId,   m_signRogFallback);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
+            // Hard Dark: once a selection is locked in, that exact painted rect is the only
+            // thing that's ever clear — suppress the generic per-detection carve-out/highlight
+            // entirely so a detected light/person elsewhere can't poke a hole in the black-out.
+            m_material.SetFloat(s_suppressDetectionWindowsId, m_vignetteMode == VignetteMode.HardDark ? 1f : 0f);
 
             // ColorPop/SignPop: when no selection is painted, auto-follow head gaze so the
             // effect is always visible without needing to hold trigger first.

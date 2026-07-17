@@ -26,3 +26,13 @@ Packages/packages-lock.json
 # YOLO weights auto-downloaded by Tools/bake_detections.py
 yolo11*.pt
 yolo*.pt
+
+# Editor/tooling scratch, not source
+.log/
+__pycache__/
+*.pyc
+*~
+\#*\#
+
+# Distractor-video build scratch (intermediates, downloaded backgrounds/clips)
+/Assets/_Scratch/

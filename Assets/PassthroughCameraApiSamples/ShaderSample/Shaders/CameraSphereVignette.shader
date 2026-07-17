@@ -131,6 +131,7 @@ Shader "Meta/PCA/CameraSphereVignette"
         _DetectionEnhance  ("Detection Colour Boost (0=clear only, 1=vivid)", Range(0, 1)) = 0.4
         _DetectionSurround ("Detection Surround Dim", Range(0, 0.5)) = 0.15
         _DetectionPulseAmp ("Detection Boost Pulse Amplitude", Range(0, 1)) = 0.25
+        _DetectionOutsideScale ("Detection Boost Intensity Outside Focus Window (subtle)", Range(0, 1)) = 0.35
     }
 
     SubShader
@@ -188,10 +189,13 @@ Shader "Meta/PCA/CameraSphereVignette"
 
             int    _DetectionCount;
             float4 _DetectionRects[16];
+            float  _DetectionFade[16]; // per-slot 0..1 — smooth fade in/out, replaces hard appear/disappear
             float  _DetectionSoftEdge;
             float  _DetectionEnhance;
             float  _DetectionSurround;
             float  _DetectionPulseAmp;
+            float  _DetectionOutsideScale; // boost intensity multiplier when the detection is outside _FocusRect
+            float  _SuppressDetectionWindows; // Hard Dark: 1 = no per-detection carve-outs/highlights at all — only the painted selection is ever clear
 
             float3 _SphereCenter;
 
@@ -404,29 +408,57 @@ Shader "Meta/PCA/CameraSphereVignette"
                 // (feathered); detSurround is a soft annulus just outside it that gets
                 // slightly darkened — raising the object's center-surround contrast from
                 // both sides (Veas et al. CHI 2011 dual modulation) without any glow artifact.
+                //
+                // Two separate accumulators, both driven by the same per-slot _DetectionFade
+                // (smooth 0->1 ramp in C#, replacing an instant appear/disappear):
+                //  - windowClear drives the vignette carve-out (t = min(t, 1-windowClear)) —
+                //    this "opens a window" around the object at full strength everywhere,
+                //    inside or outside the focus rect, since revealing the real object is the
+                //    point regardless of region.
+                //  - detHighlight/detSurround drive the extra saliency boost (colour/brightness
+                //    lift + surround dim) — this is scaled down by _DetectionOutsideScale when
+                //    the object sits outside the current focus window, since the window (already
+                //    fading in on its own) is enough there; the boost only needs full strength
+                //    to help the object stand out where there ISN'T an open window nearby.
                 float detHighlight = 0.0;
                 float detSurround  = 0.0;
-                for (int _di = 0; _di < _DetectionCount; _di++)
+                float windowClear  = 0.0;
+                // Hard Dark: no per-detection carve-outs at all — once a selection is locked in,
+                // that exact painted rect is the only thing that's ever clear; every detected
+                // object elsewhere (however salient) stays fully blacked out, no exceptions.
+                if (_SuppressDetectionWindows < 0.5)
                 {
-                    float2 _ctr = float2((_DetectionRects[_di].x + _DetectionRects[_di].y) * 0.5,
-                                         (_DetectionRects[_di].z + _DetectionRects[_di].w) * 0.5);
-                    float2 _rad = max(float2((_DetectionRects[_di].y - _DetectionRects[_di].x) * 0.5,
-                                             (_DetectionRects[_di].w - _DetectionRects[_di].z) * 0.5),
-                                      0.035);  // ~2 deg min radius so distant lights still show a visible halo
-                    // Normalized elliptical distance: 1.0 at the object boundary
-                    float _ed = length(float2(az - _ctr.x, el - _ctr.y) / _rad);
-                    // Feather width in ellipse units, from the angular soft edge
-                    float _fw = clamp(_DetectionSoftEdge / min(_rad.x, _rad.y), 0.05, 0.6);
+                    for (int _di = 0; _di < _DetectionCount; _di++)
+                    {
+                        float2 _ctr = float2((_DetectionRects[_di].x + _DetectionRects[_di].y) * 0.5,
+                                             (_DetectionRects[_di].z + _DetectionRects[_di].w) * 0.5);
+                        float2 _rad = max(float2((_DetectionRects[_di].y - _DetectionRects[_di].x) * 0.5,
+                                                 (_DetectionRects[_di].w - _DetectionRects[_di].z) * 0.5),
+                                          0.035);  // ~2 deg min radius so distant lights still show a visible halo
+                        // Normalized elliptical distance: 1.0 at the object boundary
+                        float _ed = length(float2(az - _ctr.x, el - _ctr.y) / _rad);
+                        // Feather width in ellipse units, from the angular soft edge
+                        float _fw = clamp(_DetectionSoftEdge / min(_rad.x, _rad.y), 0.05, 0.6);
 
-                    float _inside = 1.0 - smoothstep(1.0 - _fw, 1.0, _ed);
-                    // Wide soft annulus outside the boundary (fades out by ~2x the radius)
-                    float _ann    = smoothstep(0.98, 1.1, _ed)
-                                  * (1.0 - smoothstep(1.3, 2.0, _ed));
+                        float _inside = 1.0 - smoothstep(1.0 - _fw, 1.0, _ed);
+                        // Wide soft annulus outside the boundary (fades out by ~2x the radius)
+                        float _ann    = smoothstep(0.98, 1.1, _ed)
+                                      * (1.0 - smoothstep(1.3, 2.0, _ed));
 
-                    detHighlight = max(detHighlight, _inside);
-                    detSurround  = max(detSurround, _ann);
-                    t = min(t, 1.0 - _inside); // clear the vignette effect on the object itself
+                        float _fade = _DetectionFade[_di];
+
+                        // Is this detection's centre currently inside the active focus window?
+                        float _dAzD = max(_FocusRect.x - _ctr.x, _ctr.x - _FocusRect.y);
+                        float _dElD = max(_FocusRect.z - _ctr.y, _ctr.y - _FocusRect.w);
+                        float _insideFocus  = step(max(_dAzD, _dElD), 0.0);
+                        float _regionScale  = lerp(_DetectionOutsideScale, 1.0, _insideFocus);
+
+                        windowClear  = max(windowClear, _inside * _fade);
+                        detHighlight = max(detHighlight, _inside * _fade * _regionScale);
+                        detSurround  = max(detSurround,  _ann * _fade * _regionScale);
+                    }
                 }
+                t = min(t, 1.0 - windowClear); // clear the vignette effect on the object itself
                 float surA = detSurround * _DetectionSurround;
 
                 // ---- Source UV (computed once, used for both sharpColor and blur sampling) ----

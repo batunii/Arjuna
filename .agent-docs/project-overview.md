@@ -46,3 +46,9 @@ Last updated: 2026-06-03
 
 - The repo is wired for AI coding agents (`AGENTS.md`, `.mcp.json`, `CLAUDE.md`/RTK, Meta Quest skills).
 - `CLAUDE.md` instructs using the `rtk` command prefix for token-efficient tooling output.
+- The repo also now hosts a second, unrelated build on top of the sample suite: an MSc
+  dissertation Diminished-Reality attention-guidance study (`CameraSphereVignette` +
+  `VideoTestScene` scenes, `ShaderSample/Scripts/Study/`). See
+  [Scene Flow § Dissertation study build](<scenes/_flow.md>#dissertation-study-build) and
+  [Study Tooling](<systems/study-tooling.md>) — do not conflate its scenes/scripts with the
+  sample-suite ones above.

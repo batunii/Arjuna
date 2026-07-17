@@ -1,0 +1,653 @@
+{
+  "source_file": "Builds\\StudyVideo\\study_video.detections.json",
+  "sidecar_file": "Builds\\StudyVideo\\study_video.detections.irrelevant_signals.json",
+  "removed_on": "2026-07-14",
+  "method": "Reconstructed lifetimes (VideoTestSceneManager.BuildDetectionLifetimes identity heuristic ported to Python), auto-classified traffic lights by azimuth-from-forward (<= 15.0\u00b0 relevant, >= 45.0\u00b0 irrelevant), visually reviewed the ambiguous band (and all stop signs) via ffmpeg contact sheets, then removed every raw sample entry belonging to a lifetime judged not to face/control the driver's lane.",
+  "class": 11,
+  "class_name": "stop sign (COCO id 11)",
+  "count_removed": 64,
+  "count_before": 64,
+  "count_after": 0,
+  "entries": [
+    {
+      "t": 0.0,
+      "x1": 0.3585,
+      "y1": 0.2237,
+      "x2": 0.4233,
+      "y2": 0.3884,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 0.5,
+      "x1": 0.3586,
+      "y1": 0.2237,
+      "x2": 0.4232,
+      "y2": 0.3884,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 1.0,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4231,
+      "y2": 0.3875,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 1.5,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.423,
+      "y2": 0.3877,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 2.0,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4229,
+      "y2": 0.3875,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 2.5,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4227,
+      "y2": 0.3874,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 3.0,
+      "x1": 0.3586,
+      "y1": 0.224,
+      "x2": 0.4226,
+      "y2": 0.387,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 3.5,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.4226,
+      "y2": 0.387,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 4.0,
+      "x1": 0.3586,
+      "y1": 0.224,
+      "x2": 0.4225,
+      "y2": 0.3871,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 4.5,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.4224,
+      "y2": 0.3878,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 5.0,
+      "x1": 0.3586,
+      "y1": 0.224,
+      "x2": 0.4223,
+      "y2": 0.3877,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 5.5,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.4222,
+      "y2": 0.3879,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 6.0,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.4221,
+      "y2": 0.388,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 6.5,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.422,
+      "y2": 0.3882,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 7.0,
+      "x1": 0.3586,
+      "y1": 0.2239,
+      "x2": 0.4219,
+      "y2": 0.388,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 7.5,
+      "x1": 0.3586,
+      "y1": 0.2241,
+      "x2": 0.4218,
+      "y2": 0.3881,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 8.0,
+      "x1": 0.3586,
+      "y1": 0.224,
+      "x2": 0.4217,
+      "y2": 0.3882,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 8.5,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4215,
+      "y2": 0.3874,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 9.0,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4214,
+      "y2": 0.3872,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 9.5,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4213,
+      "y2": 0.387,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 10.0,
+      "x1": 0.3586,
+      "y1": 0.2238,
+      "x2": 0.4211,
+      "y2": 0.3869,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 10.5,
+      "x1": 0.3586,
+      "y1": 0.2241,
+      "x2": 0.4207,
+      "y2": 0.3877,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 11.0,
+      "x1": 0.3586,
+      "y1": 0.2242,
+      "x2": 0.4201,
+      "y2": 0.3878,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 11.5,
+      "x1": 0.3586,
+      "y1": 0.2232,
+      "x2": 0.4195,
+      "y2": 0.3808,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 12.0,
+      "x1": 0.3585,
+      "y1": 0.2241,
+      "x2": 0.4186,
+      "y2": 0.387,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 12.5,
+      "x1": 0.3584,
+      "y1": 0.2228,
+      "x2": 0.417,
+      "y2": 0.3802,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 13.0,
+      "x1": 0.3584,
+      "y1": 0.2227,
+      "x2": 0.4158,
+      "y2": 0.3806,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 13.5,
+      "x1": 0.3583,
+      "y1": 0.2226,
+      "x2": 0.4147,
+      "y2": 0.3815,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 14.0,
+      "x1": 0.3584,
+      "y1": 0.2235,
+      "x2": 0.4138,
+      "y2": 0.3844,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 14.5,
+      "x1": 0.3585,
+      "y1": 0.2234,
+      "x2": 0.4128,
+      "y2": 0.3841,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 15.0,
+      "x1": 0.3585,
+      "y1": 0.2226,
+      "x2": 0.4114,
+      "y2": 0.3822,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 15.5,
+      "x1": 0.3584,
+      "y1": 0.2226,
+      "x2": 0.4099,
+      "y2": 0.3815,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 16.0,
+      "x1": 0.3584,
+      "y1": 0.2225,
+      "x2": 0.4077,
+      "y2": 0.3813,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 16.5,
+      "x1": 0.3585,
+      "y1": 0.2222,
+      "x2": 0.4042,
+      "y2": 0.3787,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 17.0,
+      "x1": 0.3585,
+      "y1": 0.2227,
+      "x2": 0.3996,
+      "y2": 0.3758,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 17.5,
+      "x1": 0.3585,
+      "y1": 0.2227,
+      "x2": 0.3932,
+      "y2": 0.3702,
+      "az_deg": -39.58,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo, not a stop sign"
+    },
+    {
+      "t": 16.0,
+      "x1": 0.2761,
+      "y1": 0.2228,
+      "x2": 0.3474,
+      "y2": 0.3472,
+      "az_deg": -67.77,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 19.0,
+      "x1": 0.3584,
+      "y1": 0.2226,
+      "x2": 0.3697,
+      "y2": 0.3556,
+      "az_deg": -48.94,
+      "decision_method": "reviewed",
+      "reason": "False positive -- dashboard view, no stop sign present"
+    },
+    {
+      "t": 19.0,
+      "x1": 0.3027,
+      "y1": 0.223,
+      "x2": 0.3697,
+      "y2": 0.3559,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 19.5,
+      "x1": 0.2933,
+      "y1": 0.2227,
+      "x2": 0.3617,
+      "y2": 0.3519,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 20.0,
+      "x1": 0.2822,
+      "y1": 0.2228,
+      "x2": 0.353,
+      "y2": 0.3476,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 20.5,
+      "x1": 0.2728,
+      "y1": 0.223,
+      "x2": 0.3444,
+      "y2": 0.3441,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 21.0,
+      "x1": 0.258,
+      "y1": 0.2232,
+      "x2": 0.3312,
+      "y2": 0.3392,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 21.5,
+      "x1": 0.2501,
+      "y1": 0.223,
+      "x2": 0.3136,
+      "y2": 0.3347,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 22.0,
+      "x1": 0.2501,
+      "y1": 0.2229,
+      "x2": 0.2895,
+      "y2": 0.3307,
+      "az_deg": -68.9,
+      "decision_method": "reviewed",
+      "reason": "False positive -- Macy's red star storefront logo"
+    },
+    {
+      "t": 168.5,
+      "x1": 0.6167,
+      "y1": 0.3178,
+      "x2": 0.6299,
+      "y2": 0.3342,
+      "az_deg": 44.39,
+      "decision_method": "reviewed",
+      "reason": "False positive -- construction crane hook in glass reflection"
+    },
+    {
+      "t": 168.5,
+      "x1": 0.3874,
+      "y1": 0.486,
+      "x2": 0.3918,
+      "y2": 0.4956,
+      "az_deg": -39.74,
+      "decision_method": "reviewed",
+      "reason": "False positive -- archway storefront entrance, no stop sign"
+    },
+    {
+      "t": 168.5,
+      "x1": 0.6213,
+      "y1": 0.2762,
+      "x2": 0.6246,
+      "y2": 0.2878,
+      "az_deg": 44.26,
+      "decision_method": "reviewed",
+      "reason": "False positive -- crane hook in glass window"
+    },
+    {
+      "t": 169.0,
+      "x1": 0.6221,
+      "y1": 0.4984,
+      "x2": 0.6303,
+      "y2": 0.5151,
+      "az_deg": 45.43,
+      "decision_method": "reviewed",
+      "reason": "False positive -- orange construction SLOW/SHARED LANE paddle signs, not a stop sign"
+    },
+    {
+      "t": 169.5,
+      "x1": 0.6742,
+      "y1": 0.5014,
+      "x2": 0.6834,
+      "y2": 0.5232,
+      "az_deg": 64.37,
+      "decision_method": "reviewed",
+      "reason": "False positive -- SHARED LANE / danger construction signage"
+    },
+    {
+      "t": 169.5,
+      "x1": 0.325,
+      "y1": 0.4754,
+      "x2": 0.3288,
+      "y2": 0.481,
+      "az_deg": -62.32,
+      "decision_method": "reviewed",
+      "reason": "False positive -- storefront archway, no stop sign"
+    },
+    {
+      "t": 176.0,
+      "x1": 0.4558,
+      "y1": 0.4311,
+      "x2": 0.4629,
+      "y2": 0.4512,
+      "az_deg": -14.63,
+      "decision_method": "reviewed",
+      "reason": "False positive -- vehicle traffic light misclassified, not a stop sign"
+    },
+    {
+      "t": 197.5,
+      "x1": 0.3508,
+      "y1": 0.3745,
+      "x2": 0.3558,
+      "y2": 0.3907,
+      "az_deg": -52.81,
+      "decision_method": "reviewed",
+      "reason": "False positive -- distant unclear red spot among trees"
+    },
+    {
+      "t": 198.0,
+      "x1": 0.6911,
+      "y1": 0.3169,
+      "x2": 0.7016,
+      "y2": 0.406,
+      "az_deg": 70.69,
+      "decision_method": "reviewed",
+      "reason": "False positive -- storefront corner with flag, no stop sign"
+    },
+    {
+      "t": 282.0,
+      "x1": 0.3583,
+      "y1": 0.4057,
+      "x2": 0.3632,
+      "y2": 0.4235,
+      "az_deg": -50.13,
+      "decision_method": "reviewed",
+      "reason": "False positive -- circular red sticker/dot on office window, not octagonal"
+    },
+    {
+      "t": 282.5,
+      "x1": 0.3273,
+      "y1": 0.3975,
+      "x2": 0.3365,
+      "y2": 0.416,
+      "az_deg": -60.52,
+      "decision_method": "reviewed",
+      "reason": "False positive -- same circular red window sticker"
+    },
+    {
+      "t": 293.5,
+      "x1": 0.4858,
+      "y1": 0.454,
+      "x2": 0.4905,
+      "y2": 0.4738,
+      "az_deg": -4.27,
+      "decision_method": "reviewed",
+      "reason": "False positive -- vehicle traffic light misclassified"
+    },
+    {
+      "t": 306.5,
+      "x1": 0.7323,
+      "y1": 0.3633,
+      "x2": 0.7397,
+      "y2": 0.4513,
+      "az_deg": 84.96,
+      "decision_method": "reviewed",
+      "reason": "False positive -- storefront scene, no stop sign"
+    },
+    {
+      "t": 322.0,
+      "x1": 0.348,
+      "y1": 0.4318,
+      "x2": 0.3738,
+      "y2": 0.516,
+      "az_deg": -50.08,
+      "decision_method": "reviewed",
+      "reason": "False positive -- pink moving-truck logo, not a stop sign"
+    },
+    {
+      "t": 365.5,
+      "x1": 0.49,
+      "y1": 0.4327,
+      "x2": 0.494,
+      "y2": 0.4406,
+      "az_deg": -2.88,
+      "decision_method": "reviewed",
+      "reason": "False positive -- generic street/building scene"
+    },
+    {
+      "t": 440.0,
+      "x1": 0.7208,
+      "y1": 0.4714,
+      "x2": 0.7255,
+      "y2": 0.4835,
+      "az_deg": 80.33,
+      "decision_method": "reviewed",
+      "reason": "False positive -- unclear silhouette among tree branches"
+    },
+    {
+      "t": 446.0,
+      "x1": 0.5425,
+      "y1": 0.2749,
+      "x2": 0.5673,
+      "y2": 0.3224,
+      "az_deg": 19.76,
+      "decision_method": "reviewed",
+      "reason": "False positive -- trees/church spire, no stop sign"
+    },
+    {
+      "t": 475.5,
+      "x1": 0.506,
+      "y1": 0.5737,
+      "x2": 0.5166,
+      "y2": 0.5957,
+      "az_deg": 4.07,
+      "decision_method": "reviewed",
+      "reason": "False positive -- bike-lane pavement marking, not a vertical stop sign"
+    },
+    {
+      "t": 513.0,
+      "x1": 0.3799,
+      "y1": 0.4103,
+      "x2": 0.4022,
+      "y2": 0.4395,
+      "az_deg": -39.22,
+      "decision_method": "reviewed",
+      "reason": "False positive -- building/tree scene, no stop sign"
+    }
+  ]
+}

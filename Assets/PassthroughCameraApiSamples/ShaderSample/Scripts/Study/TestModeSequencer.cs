@@ -76,6 +76,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private int m_index = -1;
         private bool m_active;
         private IStudyVignetteControl m_control;
+        private BlobTargetController m_blobs;
 
         private GameObject m_uiRoot;
         private Material m_uiMat;
@@ -95,6 +96,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             Instance = this;
             DontDestroyOnLoad(gameObject);
             SceneManager.sceneLoaded += OnSceneLoaded;
+            m_blobs = GetComponent<BlobTargetController>();
+            if (m_blobs == null) m_blobs = gameObject.AddComponent<BlobTargetController>();
         }
 
         private void Start() => AdvanceToNextMode();
@@ -174,6 +177,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_active = false;
             ApplyActive(false); // StudySetMode/video auto-play both default to "on" — force off
                                  // until the participant's first X press.
+
+            // Blob targets are a video-scene-only mechanic (modes 1 & 2) — same random set
+            // both times, independent hit/miss results per mode (see BlobTargetController).
+            if (entry.stage == TestStage.VideoScene) m_blobs.Activate(entry.label);
+            else m_blobs.Deactivate();
 
             ShowInstructions(entry);
         }
