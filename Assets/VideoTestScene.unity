@@ -735,7 +735,7 @@ MonoBehaviour:
   m_softEdgeDeg: 18
   m_hardDarkSoftEdgeDeg: 2
   m_defaultWindowHalfWidthDeg: 0
-  m_vignetteMode: 5
+  m_vignetteMode: 10
   m_vignetteFormTime: 3
   m_mode2MaxAlpha: 0.75
   m_enableMotion: 0
@@ -773,7 +773,9 @@ MonoBehaviour:
   m_signRogFallback: 0.35
   m_signDetHoldSec: 0.5
   m_personMinBoxHeightDeg: 3
-  m_personMaxEdgeDistDeg: 25
+  m_personMaxEdgeDistDeg: 20
+  m_personFullStrengthDeg: 12.5
+  m_personInsideScale: 0.25
   m_yoloRunner: {fileID: 0}
   m_detectionLifetime: 0.85
   m_yoloFlipY: 1
@@ -783,6 +785,13 @@ MonoBehaviour:
   m_detectionPulseAmp: 0.45
   m_detectionFadeInSeconds: 0.2
   m_detectionFadeOutSeconds: 0.5
+  m_detectionOnsetDelaySec: 0
+  m_detectionHoldPastEndSec: 0
+  m_detectionMinAgeSec: 0.6
+  m_detectionSatLift: 1.5
+  m_detectionBrightLift: 0.5
+  m_detectionContrast: 0.5
+  m_detectionMinSizeDeg: 1.2
   m_detectionOutsideFocusScale: 0.35
   m_useBakedDetections: 1
   m_debugVideoPreview: 1

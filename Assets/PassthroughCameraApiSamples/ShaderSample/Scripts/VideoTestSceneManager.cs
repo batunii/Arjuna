@@ -152,6 +152,10 @@ namespace PassthroughCameraSamples.ShaderSample
                  "Also the end of the graded strength taper: full effect near the edge, zero at this distance. " +
                  "Measured on the study bake, 25° covers ~52% of close peripheral persons (8° covered only ~23%).")]
         [SerializeField, Range(0f, 60f)] private float m_personMaxEdgeDistDeg = 25f;
+        [Tooltip("Distance outside the window edge (deg) up to which a close person keeps FULL effect strength; " +
+                 "beyond it the effect tapers linearly, reaching zero at Person Max Edge Dist. Clamped below " +
+                 "that value at runtime. Raise toward the max for a hard-edged reach, lower for a gentler falloff.")]
+        [SerializeField, Range(0f, 60f)] private float m_personFullStrengthDeg = 12.5f;
         [Tooltip("Graded person-effect floor at the window CENTRE: strength ramps linearly from this floor at " +
                  "dead-centre up to full (1) at the window edge, staying full outside until the reach taper — " +
                  "so the emphasis relaxes only when the person is actually in front of the user, and grows " +
@@ -975,11 +979,11 @@ namespace PassthroughCameraSamples.ShaderSample
                                         Mathf.Abs(cy - winCy) / halfH);
                 return Mathf.Lerp(m_personInsideScale, 1f, Mathf.Clamp01(tEdge));
             }
-            // Outside: full strength near the edge, linear taper to zero at the gate's
-            // own acceptance limit (m_personMaxEdgeDistDeg), starting halfway out.
+            // Outside: full strength out to m_personFullStrengthDeg, then linear taper to
+            // zero at the gate's own acceptance limit (m_personMaxEdgeDistDeg).
             float outDeg = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
                                     + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f)) * Mathf.Rad2Deg;
-            float taperStart = m_personMaxEdgeDistDeg * 0.5f;
+            float taperStart = Mathf.Min(m_personFullStrengthDeg, m_personMaxEdgeDistDeg - 0.01f);
             return 1f - Mathf.Clamp01((outDeg - taperStart)
                                       / Mathf.Max(m_personMaxEdgeDistDeg - taperStart, 0.01f));
         }
