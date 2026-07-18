@@ -772,8 +772,8 @@ MonoBehaviour:
   m_popSoftEdgeDeg: 24
   m_signRogFallback: 0.35
   m_signDetHoldSec: 0.5
-  m_personMinBoxHeightDeg: 6
-  m_personMaxEdgeDistDeg: 8
+  m_personMinBoxHeightDeg: 3
+  m_personMaxEdgeDistDeg: 25
   m_yoloRunner: {fileID: 0}
   m_detectionLifetime: 0.85
   m_yoloFlipY: 1

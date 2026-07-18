@@ -78,6 +78,14 @@ occluded.
 controls stay live. (An earlier version did lock input; this took away right-controller free-play
 for no functional reason and was reverted.)
 
+**Locks a fixed windscreen focus window on video-mode entry** (`m_lockVideoWindow`, default on,
+±25° az / ±15° el around video-forward — added 2026-07-18, tightened same day from ±40°/±25°): without it nothing is ever painted in
+the harness, so SignPop fell back to gaze auto-follow and the person gate ran against wherever
+the participant looked — an uncontrolled variable in the mode-1-vs-2 comparison. The same window
+is set in the no-filter mode (invisible there), so geometry and procedure are identical in both
+arms. Re-applied on every video-mode entry, so a free-play repaint only lasts until the next mode
+switch.
+
 **Note:** `entry.noFilter = true` means "no filter" — `StudySetActive` is skipped for that entry
 regardless of its `vignetteMode` value (the mode value is irrelevant when suppressed via
 `StudyEffectSuppressed`, see below).

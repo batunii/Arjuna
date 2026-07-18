@@ -53,8 +53,24 @@ This is a two-stage tool:
             during reconstruction (per-sample matching is 1:1), removing a
             lifetime's entries can never affect any other lifetime's entries.
 
+There is also a third mode for hunting residual false positives full-motion:
+
+  preview - Renders ONE annotated video: every reconstructed lifetime's box is
+            drawn over a downscaled copy of the source video, lerped between
+            bracketing samples exactly like the runtime tracker, with its
+            lifetime id burned in. Lifetimes the runtime debounce
+            (VideoTestSceneManager.m_detectionMinAgeSec) will suppress are
+            drawn dim grey — so scrubbing the preview shows only what will
+            actually open a window on the headset. Writes a lifetimes cache in
+            the same format as `review`, except every lifetime defaults to
+            KEEP ("auto_relevant" bucket) — so the decisions file for `apply`
+            only needs to name the ids you saw circling nothing:
+              {"9": {"123": {"decision": "irrelevant", "reason": "no light"}}}
+            This replaces recording the headset and eyeballing frame dumps.
+
 Usage (from repo root):
     python Tools/triage_traffic_lights.py review
+    python Tools/triage_traffic_lights.py preview --out-dir Tools/preview
     python Tools/triage_traffic_lights.py apply --decisions <path-to-decisions.json>
 """
 
@@ -346,6 +362,226 @@ def cmd_review(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# preview — annotated full-motion render for false-positive hunting
+# ---------------------------------------------------------------------------
+
+# One colour per class for lifetimes that will actually show on the headset;
+# debounce-suppressed blips are always dim grey regardless of class.
+PREVIEW_COLORS = {LIGHT_CLASS: (0, 220, 255), STOPSIGN_CLASS: (255, 160, 0)}
+PREVIEW_SUPPRESSED = (110, 110, 110)
+
+
+def interpolate_box(entry_times: list[float], entries: list[tuple],
+                    t: float) -> tuple[float, float, float, float]:
+    """Box at video time t, lerped between the two bracketing entries — the same
+    bracketing the runtime tracker does. Before the first / after the last entry
+    (the hold tail), the nearest entry's box is held as-is."""
+    if t <= entry_times[0]:
+        e = entries[0]
+        return e[1], e[2], e[3], e[4]
+    for i in range(len(entries) - 1):
+        t0, t1 = entry_times[i], entry_times[i + 1]
+        if t0 <= t <= t1:
+            f = (t - t0) / (t1 - t0) if t1 > t0 else 0.0
+            a, b = entries[i], entries[i + 1]
+            return (a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f,
+                    a[3] + (b[3] - a[3]) * f, a[4] + (b[4] - a[4]) * f)
+    e = entries[-1]
+    return e[1], e[2], e[3], e[4]
+
+
+def cmd_preview(args: argparse.Namespace) -> int:
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        print("ERROR: ffmpeg/ffprobe not on PATH.", file=sys.stderr)
+        return 1
+    from PIL import Image, ImageDraw, ImageFont
+
+    data = json.loads(args.json.read_text())
+    samples = data["samples"]
+    src_w, src_h = probe_video_size(args.video)
+    out_w = args.out_width
+    out_h = int(round(src_h * out_w / src_w / 2)) * 2
+    print(f"Video: {args.video} ({src_w}x{src_h}) -> preview {out_w}x{out_h} @ {args.fps} fps")
+
+    out_dir = args.out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Reconstruct lifetimes + write an apply-compatible cache. Every lifetime is
+    # bucketed "auto_relevant" (= kept unless the decisions file names it) — the
+    # preview workflow is remove-by-exception, unlike review's triage buckets.
+    cache = {"source_file": str(args.json.resolve().relative_to(REPO_ROOT)),
+             "hold_seconds": args.hold_seconds,
+             "auto_relevant_deg": 0.0, "auto_irrelevant_deg": 999.0,
+             "classes": {}}
+    all_lifetimes: list[dict] = []
+    summary_lines = []
+    for class_id in (LIGHT_CLASS, STOPSIGN_CLASS):
+        lifetimes = build_lifetimes(samples, class_id, args.hold_seconds)
+        cache_lifetimes = []
+        for idx, lt in enumerate(lifetimes):
+            t, x1, y1, x2, y2 = representative_entry(samples, lt)
+            az = azimuth_deg(x1, x2)
+            cache_lifetimes.append({
+                "idx": idx, "cls": class_id,
+                "tStart": lt["tStart"], "tEnd": lt["tEnd"],
+                "rep_t": t, "rep_box": [x1, y1, x2, y2], "az_deg": az,
+                "bucket": "auto_relevant",
+                "entries": lt["entries"],
+            })
+            # Same maturity rule as the runtime: the track stays active until
+            # tEnd + hold; it becomes visible only if it reaches min-age first.
+            suppressed = (lt["tEnd"] + args.hold_seconds - lt["tStart"]) < args.min_age
+            # Same size gate as the runtime: max apparent extent in degrees
+            # (equirect: az extent spans 360°, el extent 180°). A lifetime whose
+            # box never exceeds the gate never shows at all.
+            max_ang = max((max((e[3] - e[1]) * 360.0, (e[4] - e[2]) * 180.0)
+                           for e in lt["entries"]), default=0.0)
+            tiny = max_ang < args.min_size_deg
+            entry_times = [samples[e[0]]["t"] for e in lt["entries"]]
+            all_lifetimes.append({
+                "idx": idx, "cls": class_id, "tStart": lt["tStart"],
+                "tEnd": lt["tEnd"], "entries": lt["entries"],
+                "entry_times": entry_times, "suppressed": suppressed,
+                "tiny": tiny, "max_ang": max_ang, "az": az,
+                "rep_t": t, "rep_box": (x1, y1, x2, y2),
+            })
+            state = ("SUPPRESSED (debounce)" if suppressed
+                     else "SUPPRESSED (size gate)" if tiny else "shown")
+            summary_lines.append(
+                f"class={class_id} idx={idx:4d} t={lt['tStart']:7.1f}-{lt['tEnd']:7.1f}s "
+                f"samples={len(lt['entries']):3d} az={az:6.1f} maxdeg={max_ang:4.1f} {state}")
+        cache["classes"][str(class_id)] = cache_lifetimes
+        shown = sum(1 for l in all_lifetimes
+                    if l["cls"] == class_id and not l["suppressed"] and not l["tiny"])
+        print(f"Class {class_id} ({CLASS_NAMES[class_id]}): {len(lifetimes)} lifetimes, "
+              f"{shown} survive the {args.min_age}s debounce + {args.min_size_deg}° size gate "
+              "and are drawn bright.")
+
+    cache_path = out_dir / "lifetimes_cache.json"
+    cache_path.write_text(json.dumps(cache, separators=(",", ":")))
+    summary_path = out_dir / "lifetimes_summary.txt"
+    summary_path.write_text("\n".join(summary_lines) + "\n")
+    print(f"Cache -> {cache_path}\nSummary -> {summary_path}")
+
+    all_lifetimes.sort(key=lambda l: l["tStart"])
+
+    if args.sheets:
+        # Contact sheets of ONLY the lifetimes that actually render on the headset
+        # after both runtime gates, and aren't already covered by a bulk decision
+        # (<= 2 samples). These are the candidates that need a human eye.
+        reviewable = [l for l in all_lifetimes
+                      if not l["suppressed"] and not l["tiny"] and len(l["entries"]) > 2]
+        reviewable.sort(key=lambda l: (l["cls"], l["idx"]))
+        entries = [{
+            "idx": l["idx"], "t": l["rep_t"], "box": l["rep_box"],
+            "label": f"#{l['idx']} t={l['tStart']:.0f}-{l['tEnd']:.0f}s az={l['az']:.0f} "
+                     f"n={len(l['entries'])}",
+        } for l in reviewable]
+        sheets = build_contact_sheets(
+            entries, args.video, src_w, src_h,
+            pad_factor=2.5, min_crop_px=240, cell_px=320, per_sheet=24, cols=6,
+            out_dir=out_dir / "sheets", prefix="visible_class9",
+            crop_scratch_dir=out_dir / "crops")
+        print(f"{len(reviewable)} reviewable lifetimes -> {len(sheets)} contact sheet(s) "
+              f"in {out_dir / 'sheets'}")
+
+    if args.skip_video:
+        print("Video render skipped (--skip-video).")
+        return 0
+
+    font_px = max(12, out_w // 90)
+    try:
+        font = ImageFont.truetype("arial.ttf", font_px)
+    except OSError:
+        font = ImageFont.load_default()
+
+    start = args.start
+    end = samples[-1]["t"] + args.hold_seconds if args.duration is None \
+        else start + args.duration
+    n_frames = int((end - start) * args.fps)
+    frame_bytes = out_w * out_h * 3
+
+    decode = subprocess.Popen(
+        ["ffmpeg", "-v", "error", "-ss", f"{start:.3f}", "-i", str(args.video),
+         "-vf", f"fps={args.fps},scale={out_w}:{out_h}",
+         "-frames:v", str(n_frames), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        stdout=subprocess.PIPE)
+    out_mp4 = out_dir / "detections_preview.mp4"
+    encode = subprocess.Popen(
+        ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+         "-s", f"{out_w}x{out_h}", "-r", str(args.fps), "-i", "-",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+         "-pix_fmt", "yuv420p", str(out_mp4)],
+        stdin=subprocess.PIPE)
+
+    head = 0  # index of the first lifetime that can still be active at/after t
+    frame_idx = 0
+    while True:
+        raw = decode.stdout.read(frame_bytes)
+        if len(raw) < frame_bytes:
+            break
+        t = start + frame_idx / args.fps
+        img = Image.frombuffer("RGB", (out_w, out_h), raw, "raw", "RGB", 0, 1)
+        draw = ImageDraw.Draw(img)
+
+        while head < len(all_lifetimes) and \
+                all_lifetimes[head]["tEnd"] + args.hold_seconds < t:
+            head += 1
+        for lt in all_lifetimes[head:]:
+            if lt["tStart"] > t:
+                break
+            if not (lt["tStart"] <= t <= lt["tEnd"] + args.hold_seconds):
+                continue
+            x1, y1, x2, y2 = interpolate_box(lt["entry_times"], lt["entries"], t)
+            px1, py1 = x1 * out_w, y1 * out_h
+            px2, py2 = x2 * out_w, y2 * out_h
+            # Distant lights are a few pixels at preview scale — inflate the drawn
+            # rect to a spottable minimum (display only; mirrors the shader's own
+            # ~2 deg minimum halo radius, so tiny detections read like they do in
+            # the headset instead of vanishing).
+            min_px = out_w * 0.01
+            if px2 - px1 < min_px:
+                cx = (px1 + px2) * 0.5
+                px1, px2 = cx - min_px / 2, cx + min_px / 2
+            if py2 - py1 < min_px:
+                cy = (py1 + py2) * 0.5
+                py1, py2 = cy - min_px / 2, cy + min_px / 2
+            # Per-frame size gate, same as the runtime: even a lifetime that grows
+            # big later is grey while its current box is still under the gate.
+            cur_deg = max((x2 - x1) * 360.0, (y2 - y1) * 180.0)
+            if lt["suppressed"]:
+                color, width_px, tag = PREVIEW_SUPPRESSED, 1, " blip"
+            elif cur_deg < args.min_size_deg:
+                color, width_px, tag = PREVIEW_SUPPRESSED, 1, " tiny"
+            else:
+                color, width_px, tag = PREVIEW_COLORS[lt["cls"]], 3, ""
+            draw.rectangle([px1, py1, px2, py2], outline=color, width=width_px)
+            draw.text((px1, max(0, py1 - font_px - 2)),
+                      f"#{lt['idx']}{tag}", font=font, fill=color)
+
+        draw.text((8, 6), f"t={t:7.2f}s", font=font, fill=(255, 255, 0))
+        encode.stdin.write(img.tobytes())
+        frame_idx += 1
+        if frame_idx % (args.fps * 30) == 0:
+            print(f"  rendered up to t={t:.0f}s / {end:.0f}s")
+
+    encode.stdin.close()
+    decode.stdout.close()
+    decode.wait()
+    encode.wait()
+    if encode.returncode != 0:
+        print("ERROR: ffmpeg encoder failed.", file=sys.stderr)
+        return 1
+
+    print(f"\nPreview -> {out_mp4}\n"
+          "Scrub it (bright cyan = traffic-light window the headset WILL show, orange = stop\n"
+          "sign, dim grey 'blip' = suppressed by the runtime debounce, ignore those). Note the\n"
+          "#ids of boxes circling nothing, write a decisions file naming only those ids, then:\n"
+          f"  python Tools/triage_traffic_lights.py apply --cache {cache_path} --decisions <path>")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # apply
 # ---------------------------------------------------------------------------
 
@@ -487,6 +723,32 @@ def main() -> int:
     rp.add_argument("--crop-scratch-dir", type=Path, required=True,
                      help="scratch dir for individual per-lifetime crop PNGs before compositing")
     rp.set_defaults(func=cmd_review)
+
+    pv = sub.add_parser("preview")
+    pv.add_argument("--json", type=Path, default=DEFAULT_JSON)
+    pv.add_argument("--video", type=Path, default=DEFAULT_VIDEO)
+    pv.add_argument("--hold-seconds", type=float, default=0.5,
+                     help="must match VideoTestSceneManager.m_signDetHoldSec")
+    pv.add_argument("--min-age", type=float, default=0.6,
+                     help="must match VideoTestSceneManager.m_detectionMinAgeSec — lifetimes "
+                          "shorter than this are drawn dim grey (the headset won't show them)")
+    pv.add_argument("--min-size-deg", type=float, default=1.2,
+                     help="must match VideoTestSceneManager.m_detectionMinSizeDeg — boxes "
+                          "currently smaller than this are drawn dim grey ('tiny')")
+    pv.add_argument("--sheets", action="store_true",
+                     help="also write contact sheets of the lifetimes that survive both "
+                          "runtime gates with > 2 samples — the ones worth a human look")
+    pv.add_argument("--skip-video", action="store_true",
+                     help="skip the mp4 render (e.g. when only regenerating sheets/cache)")
+    pv.add_argument("--out-width", type=int, default=1600)
+    pv.add_argument("--fps", type=int, default=10)
+    pv.add_argument("--start", type=float, default=0.0,
+                     help="video time to start rendering from (smoke tests)")
+    pv.add_argument("--duration", type=float, default=None,
+                     help="seconds to render (default: whole video)")
+    pv.add_argument("--out-dir", type=Path, required=True,
+                     help="where to write detections_preview.mp4 + lifetimes cache/summary")
+    pv.set_defaults(func=cmd_preview)
 
     ap_p = sub.add_parser("apply")
     ap_p.add_argument("--cache", type=Path, required=True)

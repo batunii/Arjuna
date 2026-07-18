@@ -161,6 +161,10 @@ namespace PassthroughCameraSamples.ShaderSample
         [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeInSeconds = 0.2f;
         [Tooltip("How long (seconds) a detection's window/highlight takes to fade out after it vanishes/holds out.")]
         [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeOutSeconds = 0.5f;
+        [Tooltip("Debounce: a tracked detection only becomes visible once it has persisted this many seconds (i.e. survived 2+ YOLO inference frames). Single-inference-frame false positives otherwise ghost a ~1s window over nothing. Must exceed m_detectionLifetime (0.6) to fully suppress one-frame blips — below that they still flash partially before the track expires. 0 = off.")]
+        [SerializeField, Range(0f, 3f)] private float m_detectionMinAgeSec = 0.7f;
+        [Tooltip("Minimum apparent size (deg, max of az/el extent) a detection's box must currently have to be visible — a speck-sized box would be inflated to the shader's ~2° minimum halo, reading as a circle around nothing discernible. Same gate as VideoTestSceneManager. 0 = off.")]
+        [SerializeField, Range(0f, 5f)] private float m_detectionMinSizeDeg = 1.2f;
         [Tooltip("Scales the saliency-boost highlight down for detections OUTSIDE the active focus window — the window opening around the object is already enough there, so the extra pop stays subtle.")]
         [SerializeField, Range(0f, 1f)] private float m_detectionOutsideFocusScale = 0.35f;
 
@@ -249,7 +253,11 @@ namespace PassthroughCameraSamples.ShaderSample
         // same nearest-centre matching heuristic used by VideoTestSceneManager is applied
         // here too — that's what lets `presence` ramp smoothly per real object instead of
         // per array slot (slot indices aren't stable frame to frame otherwise).
-        private struct TrackedDet { public Vector4 rect; public float lastSeenTime; public float presence; }
+        // `firstSeenTime` gates visibility on track age (m_detectionMinAgeSec) — same debounce
+        // as VideoTestSceneManager: a detection that doesn't persist past the min age never
+        // ramps presence above 0, so single-inference-frame YOLO false positives never flash
+        // a window/highlight at all.
+        private struct TrackedDet { public Vector4 rect; public float firstSeenTime; public float lastSeenTime; public float presence; }
         private readonly List<TrackedDet> m_trackedDets = new();
 
         private Material m_material;
@@ -1269,11 +1277,11 @@ namespace PassthroughCameraSamples.ShaderSample
                 float dy = (tr.rect.z + tr.rect.w) * 0.5f - cy;
                 if (Mathf.Sqrt(dx * dx + dy * dy) < thresh)
                 {
-                    m_trackedDets[i] = new TrackedDet { rect = rect, lastSeenTime = now, presence = tr.presence };
+                    m_trackedDets[i] = new TrackedDet { rect = rect, firstSeenTime = tr.firstSeenTime, lastSeenTime = now, presence = tr.presence };
                     return;
                 }
             }
-            m_trackedDets.Add(new TrackedDet { rect = rect, lastSeenTime = now, presence = 0f });
+            m_trackedDets.Add(new TrackedDet { rect = rect, firstSeenTime = now, lastSeenTime = now, presence = 0f });
         }
 
         private void UpdateDetectionUniforms()
@@ -1287,9 +1295,19 @@ namespace PassthroughCameraSamples.ShaderSample
             {
                 var tr = m_trackedDets[i];
                 bool active = !StudyEffectSuppressed && now - tr.lastSeenTime <= m_detectionLifetime;
-                float rate = active ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
-                                     : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
-                tr.presence = Mathf.MoveTowards(tr.presence, active ? 1f : 0f, rate * Time.deltaTime);
+                // Debounce: an active track still shows nothing until it has survived
+                // m_detectionMinAgeSec — a false positive whose lifetime expires before it
+                // matures fades from 0 to 0, i.e. never appears.
+                // Size gate: rect is az/el in radians — stay silent while the object is
+                // still too small to actually see (the shader would inflate it to a ~2°
+                // minimum halo around nothing).
+                float sizeDeg = Mathf.Max(tr.rect.y - tr.rect.x, tr.rect.w - tr.rect.z) * Mathf.Rad2Deg;
+                bool visible = active
+                               && now - tr.firstSeenTime >= m_detectionMinAgeSec
+                               && sizeDeg >= m_detectionMinSizeDeg;
+                float rate = visible ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
+                                      : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
+                tr.presence = Mathf.MoveTowards(tr.presence, visible ? 1f : 0f, rate * Time.deltaTime);
                 m_trackedDets[i] = tr;
             }
             m_trackedDets.RemoveAll(tr => now - tr.lastSeenTime > m_detectionLifetime && tr.presence <= 0.001f);

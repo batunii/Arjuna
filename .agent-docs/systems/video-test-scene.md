@@ -40,6 +40,65 @@ boost; other red/orange/green-ish pixels (neon signs, ads, brake lights) fall ba
 gap dims a real signal instead of hiding it. `m_signDetHoldSec` (default 0.5s) holds a detection
 after it vanishes from the bake so pops don't blink between samples.
 
+**Lifetime-aware blip filter (`m_detectionMinAgeSec`, default 0.6s — reworked 2026-07-18):** at
+load, `BuildRuntimeLifetimeSpans()` walks the baked track once (same identity heuristic as the
+live tracker) and stamps every entry with its object's full `(tStart, tEnd)` lifetime
+(`m_entryLifeSpan`). A track is visible only if that full lifetime ≥ `m_detectionMinAgeSec` —
+decided the INSTANT the object first appears (the future is known offline), so real detections
+have zero onset delay while single-sample YOLO blips (62% of the pre-scrub bake, 408/654
+traffic-light lifetimes) never appear. This replaced two earlier attempts: a real-time wait
+debounce (every window formed 0.6s late) and a lead-time lookup shift (`m_detectionLeadSec`,
+now REMOVED — it drew boxes at future positions, visibly ahead of moving objects). The hold is
+also skipped once a track's known lifetime end passes, so windows close on just the fade-out.
+`CameraSphereVignetteManager` keeps a real-time wait debounce for its live-YOLO tracker (default
+0.7 — the future genuinely isn't known there; must exceed its `m_detectionLifetime` 0.6).
+
+**Detection-window grading (added 2026-07-18):** `_DetectionSatLift` / `_DetectionBrightLift` /
+`_DetectionContrast` replace the shader's hardcoded 0.5/0.12 saturation/brightness lift and add
+mid-grey contrast expansion, all scaled by `_DetectionEnhance` + the breathing pulse. Shader
+property defaults keep the legacy look; `VideoTestSceneManager` exposes them in the Inspector
+with raised defaults (0.85 / 0.18 / 0.2) for a more vivid detected region.
+
+**Persons are exempt from the size gate only** — the lifetime filter applies to them too, and
+since visibility is decided from the precomputed lifetime, person windows open right when the
+person appears. **The person gate now tests the *effective* window**
+(`m_effectiveRect`): the painted rect when one exists, else the pop-mode gaze auto-follow rect —
+previously the gaze rect only reached the shader, so with nothing painted `PassesPersonGate`
+failed closed and persons were **never** highlighted in free-play/`TestModeSequencer` SignPop
+(the root cause of "blobs form on humans but the humans aren't highlighted"; the blob pool also
+now applies the gate's ≥ 6° box-height "close" criterion at selection —
+`BlobTargetController.ComputeBoxHeightDeg`). Note `m_detectionLifetime` is live-YOLO-only and
+inert in the baked path (slot timestamps refresh every frame); persistence is tuned via hold /
+fades / min-age / lead. Person windows also get a **graded strength** (`PersonRegionScale`,
+multiplied into the per-slot `_DetectionFade`): floor `m_personInsideScale` (0.25) at the window
+**centre**, ramping linearly (rect-normalized centre→edge distance) to full at the window edge,
+full while entering/leaving near the edge, tapering to zero by `m_personMaxEdgeDistDeg` outside
+(**25°**, raised 2026-07-18 from the original 8° — at 8° the gate zeroed 77% of close peripheral
+persons in the study bake, which read as "people never highlighted"; 25° covers ~52%). The person
+concept is deliberately **near-region** ("about to enter / leaving / standing near the selected
+region"), not all-periphery. Blob person selection is aligned to this: candidates must have
+predicted strength ≥ `m_personMinPredictedStrength` (0.7) via the public
+`VideoTestSceneManager.PersonPredictedStrength` at the lifetime midpoint (window must be locked
+before `Activate` — `TestModeSequencer` does). `StudySetWindow`/`StudyClearWindow` are
+null-guarded (scene-switch entries call them before `Start()` creates the material; `Start()`
+re-pushes `m_activeRect`). Note: the shader's `_DetectionOutsideScale` still damps the
+*highlight* component for out-of-window detections; the carve-out follows the graded profile at
+full strength.
+
+**Data-scrub history (2026-07-18):** beyond the relevance triage, all 43 two-sample "flasher"
+traffic-light lifetimes (86 raw entries) were removed from `study_video.detections.json` after a
+full visual contact-sheet review found zero persistent false positives among the ≥3-sample
+lifetimes — every surviving rendered lifetime is a human-verified real traffic light. Person
+entries untouched (10,987 before and after). Snapshot/sidecar/log in `Tools/detections_backups/`
+and `Builds/StudyVideo/study_video.detections.flashers_removed_2026-07-18.json`.
+
+**Hunting the surviving persistent false positives:** `Tools/triage_traffic_lights.py preview`
+renders one annotated MP4 of the whole video (boxes lerped exactly like the runtime tracker,
+lifetime IDs burned in, debounce-suppressed blips drawn dim grey) plus an `apply`-compatible
+cache where every lifetime defaults to *keep* — scrub it on desktop, note the IDs circling
+nothing, name only those in a decisions file, `apply` removes them. Replaces recording the
+headset and eyeballing frame dumps.
+
 Only 4 modes are live in the free-play A-button cycle (`k_modeCycle`): ColorPop, SignPop,
 SoftDark, HardDark — the study proper only uses ColorPop/SoftDark/HardDark; SignPop is a
 free-play/demo mode (and now also used by `TestModeSequencer`'s mode 1).

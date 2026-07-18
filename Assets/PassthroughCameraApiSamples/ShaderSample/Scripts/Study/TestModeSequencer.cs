@@ -73,6 +73,12 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField, Range(0.5f, 3f)] private float m_uiDistance = 1.5f;
         [SerializeField, Range(0f, 30f)]  private float m_uiDropDeg = 12f;
 
+        [Header("Video-mode focus window (locked, identical across modes 1 & 2)")]
+        [Tooltip("Lock a fixed 'windscreen' focus window around video-forward on entry to every video mode. Without this nothing is ever painted in the test harness, so SignPop falls back to gaze auto-follow — the person gate/grading then depends on where the participant happens to look, an uncontrolled variable in the mode-1-vs-2 comparison (and the supervisor's point 4: window geometry should be constant during evaluation). Same window in the no-filter mode too (invisible there), so procedure and geometry are identical in both arms.")]
+        [SerializeField] private bool m_lockVideoWindow = true;
+        [SerializeField, Range(5f, 80f)] private float m_videoWindowHalfWidthDeg = 25f;
+        [SerializeField, Range(5f, 60f)] private float m_videoWindowHalfHeightDeg = 15f;
+
         private int m_index = -1;
         private bool m_active;
         private IStudyVignetteControl m_control;
@@ -180,7 +186,19 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
             // Blob targets are a video-scene-only mechanic (modes 1 & 2) — same random set
             // both times, independent hit/miss results per mode (see BlobTargetController).
-            if (entry.stage == TestStage.VideoScene) m_blobs.Activate(entry.label);
+            if (entry.stage == TestStage.VideoScene)
+            {
+                // Lock the fixed windscreen window BEFORE activating blobs, so the person
+                // gate/grading runs against constant geometry in both video modes instead
+                // of the gaze-follow fallback.
+                if (m_lockVideoWindow)
+                {
+                    float halfW = m_videoWindowHalfWidthDeg * Mathf.Deg2Rad;
+                    float halfH = m_videoWindowHalfHeightDeg * Mathf.Deg2Rad;
+                    m_control.StudySetWindow(new Vector4(-halfW, halfW, -halfH, halfH));
+                }
+                m_blobs.Activate(entry.label);
+            }
             else m_blobs.Deactivate();
 
             ShowInstructions(entry);

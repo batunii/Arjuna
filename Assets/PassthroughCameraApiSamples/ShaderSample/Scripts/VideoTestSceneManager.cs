@@ -141,33 +141,58 @@ namespace PassthroughCameraSamples.ShaderSample
         [Header("Person Detection")]
         [Tooltip("Minimum apparent box height (deg) for a detected person to count as 'close' — bigger box = closer. " +
                  "This is a box-size proxy for distance: the bake is monocular/offline with no depth sensor, and " +
-                 "YOLO11 has no built-in distance estimation, so apparent size is the practical signal. Tune live; " +
+                 "YOLO11 has no built-in distance estimation, so apparent size is the practical signal. Rough " +
+                 "mapping for a ~1.7 m person: 6° ≈ within ~16 m, 3° ≈ within ~32 m, 2° ≈ within ~49 m. Tune live; " +
                  "no re-bake needed.")]
-        [SerializeField, Range(0f, 30f)] private float m_personMinBoxHeightDeg = 6f;
+        [SerializeField, Range(0f, 30f)] private float m_personMinBoxHeightDeg = 3f;
         [Tooltip("Maximum angular distance (deg) OUTSIDE the focus window for a close-enough person to still " +
-                 "count as entering/exiting it. Only matters when the person is outside the window — a close-" +
-                 "enough person already INSIDE the window is always shown, regardless of this value. No region " +
-                 "active = no persons shown (undefined 'edge').")]
-        [SerializeField, Range(0f, 30f)] private float m_personMaxEdgeDistDeg = 8f;
+                 "count as near the region (about to enter / leaving / standing near). Only matters when the " +
+                 "person is outside the window — a close-enough person already INSIDE the window is always " +
+                 "shown, regardless of this value. No region active = no persons shown (undefined 'edge'). " +
+                 "Also the end of the graded strength taper: full effect near the edge, zero at this distance. " +
+                 "Measured on the study bake, 25° covers ~52% of close peripheral persons (8° covered only ~23%).")]
+        [SerializeField, Range(0f, 60f)] private float m_personMaxEdgeDistDeg = 25f;
+        [Tooltip("Graded person-effect floor at the window CENTRE: strength ramps linearly from this floor at " +
+                 "dead-centre up to full (1) at the window edge, staying full outside until the reach taper — " +
+                 "so the emphasis relaxes only when the person is actually in front of the user, and grows " +
+                 "again as they drift toward the edge or leave.")]
+        [SerializeField, Range(0f, 1f)] private float m_personInsideScale = 0.25f;
 
         [Header("YOLO Detection")]
         [Tooltip("Drag the YoloRunner component here; it will read from the video RenderTexture instead of the passthrough camera.")]
         [SerializeField] private YoloRunner m_yoloRunner;
+        [Tooltip("Live-YOLO fallback only: how long a detection slot stays lit after inference last reported it. The BAKED track path (what this scene normally runs) refreshes slot timestamps every frame and expires tracks through the tracker instead, so this knob has NO visible effect there — tune m_signDetHoldSec, the detection fade in/out, and m_detectionMinAgeSec instead.")]
         [SerializeField] private float      m_detectionLifetime = 0.6f;
         [Tooltip("Flip detection box Y. Toggle if detected zones appear at mirror-image elevations.")]
         [SerializeField] private bool       m_yoloFlipY = true;
         [Tooltip("Soft edge on detection clear zones (degrees).")]
         [SerializeField, Range(0f, 10f)] private float m_detectionSoftEdgeDeg = 3f;
         [Tooltip("Saturation/brightness boost on detected objects (0=clear only, 1=vivid).")]
-        [SerializeField, Range(0f, 1f)]  private float m_detectionEnhance = 0.4f;
+        [SerializeField, Range(0f, 1f)]  private float m_detectionEnhance = 0.8f;
         [Tooltip("How much the annulus around a detected object is darkened (center-surround contrast).")]
         [SerializeField, Range(0f, 0.5f)] private float m_detectionSurround = 0.15f;
         [Tooltip("Amplitude of the gentle ~1 Hz breathing on the object boost (0 = static).")]
         [SerializeField, Range(0f, 1f)] private float m_detectionPulseAmp = 0.25f;
+        [Header("Detection Timing")]
         [Tooltip("How long (seconds) a detection's window/highlight takes to fade in when it first appears. Quick, so the effect still feels responsive.")]
         [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeInSeconds = 0.2f;
         [Tooltip("How long (seconds) a detection's window/highlight takes to fade out after it vanishes/holds out — gentler than fade-in so it doesn't snap away.")]
         [SerializeField, Range(0.02f, 2f)] private float m_detectionFadeOutSeconds = 0.5f;
+        [Tooltip("Delay window opening this many seconds AFTER the object first appears on screen (0 = open instantly). Visibility-envelope only: box positions always track the current frame, so this can never draw a window ahead of the object.")]
+        [SerializeField, Range(0f, 1.5f)] private float m_detectionOnsetDelaySec = 0f;
+        [Tooltip("Keep the window open this many seconds AFTER the object's known lifetime ends (box holds its last position, then the fade-out follows). 0 = start fading the moment the object is gone.")]
+        [SerializeField, Range(0f, 1.5f)] private float m_detectionHoldPastEndSec = 0f;
+        [Tooltip("Minimum FULL baked lifetime (seconds) a detection's real-world object must have for its window to ever show. Evaluated against the lifetime spans precomputed at load — the whole future is known offline — so real detections appear the INSTANT they arrive (no onset delay, no position lead) while single-sample YOLO blips never appear at all. 0.6 requires 2+ consecutive bake samples. 0 = off.")]
+        [SerializeField, Range(0f, 3f)] private float m_detectionMinAgeSec = 0.6f;
+        [Header("Detection Window Grading")]
+        [Tooltip("Extra saturation inside detection windows: how far colours are pushed past natural (0 = the old subtle lift, higher = vivid). Scaled by Detection Colour Boost and the breathing pulse.")]
+        [SerializeField, Range(0f, 2f)] private float m_detectionSatLift = 0.85f;
+        [Tooltip("Brightness lift inside detection windows (fraction, scaled by Detection Colour Boost).")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionBrightLift = 0.18f;
+        [Tooltip("Contrast expansion around mid-grey inside detection windows (0 = none, scaled by Detection Colour Boost).")]
+        [SerializeField, Range(0f, 1f)] private float m_detectionContrast = 0.2f;
+        [Tooltip("Minimum apparent size (deg, max of az/el extent) a detection's box must currently have to be visible. The shader inflates every detection to a ~2° minimum halo so distant lights stay noticeable — but below ~1.2° the object itself is still a speck, so the inflated circle reads as a window opening over nothing. Measured on the current bake, 33 of the 246 post-debounce traffic-light lifetimes never exceed 1.2°. Gated per-frame on the current box, so the window still appears naturally once an approaching light grows past the gate. Persons are exempt (PassesPersonGate already requires close/large boxes). 0 = off.")]
+        [SerializeField, Range(0f, 5f)] private float m_detectionMinSizeDeg = 1.2f;
         [Tooltip("Scales the saliency-boost highlight (colour/brightness lift + surround dim) down for detections OUTSIDE the active focus window — the window opening around the object is already enough there, so the extra pop stays subtle. Detections INSIDE the window, or when no window is active, always get full strength; this only softens the periphery case.")]
         [SerializeField, Range(0f, 1f)] private float m_detectionOutsideFocusScale = 0.35f;
 
@@ -199,6 +224,9 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_detectionPulseAmpId   = Shader.PropertyToID("_DetectionPulseAmp");
         private static readonly int s_detectionFadeId          = Shader.PropertyToID("_DetectionFade");
         private static readonly int s_detectionOutsideScaleId  = Shader.PropertyToID("_DetectionOutsideScale");
+        private static readonly int s_detectionSatLiftId       = Shader.PropertyToID("_DetectionSatLift");
+        private static readonly int s_detectionBrightLiftId    = Shader.PropertyToID("_DetectionBrightLift");
+        private static readonly int s_detectionContrastId      = Shader.PropertyToID("_DetectionContrast");
         private static readonly int s_suppressDetectionWindowsId = Shader.PropertyToID("_SuppressDetectionWindows");
         private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
         private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
@@ -260,6 +288,12 @@ namespace PassthroughCameraSamples.ShaderSample
         private const float   k_dotDistance = 4f;
 
         private Vector4 m_activeRect = k_fullSphere;
+        // The window the person gate/grading actually tests against: the painted rect when
+        // one exists, else the pop-mode gaze auto-follow rect (which previously only reached
+        // the shader — so with nothing painted, m_activeRect stayed full-sphere and
+        // PassesPersonGate failed closed: persons were NEVER highlighted in free-play/
+        // TestModeSequencer SignPop. Now the gaze window counts as "the region".)
+        private Vector4 m_effectiveRect = k_fullSphere;
         private VideoDetectionTrack m_bakedTrack;
 
         private float     m_vignetteStrength = 1f;
@@ -302,9 +336,18 @@ namespace PassthroughCameraSamples.ShaderSample
         // and toward 0 once the hold window expires, so the "window" around a detection
         // opens/closes smoothly instead of popping. Only removed from the list once it has
         // fully faded out (presence <= 0), not the instant the hold window expires.
-        private struct TrackedDet { public Vector4 box; public int cls; public float lastSeenVt; public float presence; }
+        // `lifeStart`/`lifeEnd` are the full baked lifetime of the real-world object this
+        // track belongs to, precomputed at load (BuildRuntimeLifetimeSpans) — visibility is
+        // decided from them instantly (lifetime >= m_detectionMinAgeSec shows from its first
+        // frame; a blip never shows), replacing the old wait-out-the-debounce approach whose
+        // lead-time compensation drew boxes at future positions, ahead of the object.
+        private struct TrackedDet { public Vector4 box; public int cls; public float lifeStart; public float lifeEnd; public float lastSeenVt; public float presence; }
         private readonly List<TrackedDet> m_trackedDets = new();
         private float m_lastVideoVt = -1f;
+        // [sampleIdx][detIdx] = (lifetime start, lifetime end) of the real-world object the
+        // detection belongs to — precomputed once at load (BuildRuntimeLifetimeSpans), same
+        // identity heuristic as the tracker. Only filled for k_targetClasses entries.
+        private Vector2[][] m_entryLifeSpan;
 
         // ---- Study/BlobTargetController support ----
 
@@ -405,6 +448,86 @@ namespace PassthroughCameraSamples.ShaderSample
         /// with "where the box would have been".</summary>
         public Vector4 DetectionBoxToAzElRect(Vector4 box) => BoxToAzElRectEQ(box, Vector2Int.one);
 
+        // Precompute every target-class detection's full lifetime (same identity heuristic as
+        // the live tracker: same class, nearest centre within a size-scaled radius, closed
+        // after m_signDetHoldSec unseen) and stamp (tStart, tEnd) onto each raw entry — the
+        // tracker then decides visibility the moment an object first appears, from its whole
+        // (offline-known) future instead of waiting out a real-time debounce.
+        private void BuildRuntimeLifetimeSpans()
+        {
+            var samples = m_bakedTrack.samples;
+            m_entryLifeSpan = new Vector2[samples.Count][];
+            var open = new List<OpenSpanTrack>();
+            var closed = new List<OpenSpanTrack>();
+            for (int i = 0; i < samples.Count; i++)
+            {
+                var s = samples[i];
+                m_entryLifeSpan[i] = new Vector2[s.d.Count];
+                float t = s.t;
+
+                var matched = new HashSet<int>();
+                foreach (var tr in open)
+                {
+                    int bestJ = -1;
+                    float bestDist = Mathf.Max(tr.sz, 0.01f) * 1.5f;
+                    for (int j = 0; j < s.d.Count; j++)
+                    {
+                        var d = s.d[j];
+                        if (matched.Contains(j) || d.c != tr.cls) continue;
+                        float cx = (d.x1 + d.x2) * 0.5f, cy = (d.y1 + d.y2) * 0.5f;
+                        float dist = Mathf.Sqrt((cx - tr.cx) * (cx - tr.cx) + (cy - tr.cy) * (cy - tr.cy));
+                        if (dist < bestDist) { bestDist = dist; bestJ = j; }
+                    }
+                    if (bestJ >= 0)
+                    {
+                        matched.Add(bestJ);
+                        var d = s.d[bestJ];
+                        tr.cx = (d.x1 + d.x2) * 0.5f; tr.cy = (d.y1 + d.y2) * 0.5f;
+                        tr.sz = Mathf.Max(d.x2 - d.x1, d.y2 - d.y1);
+                        tr.tLast = t;
+                        tr.entries.Add((i, bestJ));
+                    }
+                }
+
+                for (int k = open.Count - 1; k >= 0; k--)
+                {
+                    if (t - open[k].tLast > m_signDetHoldSec)
+                    {
+                        closed.Add(open[k]);
+                        open.RemoveAt(k);
+                    }
+                }
+
+                for (int j = 0; j < s.d.Count; j++)
+                {
+                    if (matched.Contains(j)) continue;
+                    var d = s.d[j];
+                    if (k_targetClasses != null && !k_targetClasses.Contains(d.c)) continue;
+                    var tr = new OpenSpanTrack
+                    {
+                        cls = d.c,
+                        cx = (d.x1 + d.x2) * 0.5f, cy = (d.y1 + d.y2) * 0.5f,
+                        sz = Mathf.Max(d.x2 - d.x1, d.y2 - d.y1),
+                        tStart = t, tLast = t,
+                    };
+                    tr.entries.Add((i, j));
+                    open.Add(tr);
+                }
+            }
+            closed.AddRange(open);
+            foreach (var tr in closed)
+                foreach (var (si, di) in tr.entries)
+                    m_entryLifeSpan[si][di] = new Vector2(tr.tStart, tr.tLast);
+        }
+
+        private class OpenSpanTrack
+        {
+            public int cls;
+            public float cx, cy, sz;
+            public float tStart, tLast;
+            public List<(int si, int di)> entries = new();
+        }
+
         // ---- lifecycle ----
 
         private void Start()
@@ -480,6 +603,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 yield return VideoDetectionTrack.Load(path, tr => m_bakedTrack = tr);
                 if (m_bakedTrack != null && m_bakedTrack.samples.Count > 0)
                 {
+                    BuildRuntimeLifetimeSpans();
                     Debug.Log($"[VideoTestScene] Using baked detection track " +
                               $"({m_bakedTrack.samples.Count} samples @ {m_bakedTrack.interval}s).");
                     yield break;
@@ -800,20 +924,64 @@ namespace PassthroughCameraSamples.ShaderSample
         // "the region" is undefined without one.
         private bool PassesPersonGate(Vector4 azElRect)
         {
-            if (m_activeRect == k_fullSphere) return false;
+            if (m_effectiveRect == k_fullSphere) return false;
 
             float heightDeg = (azElRect.w - azElRect.z) * Mathf.Rad2Deg;
             if (heightDeg < m_personMinBoxHeightDeg) return false;
 
             float cx = (azElRect.x + azElRect.y) * 0.5f;
             float cy = (azElRect.z + azElRect.w) * 0.5f;
-            float dxOutside = Mathf.Max(0f, m_activeRect.x - cx, cx - m_activeRect.y);
-            float dyOutside = Mathf.Max(0f, m_activeRect.z - cy, cy - m_activeRect.w);
+            float dxOutside = Mathf.Max(0f, m_effectiveRect.x - cx, cx - m_effectiveRect.y);
+            float dyOutside = Mathf.Max(0f, m_effectiveRect.z - cy, cy - m_effectiveRect.w);
             if (dxOutside <= 0f && dyOutside <= 0f) return true; // inside the window: always shown
 
             // Outside the window: only near enough to the boundary to read as entering/exiting.
             float edgeDistRad = Mathf.Sqrt(dxOutside * dxOutside + dyOutside * dyOutside);
             return edgeDistRad * Mathf.Rad2Deg <= m_personMaxEdgeDistDeg;
+        }
+
+        // Graded person-effect strength by position relative to the focus window: floor at
+        // the window CENTRE ramping to full at the edge (relax only when the person is
+        // actually in front of the user), full while entering/leaving near the edge, then
+        // tapering to zero by m_personMaxEdgeDistDeg outside. Multiplied into the per-slot
+        // fade so the whole effect (carve-out + highlight) breathes with position.
+        private float PersonRegionScale(Vector4 azElRect) =>
+            PersonRegionScaleFor(azElRect, m_effectiveRect);
+
+        /// <summary>Predicted person-effect strength for a box against the CURRENT painted
+        /// window (falls back to the frame's effective window). Public so BlobTargetController
+        /// can select person targets the runtime will actually visibly highlight — call it
+        /// after the window is locked (TestModeSequencer locks before activating blobs).</summary>
+        public float PersonPredictedStrength(Vector4 azElRect) =>
+            PersonRegionScaleFor(azElRect, m_activeRect != k_fullSphere ? m_activeRect : m_effectiveRect);
+
+        private float PersonRegionScaleFor(Vector4 azElRect, Vector4 window)
+        {
+            if (window == k_fullSphere) return 1f;
+            float cx = (azElRect.x + azElRect.y) * 0.5f;
+            float cy = (azElRect.z + azElRect.w) * 0.5f;
+            float dx = Mathf.Max(window.x - cx, cx - window.y);
+            float dy = Mathf.Max(window.z - cy, cy - window.w);
+            if (dx <= 0f && dy <= 0f)
+            {
+                // Inside: rect-normalized distance from window centre — 0 dead-centre,
+                // 1 at the edge — so "in front" means literally central, independent of
+                // how big the window is.
+                float winCx = (window.x + window.y) * 0.5f;
+                float winCy = (window.z + window.w) * 0.5f;
+                float halfW = Mathf.Max((window.y - window.x) * 0.5f, 1e-4f);
+                float halfH = Mathf.Max((window.w - window.z) * 0.5f, 1e-4f);
+                float tEdge = Mathf.Max(Mathf.Abs(cx - winCx) / halfW,
+                                        Mathf.Abs(cy - winCy) / halfH);
+                return Mathf.Lerp(m_personInsideScale, 1f, Mathf.Clamp01(tEdge));
+            }
+            // Outside: full strength near the edge, linear taper to zero at the gate's
+            // own acceptance limit (m_personMaxEdgeDistDeg), starting halfway out.
+            float outDeg = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
+                                    + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f)) * Mathf.Rad2Deg;
+            float taperStart = m_personMaxEdgeDistDeg * 0.5f;
+            return 1f - Mathf.Clamp01((outDeg - taperStart)
+                                      / Mathf.Max(m_personMaxEdgeDistDeg - taperStart, 0.01f));
         }
 
         // Drive detection slots from the baked track, keyed by video time.
@@ -834,8 +1002,9 @@ namespace PassthroughCameraSamples.ShaderSample
                 float frac = s1 != null && s1.t > s0.t
                     ? Mathf.Clamp01((vt - s0.t) / (s1.t - s0.t)) : 0f;
 
-                foreach (var det in s0.d)
+                for (int j = 0; j < s0.d.Count; j++)
                 {
+                    var det = s0.d[j];
                     if (k_targetClasses != null && !k_targetClasses.Contains(det.c)) continue;
                     var box = new Vector4(det.x1, det.y1, det.x2, det.y2);
                     if (s1 != null)
@@ -847,7 +1016,10 @@ namespace PassthroughCameraSamples.ShaderSample
                     }
                     if (det.c == k_personClassId && !PassesPersonGate(BoxToAzElRectEQ(box, Vector2Int.one)))
                         continue;
-                    UpsertTracked(box, det.c, vt);
+                    // The entry's full baked lifetime, precomputed at load — lets the tracker
+                    // decide visibility instantly instead of waiting out a real-time debounce.
+                    Vector2 span = m_entryLifeSpan != null ? m_entryLifeSpan[i0][j] : new Vector2(0f, float.MaxValue);
+                    UpsertTracked(box, det.c, vt, span);
                 }
             }
 
@@ -857,10 +1029,28 @@ namespace PassthroughCameraSamples.ShaderSample
             for (int i = 0; i < m_trackedDets.Count; i++)
             {
                 var tr = m_trackedDets[i];
-                bool active = vt - tr.lastSeenVt <= m_signDetHoldSec;
-                float rate = active ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
-                                     : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
-                tr.presence = Mathf.MoveTowards(tr.presence, active ? 1f : 0f, rate * Time.deltaTime);
+                // Hold bridges mid-lifetime bake gaps; once the KNOWN lifetime end passes,
+                // the window stays open only for the explicit user-tunable tail
+                // (m_detectionHoldPastEndSec, box frozen at its last position), then fades.
+                bool withinLife = vt <= tr.lifeEnd + 0.001f;
+                bool inEndTail  = !withinLife && vt <= tr.lifeEnd + m_detectionHoldPastEndSec + 0.001f;
+                bool active = (withinLife && vt - tr.lastSeenVt <= m_signDetHoldSec) || inEndTail;
+                // Blip filter + onset delay: visibility requires the object's FULL baked
+                // lifetime (known offline) to reach m_detectionMinAgeSec — a real detection
+                // shows m_detectionOnsetDelaySec after it arrives (0 = instantly), a blip
+                // never shows at all. No waiting-out-a-debounce, no position lead.
+                bool mature = tr.lifeEnd - tr.lifeStart >= m_detectionMinAgeSec
+                              && vt - tr.lifeStart >= m_detectionOnsetDelaySec;
+                // Size gate: a speck-sized box would be inflated to the shader's ~2° minimum
+                // halo — a visible circle around nothing discernible — so stay silent until
+                // the object is actually big enough to see. Boxes are normalized equirect:
+                // az extent spans 360°, el extent 180°.
+                float sizeDeg = Mathf.Max((tr.box.z - tr.box.x) * 360f, (tr.box.w - tr.box.y) * 180f);
+                bool bigEnough = tr.cls == k_personClassId || sizeDeg >= m_detectionMinSizeDeg;
+                bool visible = active && mature && bigEnough;
+                float rate = visible ? 1f / Mathf.Max(m_detectionFadeInSeconds, 0.001f)
+                                      : 1f / Mathf.Max(m_detectionFadeOutSeconds, 0.001f);
+                tr.presence = Mathf.MoveTowards(tr.presence, visible ? 1f : 0f, rate * Time.deltaTime);
                 m_trackedDets[i] = tr;
             }
             m_trackedDets.RemoveAll(tr => vt - tr.lastSeenVt > m_signDetHoldSec && tr.presence <= 0.001f);
@@ -872,7 +1062,9 @@ namespace PassthroughCameraSamples.ShaderSample
                 // Boxes are stored normalized — inputSize (1,1) reuses the same conversion.
                 m_detectionRects[slot]      = BoxToAzElRectEQ(tr.box, Vector2Int.one);
                 m_detectionTimestamps[slot] = Time.time;
-                m_detectionFade[slot]       = tr.presence;
+                m_detectionFade[slot]       = tr.cls == k_personClassId
+                    ? tr.presence * PersonRegionScale(m_detectionRects[slot])
+                    : tr.presence;
                 slot++;
             }
             // Expire unused tail slots so the count drops immediately instead of
@@ -903,7 +1095,7 @@ namespace PassthroughCameraSamples.ShaderSample
             return found;
         }
 
-        private void UpsertTracked(Vector4 box, int cls, float vt)
+        private void UpsertTracked(Vector4 box, int cls, float vt, Vector2 span)
         {
             float cx = (box.x + box.z) * 0.5f, cy = (box.y + box.w) * 0.5f;
             float size = Mathf.Max(box.z - box.x, box.w - box.y);
@@ -916,11 +1108,11 @@ namespace PassthroughCameraSamples.ShaderSample
                 float dy = (tr.box.y + tr.box.w) * 0.5f - cy;
                 if (Mathf.Sqrt(dx * dx + dy * dy) < thresh)
                 {
-                    m_trackedDets[i] = new TrackedDet { box = box, cls = cls, lastSeenVt = vt, presence = tr.presence };
+                    m_trackedDets[i] = new TrackedDet { box = box, cls = cls, lifeStart = span.x, lifeEnd = span.y, lastSeenVt = vt, presence = tr.presence };
                     return;
                 }
             }
-            m_trackedDets.Add(new TrackedDet { box = box, cls = cls, lastSeenVt = vt, presence = 0f });
+            m_trackedDets.Add(new TrackedDet { box = box, cls = cls, lifeStart = span.x, lifeEnd = span.y, lastSeenVt = vt, presence = 0f });
         }
 
         private void UpdateDetectionUniforms()
@@ -946,6 +1138,9 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_detectionSurroundId, m_detectionSurround);
             m_material.SetFloat(s_detectionPulseAmpId, m_detectionPulseAmp);
             m_material.SetFloat(s_detectionOutsideScaleId, m_detectionOutsideFocusScale);
+            m_material.SetFloat(s_detectionSatLiftId,    m_detectionSatLift);
+            m_material.SetFloat(s_detectionBrightLiftId, m_detectionBrightLift);
+            m_material.SetFloat(s_detectionContrastId,   m_detectionContrast);
         }
 
         // EQ box → az/el rect.
@@ -1023,6 +1218,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         public VignetteMode CurrentMode => m_vignetteMode;
         public Vector4 ActiveRect => m_activeRect;
+        public float PersonMinBoxHeightDeg => m_personMinBoxHeightDeg;
         public float DefaultWindowHalfWidthDeg => m_defaultWindowHalfWidthDeg;
         public float CurrentEffectiveStrength { get; private set; }
         public bool StudyInputLock { get; set; }
@@ -1080,7 +1276,10 @@ namespace PassthroughCameraSamples.ShaderSample
         public void StudySetWindow(Vector4 azElRadians)
         {
             m_activeRect = azElRadians;
-            m_material.SetVector(s_focusRectId, m_activeRect);
+            // Null-guard: TestModeSequencer calls this from OnSceneLoaded, which fires
+            // BEFORE this manager's Start() creates m_material — Start() pushes
+            // m_activeRect to the material itself, so skipping the SetVector here is safe.
+            if (m_material != null) m_material.SetVector(s_focusRectId, m_activeRect);
             m_isPainting = false;
             CancelDotHide();
             HideCornerDotsImmediate();
@@ -1089,7 +1288,7 @@ namespace PassthroughCameraSamples.ShaderSample
         public void StudyClearWindow()
         {
             m_activeRect = k_fullSphere;
-            m_material.SetVector(s_focusRectId, m_activeRect);
+            if (m_material != null) m_material.SetVector(s_focusRectId, m_activeRect);
             m_isPainting = false;
             CancelDotHide();
             HideCornerDotsImmediate();
@@ -1236,7 +1435,11 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_suppressDetectionWindowsId, m_vignetteMode == VignetteMode.HardDark ? 1f : 0f);
 
             // ColorPop/SignPop: when no selection is painted, auto-follow head gaze so the
-            // effect is always visible without needing to hold trigger first.
+            // effect is always visible without needing to hold trigger first. The gaze rect
+            // also becomes the effective window for the person gate/grading — previously it
+            // only reached the shader, so with nothing painted the person gate failed closed
+            // and persons were never highlighted at all in free-play/TestModeSequencer runs.
+            m_effectiveRect = m_activeRect;
             if (isPop && m_activeRect == k_fullSphere)
             {
                 Transform head = Camera.main != null ? Camera.main.transform : transform;
@@ -1244,8 +1447,9 @@ namespace PassthroughCameraSamples.ShaderSample
                 float headEl   = Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f));
                 float halfW    = 40f * Mathf.Deg2Rad;
                 float halfH    = 25f * Mathf.Deg2Rad;
-                m_material.SetVector(s_focusRectId,
-                    new Vector4(headAz - halfW, headAz + halfW, headEl - halfH, headEl + halfH));
+                m_effectiveRect = new Vector4(headAz - halfW, headAz + halfW,
+                                              headEl - halfH, headEl + halfH);
+                m_material.SetVector(s_focusRectId, m_effectiveRect);
             }
         }
 

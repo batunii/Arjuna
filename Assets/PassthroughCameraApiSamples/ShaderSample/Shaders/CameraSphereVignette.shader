@@ -132,6 +132,11 @@ Shader "Meta/PCA/CameraSphereVignette"
         _DetectionSurround ("Detection Surround Dim", Range(0, 0.5)) = 0.15
         _DetectionPulseAmp ("Detection Boost Pulse Amplitude", Range(0, 1)) = 0.25
         _DetectionOutsideScale ("Detection Boost Intensity Outside Focus Window (subtle)", Range(0, 1)) = 0.35
+        // Grading inside detection windows. Defaults preserve the legacy hardcoded look
+        // (sat 0.5, bright 0.12, contrast 0) so materials that don't set them are unchanged.
+        _DetectionSatLift    ("Detection Saturation Lift", Range(0, 2)) = 0.5
+        _DetectionBrightLift ("Detection Brightness Lift", Range(0, 1)) = 0.12
+        _DetectionContrast   ("Detection Contrast Boost", Range(0, 1)) = 0
     }
 
     SubShader
@@ -195,6 +200,9 @@ Shader "Meta/PCA/CameraSphereVignette"
             float  _DetectionSurround;
             float  _DetectionPulseAmp;
             float  _DetectionOutsideScale; // boost intensity multiplier when the detection is outside _FocusRect
+            float  _DetectionSatLift;      // extra saturation inside detection windows (0.5 = legacy look)
+            float  _DetectionBrightLift;   // brightness lift inside detection windows (0.12 = legacy look)
+            float  _DetectionContrast;     // contrast expansion around mid-grey (0 = legacy look)
             float  _SuppressDetectionWindows; // Hard Dark: 1 = no per-detection carve-outs/highlights at all — only the painted selection is ever clear
 
             float3 _SphereCenter;
@@ -715,8 +723,11 @@ Shader "Meta/PCA/CameraSphereVignette"
                 if (detHighlight > 0.0 && enh > 0.0)
                 {
                     float lum     = dot(sharpColor, fixed3(0.299, 0.587, 0.114));
-                    fixed3 boosted = lerp(fixed3(lum, lum, lum), sharpColor, 1.0 + 0.5 * enh);
-                    boosted = saturate(boosted * (1.0 + 0.12 * enh));
+                    fixed3 boosted = lerp(fixed3(lum, lum, lum), sharpColor, 1.0 + _DetectionSatLift * enh);
+                    boosted = saturate(boosted * (1.0 + _DetectionBrightLift * enh));
+                    // Contrast expansion around mid-grey: deepens darks and lifts lights
+                    // inside the window, so the object pops without just getting brighter.
+                    boosted = saturate(0.5 + (boosted - 0.5) * (1.0 + _DetectionContrast * enh));
                     result  = lerp(result, boosted, detHighlight * enh);
                 }
                 result *= (1.0 - surA);

@@ -58,6 +58,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private int m_personSeed = 54321; // distinct from m_seed — independent draw, not correlated
         [Tooltip("Same rationale as the signal pool's eccentricity floor — keep person targets peripheral, out of the cone a driver naturally fixates.")]
         [SerializeField, Range(0f, 60f)] private float m_personMinEccentricityDeg = 20f;
+        [Tooltip("Person candidates must have at least this predicted effect strength (VideoTestSceneManager.PersonPredictedStrength at the lifetime midpoint, against the locked window) — otherwise a blob lands on a person the runtime will never visibly highlight and the mode-1-vs-2 comparison degenerates. Requires the window to be locked before Activate (TestModeSequencer does this).")]
+        [SerializeField, Range(0f, 1f)] private float m_personMinPredictedStrength = 0.7f;
 
         [Header("Blob visuals — deliberately low-salience")]
         [SerializeField] private float m_blobDistance = 8f;
@@ -166,14 +168,18 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             // a signal target (only one target of either kind is ever active at once).
             var signalChosen = SelectTargets(k_signalClasses, m_holdSeconds, m_targetCount,
                 m_minLifetimeSec, m_minEccentricityDeg, m_longLifetimeSec, m_longFraction,
-                m_minGapSec, m_seed, null);
+                m_minGapSec, m_seed, null, 0f, 0f);
 
             var signalWindows = new List<(float tStart, float tEnd)>();
             foreach (var l in signalChosen) signalWindows.Add((l.tStart, l.tEnd));
 
+            // Person candidates must also satisfy the runtime person gate's "close" criterion
+            // (apparent box height) — otherwise a blob forms on a distant pedestrian that
+            // PassesPersonGate will never highlight, and mode 1 vs mode 2 compares nothing.
             var personChosen = SelectTargets(k_personClasses, m_holdSeconds, m_personTargetCount,
                 m_personMinLifetimeSec, m_personMinEccentricityDeg, m_personLongLifetimeSec,
-                m_personLongFraction, m_personMinGapSec, m_personSeed, signalWindows);
+                m_personLongFraction, m_personMinGapSec, m_personSeed, signalWindows,
+                m_video.PersonMinBoxHeightDeg, m_personMinPredictedStrength);
 
             var merged = new List<VideoTestSceneManager.DetectionLifetime>();
             merged.AddRange(signalChosen);
@@ -202,7 +208,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             HashSet<int> classIds, float holdSeconds, int targetCount,
             float minLifetimeSec, float minEccentricityDeg,
             float longLifetimeSec, float longFraction, float minGapSec, int seed,
-            List<(float tStart, float tEnd)> externalWindows)
+            List<(float tStart, float tEnd)> externalWindows, float minBoxHeightDeg,
+            float minPredictedStrength)
         {
             var pool = m_video.BuildDetectionLifetimes(classIds, holdSeconds);
             var filtered = new List<VideoTestSceneManager.DetectionLifetime>();
@@ -210,6 +217,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             {
                 if (l.tEnd - l.tStart < minLifetimeSec) continue;
                 if (ComputeEccentricityDeg(l) < minEccentricityDeg) continue; // stay out of the central/fixated cone
+                if (minBoxHeightDeg > 0f && ComputeBoxHeightDeg(l) < minBoxHeightDeg) continue; // runtime gate's "close" proxy
+                // Runtime-visibility alignment: only pick targets the effect will actually
+                // show clearly (predicted strength vs the locked window at mid-life).
+                if (minPredictedStrength > 0f &&
+                    m_video.PersonPredictedStrength(RepresentativeAzElRect(l)) < minPredictedStrength) continue;
                 filtered.Add(l);
             }
 
@@ -290,6 +302,29 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             Vector4 rect = m_video.DetectionBoxToAzElRect(best.box);
             float az = (rect.x + rect.y) * 0.5f, el = (rect.z + rect.w) * 0.5f;
             return Vector3.Angle(Dir(0f, 0f), Dir(az, el));
+        }
+
+        /// <summary>Az/el rect at the lifetime's temporal-midpoint sample — the same
+        /// representative-sample convention as ComputeEccentricityDeg.</summary>
+        private Vector4 RepresentativeAzElRect(VideoTestSceneManager.DetectionLifetime l)
+        {
+            float tMid = (l.tStart + l.tEnd) * 0.5f;
+            var best = l.samples[0];
+            float bestDist = Mathf.Abs(best.t - tMid);
+            foreach (var s in l.samples)
+            {
+                float d = Mathf.Abs(s.t - tMid);
+                if (d < bestDist) { bestDist = d; best = s; }
+            }
+            return m_video.DetectionBoxToAzElRect(best.box);
+        }
+
+        /// <summary>Apparent box height (deg) at the representative sample — matches the
+        /// box-height "closeness" proxy PassesPersonGate applies per-frame at runtime.</summary>
+        private float ComputeBoxHeightDeg(VideoTestSceneManager.DetectionLifetime l)
+        {
+            Vector4 rect = RepresentativeAzElRect(l);
+            return (rect.w - rect.z) * Mathf.Rad2Deg;
         }
 
         private static void Shuffle<T>(List<T> list, System.Random rng)

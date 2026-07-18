@@ -686,14 +686,16 @@ MonoBehaviour:
   m_spotDimAlpha: 0.35
   m_detectionSoftEdgeDeg: 3
   m_detectionEnhance: 0.4
-  m_detectionSurround: 0.15
+  m_detectionSurround: 0.202
   m_detectionPulseAmp: 0.25
   m_detectionFadeInSeconds: 0.2
-  m_detectionFadeOutSeconds: 0.5
+  m_detectionFadeOutSeconds: 0.251
+  m_detectionMinAgeSec: 0.7
+  m_detectionMinSizeDeg: 1.2
   m_detectionOutsideFocusScale: 0.35
   m_debugCamOverlay: 0
   m_yoloRunner: {fileID: 949970468}
-  m_detectionLifetime: 0.6
+  m_detectionLifetime: 0.7
   m_cameraHorizontalFovDeg: 82
 --- !u!23 &949970464
 MeshRenderer:

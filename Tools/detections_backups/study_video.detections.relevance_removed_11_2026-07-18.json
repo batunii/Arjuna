@@ -1,0 +1,12 @@
+{
+  "source_file": "Builds\\StudyVideo\\study_video.detections.json",
+  "sidecar_file": "Builds\\StudyVideo\\study_video.detections.flashers_removed_2026-07-18.json",
+  "removed_on": "2026-07-18",
+  "method": "Reconstructed lifetimes (VideoTestSceneManager.BuildDetectionLifetimes identity heuristic ported to Python), auto-classified traffic lights by azimuth-from-forward (<= 0.0\u00b0 relevant, >= 999.0\u00b0 irrelevant), visually reviewed the ambiguous band (and all stop signs) via ffmpeg contact sheets, then removed every raw sample entry belonging to a lifetime judged not to face/control the driver's lane.",
+  "class": 11,
+  "class_name": "stop sign (COCO id 11)",
+  "count_removed": 0,
+  "count_before": 0,
+  "count_after": 0,
+  "entries": []
+}
