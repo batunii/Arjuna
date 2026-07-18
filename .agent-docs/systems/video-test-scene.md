@@ -52,6 +52,11 @@ now REMOVED — it drew boxes at future positions, visibly ahead of moving objec
 also skipped once a track's known lifetime end passes, so windows close on just the fade-out.
 `CameraSphereVignetteManager` keeps a real-time wait debounce for its live-YOLO tracker (default
 0.7 — the future genuinely isn't known there; must exceed its `m_detectionLifetime` 0.6).
+Timing is fully Inspector-tunable under the **"Detection Timing"** header:
+`m_detectionOnsetDelaySec` (open the window this long after the object appears, default 0 =
+instant) and `m_detectionHoldPastEndSec` (keep it open this long after the lifetime ends, box
+frozen, default 0) — both act on the visibility envelope only, never on box positions, so they
+cannot reintroduce the position-lead artefact.
 
 **Detection-window grading (added 2026-07-18):** `_DetectionSatLift` / `_DetectionBrightLift` /
 `_DetectionContrast` replace the shader's hardcoded 0.5/0.12 saturation/brightness lift and add
@@ -72,7 +77,9 @@ inert in the baked path (slot timestamps refresh every frame); persistence is tu
 fades / min-age / lead. Person windows also get a **graded strength** (`PersonRegionScale`,
 multiplied into the per-slot `_DetectionFade`): floor `m_personInsideScale` (0.25) at the window
 **centre**, ramping linearly (rect-normalized centre→edge distance) to full at the window edge,
-full while entering/leaving near the edge, tapering to zero by `m_personMaxEdgeDistDeg` outside
+full outside until `m_personFullStrengthDeg` (12.5°, exposed 2026-07-18 — was hardcoded at half
+the reach), then tapering to zero by `m_personMaxEdgeDistDeg` outside (code default 25°; the
+scene currently serializes **20°** after in-editor tuning)
 (**25°**, raised 2026-07-18 from the original 8° — at 8° the gate zeroed 77% of close peripheral
 persons in the study bake, which read as "people never highlighted"; 25° covers ~52%). The person
 concept is deliberately **near-region** ("about to enter / leaving / standing near the selected
