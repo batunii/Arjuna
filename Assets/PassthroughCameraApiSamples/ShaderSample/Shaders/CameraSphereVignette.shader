@@ -262,14 +262,14 @@ Shader "Meta/PCA/CameraSphereVignette"
 
             float  _DebugCamOverlay;
 
-            // Blob probe (Route B): a low-salience click-target composited as a LOCAL modulation
-            // of the real scene pixels (soft desaturation + gentle dim), not an overlaid object —
-            // so it reads as a natural smudge/haze when foveated and vanishes pre-attentively.
-            // Applied to the already-filtered colour, so a probe in a defocused/dimmed area is
-            // filtered too (supervisor Point 3). Driven by BlobTargetController via the manager.
-            float  _BlobActive;
-            float2 _BlobAzEl;      // probe centre (az, el) in radians
-            float  _BlobRadius;    // angular radius (rad)
+            // Blob probes (Route B): low-salience click-targets composited as LOCAL modulations of
+            // the real scene pixels, applied after the filter (Point 3). Up to MAXBLOBS probes are
+            // shown SIMULTANEOUSLY (the authored-pool study has several targets on screen at once).
+            // Per-probe geometry lives in the arrays; style/colour/size are shared globals.
+            #define MAXBLOBS 12
+            int    _BlobCount;
+            float4 _BlobData[MAXBLOBS];   // per probe: xy=(az,el) rad, z=radius (rad), w=strength (0..1 ramp)
+            float4 _BlobFlash4[MAXBLOBS]; // per probe: x=hit-flash mix (0..1)
             float  _BlobSigma;     // Gaussian sigma as a fraction of the radius (soft rim)
             float  _BlobStyle;     // 0 = desaturate smudge, 1 = halo ring, 2 = bubble (lens+rim), 3 = local-contrast ring
             float  _BlobDesat;     // (style 0) desaturation at the core (0..1)
@@ -278,8 +278,6 @@ Shader "Meta/PCA/CameraSphereVignette"
             float  _BlobLens;      // (style 2) refraction/magnification amount
             float4 _BlobRingColor; // (style 3) ring colour (rgb) + persistent alpha (a)
             float  _BlobRingWidth; // (style 3) ring thickness (Gaussian sigma in r01) — smaller = thinner
-            float  _BlobStrength;  // overall strength (0..1) — onset ramp
-            float  _BlobFlash;     // hit-flash mix (0..1)
             float4 _BlobFlashColor;
 
             v2f vert(appdata v)
@@ -436,16 +434,17 @@ Shader "Meta/PCA/CameraSphereVignette"
             //   1 Halo       — soft bright RING / outline (a shape, not a fill)
             //   2 Bubble     — glassy droplet: refracts (magnifies) the scene + a bright rim
             // az wrap-around handled via atan2(sin,cos). Hit flash tints the core for all styles.
-            float3 ApplyBlob(float3 c, float az, float el, float2 uvSrc, float eqMode)
+            // One probe's contribution, parameterised so ApplyBlobs can loop over up to MAXBLOBS
+            // simultaneous probes. center=(az,el) rad, R=radius rad, s=strength (ramp), flash=hit mix.
+            float3 ApplyOneBlob(float3 c, float az, float el, float2 uvSrc, float eqMode,
+                                float2 center, float R, float s, float flash)
             {
-                if (_BlobActive < 0.5 || _BlobStrength <= 0.001) return c;
-                float dA = az - _BlobAzEl.x; dA = atan2(sin(dA), cos(dA));
-                float dE = el - _BlobAzEl.y;
+                if (s <= 0.001) return c;
+                float dA = az - center.x; dA = atan2(sin(dA), cos(dA));
+                float dE = el - center.y;
                 float d  = sqrt(dA * dA + dE * dE);
-                float R  = max(_BlobRadius, 1e-4);
                 float r01 = d / R;               // 0 at centre, 1 at the radius
                 if (r01 > 1.3) return c;         // outside the probe's reach
-                float s = _BlobStrength;
 
                 if (_BlobStyle < 0.5)
                 {
@@ -481,9 +480,9 @@ Shader "Meta/PCA/CameraSphereVignette"
                         float k  = 1.0 - _BlobLens * s * shape;  // k<1 pulls samples inward => magnify
                         float ca = _BlobLens * s * r01 * 0.15;   // chromatic spread, grows to the rim
                         float3 lensCol;
-                        lensCol.r = SampleEqAngle(_BlobAzEl.x + dA * (k - ca), _BlobAzEl.y + dE * (k - ca)).r;
-                        lensCol.g = SampleEqAngle(_BlobAzEl.x + dA *  k,       _BlobAzEl.y + dE *  k).g;
-                        lensCol.b = SampleEqAngle(_BlobAzEl.x + dA * (k + ca), _BlobAzEl.y + dE * (k + ca)).b;
+                        lensCol.r = SampleEqAngle(center.x + dA * (k - ca), center.y + dE * (k - ca)).r;
+                        lensCol.g = SampleEqAngle(center.x + dA *  k,       center.y + dE *  k).g;
+                        lensCol.b = SampleEqAngle(center.x + dA * (k + ca), center.y + dE * (k + ca)).b;
                         lensCol = saturate((lensCol - 0.5) * 1.12 + 0.5); // mild contrast so magnified detail reads
                         c = lerp(c, lensCol, 1.0 - smoothstep(0.9, 1.12, r01)); // fill the droplet body
                     }
@@ -508,7 +507,19 @@ Shader "Meta/PCA/CameraSphereVignette"
 
                 // Hit flash (all styles): tint the core toward the flash colour.
                 float wCore = saturate(1.0 - r01) * s;
-                c = lerp(c, _BlobFlashColor.rgb, wCore * _BlobFlash);
+                c = lerp(c, _BlobFlashColor.rgb, wCore * flash);
+                return c;
+            }
+
+            // Composite every active probe (up to MAXBLOBS) onto the already-filtered colour.
+            float3 ApplyBlobs(float3 c, float az, float el, float2 uvSrc, float eqMode)
+            {
+                [loop]
+                for (int bi = 0; bi < _BlobCount && bi < MAXBLOBS; bi++)
+                {
+                    float4 bd = _BlobData[bi];
+                    c = ApplyOneBlob(c, az, el, uvSrc, eqMode, bd.xy, max(bd.z, 1e-4), bd.w, _BlobFlash4[bi].x);
+                }
                 return c;
             }
 
@@ -844,7 +855,7 @@ Shader "Meta/PCA/CameraSphereVignette"
                     result  = lerp(result, boosted, detHighlight * enh);
                 }
                 result *= (1.0 - surA);
-                result = ApplyBlob(result, az, el, uvSrc, _EqCamSampling); // scene-pixel probe, after all filtering (Point 3)
+                result = ApplyBlobs(result, az, el, uvSrc, _EqCamSampling); // scene-pixel probes, after all filtering (Point 3)
                 return fixed4(saturate(result), 1.0);
             }
             ENDCG

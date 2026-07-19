@@ -57,6 +57,38 @@ public static class PointAuthoringMenu
         Debug.Log("[PointAuthoringMenu] Removed PointAuthoringTool.");
     }
 
+    [MenuItem("Meta/Study/Authored Study/Add Presenter To Open Scene")]
+    public static void AddPresenter()
+    {
+        var existing = Object.FindObjectOfType<AuthoredTargetPresenter>();
+        if (existing != null) { Selection.activeGameObject = existing.gameObject; return; }
+        var go = new GameObject("AuthoredTargetPresenter");
+        var pres = go.AddComponent<AuthoredTargetPresenter>();
+        var so = new SerializedObject(pres);
+        var videoProp = so.FindProperty("m_video");
+        if (videoProp != null)
+        {
+            var video = Object.FindObjectOfType<VideoTestSceneManager>();
+            if (video != null) videoProp.objectReferenceValue = video;
+        }
+        so.ApplyModifiedPropertiesWithoutUndo();
+        Selection.activeGameObject = go;
+        EditorSceneManager.MarkSceneDirty(go.scene);
+        Debug.Log("[PointAuthoringMenu] Added AuthoredTargetPresenter. Set m_participantId + m_condition, "
+                + "push pool_split.csv to the device persistentDataPath, then build the video scene.");
+    }
+
+    [MenuItem("Meta/Study/Authored Study/Remove Presenter From Open Scene")]
+    public static void RemovePresenter()
+    {
+        var pres = Object.FindObjectOfType<AuthoredTargetPresenter>();
+        if (pres == null) { Debug.Log("[PointAuthoringMenu] No AuthoredTargetPresenter in the scene."); return; }
+        var scene = pres.gameObject.scene;
+        Object.DestroyImmediate(pres.gameObject);
+        EditorSceneManager.MarkSceneDirty(scene);
+        Debug.Log("[PointAuthoringMenu] Removed AuthoredTargetPresenter.");
+    }
+
     private static Material FindDotMaterial()
     {
         foreach (string guid in AssetDatabase.FindAssets("SelectionDotMat t:Material"))

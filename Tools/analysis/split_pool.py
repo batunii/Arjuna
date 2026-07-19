@@ -29,6 +29,8 @@ from collections import Counter, defaultdict
 
 STRATA = ("kind", "region")
 COVARS = ("duration_s", "t_start", "eccentricity_deg")  # balanced (soft)
+W_OVERLAP = 0.05  # penalty per same-set temporally-overlapping pair: distributes clusters across
+                  # sets so each set has fewer simultaneous rings on screen (lower per-set concurrency)
 
 
 def load(path: Path):
@@ -41,7 +43,7 @@ def load(path: Path):
     return rows
 
 
-def imbalance(rows, assign, sds):
+def imbalance(rows, assign, sds, overlaps):
     A = [r for r in rows if assign[r["point_id"]] == "A"]
     B = [r for r in rows if assign[r["point_id"]] == "B"]
     if not A or not B:
@@ -51,11 +53,24 @@ def imbalance(rows, assign, sds):
         ma = statistics.fmean(r[c] for r in A)
         mb = statistics.fmean(r[c] for r in B)
         score += abs(ma - mb) / (sds[c] or 1.0)
+    # distribute overlapping clusters: penalise pairs that overlap in time AND land in the same set
+    score += W_OVERLAP * sum(1 for a, b in overlaps if assign[a] == assign[b])
     return score
+
+
+def overlapping_pairs(rows):
+    ov = []
+    for i in range(len(rows)):
+        si, ei = float(rows[i]["t_start"]), float(rows[i]["t_end"])
+        for j in range(i + 1, len(rows)):
+            if si < float(rows[j]["t_end"]) and float(rows[j]["t_start"]) < ei:
+                ov.append((rows[i]["point_id"], rows[j]["point_id"]))
+    return ov
 
 
 def split(rows, tries, seed=12345):
     sds = {c: (statistics.pstdev(r[c] for r in rows) or 1.0) for c in COVARS}
+    overlaps = overlapping_pairs(rows)
     strata = defaultdict(list)
     for r in rows:
         strata[tuple(r[s] for s in STRATA)].append(r)
@@ -71,7 +86,7 @@ def split(rows, tries, seed=12345):
             extra = rng.random() < 0.5
             for k, i in enumerate(idx):
                 assign[members[i]["point_id"]] = "A" if k < half + (extra and (len(members) % 2)) else "B"
-        s = imbalance(rows, assign, sds)
+        s = imbalance(rows, assign, sds, overlaps)
         if s < best_score:
             best_score, best = s, dict(assign)
     return best, best_score, sds

@@ -259,9 +259,12 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // Blob probe (Route B) — a low-salience click-target composited as a local modulation
         // of the scene pixels inside the vignette shader (BlobTargetController drives these).
-        private static readonly int s_blobActiveId    = Shader.PropertyToID("_BlobActive");
-        private static readonly int s_blobAzElId       = Shader.PropertyToID("_BlobAzEl");
-        private static readonly int s_blobRadiusId     = Shader.PropertyToID("_BlobRadius");
+        private const int k_maxBlobs = 12;
+        private readonly Vector4[] m_blobData  = new Vector4[k_maxBlobs];
+        private readonly Vector4[] m_blobFlash = new Vector4[k_maxBlobs];
+        private static readonly int s_blobCountId     = Shader.PropertyToID("_BlobCount");
+        private static readonly int s_blobDataId       = Shader.PropertyToID("_BlobData");
+        private static readonly int s_blobFlash4Id     = Shader.PropertyToID("_BlobFlash4");
         private static readonly int s_blobSigmaId      = Shader.PropertyToID("_BlobSigma");
         private static readonly int s_blobStyleId      = Shader.PropertyToID("_BlobStyle");
         private static readonly int s_blobDesatId      = Shader.PropertyToID("_BlobDesat");
@@ -270,8 +273,6 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_blobLensId       = Shader.PropertyToID("_BlobLens");
         private static readonly int s_blobRingColorId  = Shader.PropertyToID("_BlobRingColor");
         private static readonly int s_blobRingWidthId  = Shader.PropertyToID("_BlobRingWidth");
-        private static readonly int s_blobStrengthId   = Shader.PropertyToID("_BlobStrength");
-        private static readonly int s_blobFlashId      = Shader.PropertyToID("_BlobFlash");
         private static readonly int s_blobFlashColorId = Shader.PropertyToID("_BlobFlashColor");
 
         // FlatClipToEquirect composite material (flat clip mode)
@@ -586,7 +587,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat("_GrainMode",     0f);
             m_material.SetFloat("_OutlineMode",   0f);
             m_material.SetFloat("_SpotLiftMode",  0f);
-            m_material.SetFloat(s_blobActiveId,   0f); // no blob probe until BlobTargetController activates one
+            m_material.SetInt(s_blobCountId,      0); // no blob probes until a controller pushes some
 
             if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
 
@@ -1268,16 +1269,32 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetColor(s_blobFlashColorId, flashColor);
         }
 
-        /// <summary>Per-frame blob-probe state. azEl in radians; radiusRad = angular radius;
-        /// strength 0..1 (onset ramp); flash 0..1 (hit cue). active=false clears it.</summary>
+        /// <summary>Single blob probe (slot 0), azEl in radians; radiusRad = angular radius;
+        /// strength 0..1 (onset ramp); flash 0..1 (hit cue). active=false clears all probes.</summary>
         public void SetBlobProbe(bool active, Vector2 azEl, float radiusRad, float strength, float flash)
         {
             if (m_material == null) return;
-            m_material.SetFloat(s_blobActiveId, active ? 1f : 0f);
-            m_material.SetVector(s_blobAzElId, new Vector4(azEl.x, azEl.y, 0f, 0f));
-            m_material.SetFloat(s_blobRadiusId, radiusRad);
-            m_material.SetFloat(s_blobStrengthId, strength);
-            m_material.SetFloat(s_blobFlashId, flash);
+            if (!active || strength <= 0f) { m_material.SetInt(s_blobCountId, 0); return; }
+            m_blobData[0]  = new Vector4(azEl.x, azEl.y, radiusRad, strength);
+            m_blobFlash[0] = new Vector4(flash, 0f, 0f, 0f);
+            m_material.SetVectorArray(s_blobDataId, m_blobData);
+            m_material.SetVectorArray(s_blobFlash4Id, m_blobFlash);
+            m_material.SetInt(s_blobCountId, 1);
+        }
+
+        /// <summary>Up to k_maxBlobs SIMULTANEOUS probes. data[i]=(az,el,radiusRad,strength);
+        /// flash[i].x = hit-flash mix. Extra slots ignored; count clamps to k_maxBlobs.</summary>
+        public void SetBlobProbes(int count, Vector4[] data, Vector4[] flash)
+        {
+            if (m_material == null) return;
+            int n = Mathf.Clamp(count, 0, k_maxBlobs);
+            for (int i = 0; i < n; i++) { m_blobData[i] = data[i]; m_blobFlash[i] = flash[i]; }
+            if (n > 0)
+            {
+                m_material.SetVectorArray(s_blobDataId, m_blobData);
+                m_material.SetVectorArray(s_blobFlash4Id, m_blobFlash);
+            }
+            m_material.SetInt(s_blobCountId, n);
         }
 
         // ---- click-capture support (ClickProbeTest) ----
