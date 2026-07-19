@@ -262,6 +262,26 @@ Shader "Meta/PCA/CameraSphereVignette"
 
             float  _DebugCamOverlay;
 
+            // Blob probe (Route B): a low-salience click-target composited as a LOCAL modulation
+            // of the real scene pixels (soft desaturation + gentle dim), not an overlaid object —
+            // so it reads as a natural smudge/haze when foveated and vanishes pre-attentively.
+            // Applied to the already-filtered colour, so a probe in a defocused/dimmed area is
+            // filtered too (supervisor Point 3). Driven by BlobTargetController via the manager.
+            float  _BlobActive;
+            float2 _BlobAzEl;      // probe centre (az, el) in radians
+            float  _BlobRadius;    // angular radius (rad)
+            float  _BlobSigma;     // Gaussian sigma as a fraction of the radius (soft rim)
+            float  _BlobStyle;     // 0 = desaturate smudge, 1 = halo ring, 2 = bubble (lens+rim), 3 = local-contrast ring
+            float  _BlobDesat;     // (style 0) desaturation at the core (0..1)
+            float  _BlobDim;       // (style 0) luminance dip at the core (0..1)
+            float  _BlobRim;       // (styles 1/2/3) rim intensity — for style 3, the luminance contrast step
+            float  _BlobLens;      // (style 2) refraction/magnification amount
+            float4 _BlobRingColor; // (style 3) ring colour (rgb) + persistent alpha (a)
+            float  _BlobRingWidth; // (style 3) ring thickness (Gaussian sigma in r01) — smaller = thinner
+            float  _BlobStrength;  // overall strength (0..1) — onset ramp
+            float  _BlobFlash;     // hit-flash mix (0..1)
+            float4 _BlobFlashColor;
+
             v2f vert(appdata v)
             {
                 v2f o;
@@ -397,6 +417,99 @@ Shader "Meta/PCA/CameraSphereVignette"
                 float3 sig = 1.0 / (1.0 + exp(-10.0 * (c - 0.5)));
                 sig = (sig - 0.006693) / 0.986614;
                 return lerp(c, saturate(sig), amt);
+            }
+
+            // Sample the equirectangular video at an arbitrary (az, el) — used by the Bubble
+            // probe to refract the real scene (magnify + chromatic fringe).
+            float3 SampleEqAngle(float az, float el)
+            {
+                float2 uv = float2(frac(0.5 + az / (2.0 * UNITY_PI) + _EqUOffset),
+                                   clamp(0.5 + el / UNITY_PI + _EqVOffset, 0.0, 1.0));
+                if (_FlipY > 0.5) uv.y = 1.0 - uv.y;
+                return tex2D(_MainTexL, uv).rgb;
+            }
+
+            // Blob probe: a low-salience click-target composited into the real (already-filtered)
+            // scene at the probe's az/el. Three styles so the probe can be made visually DISTINCT
+            // from the YOLO detection carve-out it sits on (which is a filled brighten/clear):
+            //   0 Desaturate — soft colour-loss + dim smudge (blends most; subtlest)
+            //   1 Halo       — soft bright RING / outline (a shape, not a fill)
+            //   2 Bubble     — glassy droplet: refracts (magnifies) the scene + a bright rim
+            // az wrap-around handled via atan2(sin,cos). Hit flash tints the core for all styles.
+            float3 ApplyBlob(float3 c, float az, float el, float2 uvSrc, float eqMode)
+            {
+                if (_BlobActive < 0.5 || _BlobStrength <= 0.001) return c;
+                float dA = az - _BlobAzEl.x; dA = atan2(sin(dA), cos(dA));
+                float dE = el - _BlobAzEl.y;
+                float d  = sqrt(dA * dA + dE * dE);
+                float R  = max(_BlobRadius, 1e-4);
+                float r01 = d / R;               // 0 at centre, 1 at the radius
+                if (r01 > 1.3) return c;         // outside the probe's reach
+                float s = _BlobStrength;
+
+                if (_BlobStyle < 0.5)
+                {
+                    // Style 0 — Desaturate smudge.
+                    float sig  = max(R * _BlobSigma, 1e-4);
+                    float rim0 = exp(-(R * R) / (2.0 * sig * sig));
+                    float w    = saturate((exp(-(d * d) / (2.0 * sig * sig)) - rim0) / max(1.0 - rim0, 1e-4)) * s;
+                    float lum  = dot(c, float3(0.299, 0.587, 0.114));
+                    float3 mod = lerp(c, lum.xxx, _BlobDesat) * (1.0 - _BlobDim);
+                    c = lerp(c, mod, w);
+                }
+                else if (_BlobStyle > 2.5)
+                {
+                    // Style 3 — Ring: a thin, fixed-colour, translucent ring that fades IN via the
+                    // onset ramp (s) and then holds steady. No time term and no scene-coupled
+                    // contrast flip, so it NEVER pulses/shimmers (the earlier local-contrast version
+                    // shimmered because it recomputed its colour from the moving scene under it each
+                    // frame). The ring's colour content-dependence is handled at the design level by
+                    // counterbalancing + screening, not per-pixel.
+                    float ring = exp(-((r01 - 0.82) * (r01 - 0.82)) / (2.0 * _BlobRingWidth * _BlobRingWidth));
+                    c = lerp(c, _BlobRingColor.rgb, saturate(ring * _BlobRingColor.a * s));
+                }
+                else
+                {
+                    // Styles 1 (Halo) & 2 (Bubble): a distinct SHAPE, not a contrast change.
+                    if (_BlobStyle > 1.5 && eqMode > 0.5)
+                    {
+                        // Bubble: a glassy droplet. Magnify the scene in ANGULAR space (a real,
+                        // visible lens regardless of the tiny UV footprint) — sample an angle pulled
+                        // toward the probe centre (k<1 => magnify) — with chromatic fringing that
+                        // spreads toward the rim for a convincing glass look.
+                        float shape = 1.0 - r01 * r01;          // 1 centre -> 0 rim (magnifier profile)
+                        float k  = 1.0 - _BlobLens * s * shape;  // k<1 pulls samples inward => magnify
+                        float ca = _BlobLens * s * r01 * 0.15;   // chromatic spread, grows to the rim
+                        float3 lensCol;
+                        lensCol.r = SampleEqAngle(_BlobAzEl.x + dA * (k - ca), _BlobAzEl.y + dE * (k - ca)).r;
+                        lensCol.g = SampleEqAngle(_BlobAzEl.x + dA *  k,       _BlobAzEl.y + dE *  k).g;
+                        lensCol.b = SampleEqAngle(_BlobAzEl.x + dA * (k + ca), _BlobAzEl.y + dE * (k + ca)).b;
+                        lensCol = saturate((lensCol - 0.5) * 1.12 + 0.5); // mild contrast so magnified detail reads
+                        c = lerp(c, lensCol, 1.0 - smoothstep(0.9, 1.12, r01)); // fill the droplet body
+                    }
+                    // Legible glass edge: a bright SCENE-TINTED outer rim PLUS a dark inner edge
+                    // (Fresnel-like double edge — far more noticeable than a single soft ring, and
+                    // still natural: that's how real droplet/glass edges read). Both scaled by
+                    // _BlobRim, and both are contrast structure so they show even over flat scene.
+                    float ringOut = exp(-((r01 - 0.88) * (r01 - 0.88)) / (2.0 * 0.07 * 0.07));
+                    float ringIn  = exp(-((r01 - 0.66) * (r01 - 0.66)) / (2.0 * 0.10 * 0.10));
+                    float3 rimCol = saturate(c * 1.40 + 0.12);
+                    c = lerp(c, rimCol, saturate(ringOut * _BlobRim * s));      // bright outer edge
+                    c = c * (1.0 - saturate(ringIn * _BlobRim * s) * 0.45);     // dark inner edge
+                    if (_BlobStyle > 1.5)
+                    {
+                        // Specular glint (up-left) — the classic water-bead cue.
+                        float2 gpt   = float2(-0.33 * R, 0.35 * R);
+                        float  gd    = length(float2(dA, dE) - gpt) / R;
+                        float  glint = exp(-(gd * gd) / (2.0 * 0.16 * 0.16)) * _BlobRim * s;
+                        c = saturate(c + glint * 0.9);
+                    }
+                }
+
+                // Hit flash (all styles): tint the core toward the flash colour.
+                float wCore = saturate(1.0 - r01) * s;
+                c = lerp(c, _BlobFlashColor.rgb, wCore * _BlobFlash);
+                return c;
             }
 
             fixed4 frag(v2f i) : SV_Target
@@ -731,6 +844,7 @@ Shader "Meta/PCA/CameraSphereVignette"
                     result  = lerp(result, boosted, detHighlight * enh);
                 }
                 result *= (1.0 - surA);
+                result = ApplyBlob(result, az, el, uvSrc, _EqCamSampling); // scene-pixel probe, after all filtering (Point 3)
                 return fixed4(saturate(result), 1.0);
             }
             ENDCG

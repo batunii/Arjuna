@@ -1,9 +1,17 @@
 // Low-salience clickable "blob" targets for TestModeSequencer's modes 1 & 2 (Test/TestBlobs
 // branch). Randomly selects real traffic-light/stop-sign tracked lifetimes from the current
-// baked detection track and places a camouflaged, colour-muted marker exactly where each
-// object's box would have been, for exactly as long as that real object is actually on
-// screen (plus a short grace period). Aim the LEFT controller at it and pull the left
-// trigger — same convention as the existing ClickProbeTest.
+// baked detection track and marks each, for exactly as long as that real object is actually on
+// screen (plus a short grace period), exactly where its box would have been. Aim the LEFT
+// controller at it and pull the left trigger — same convention as the existing ClickProbeTest.
+//
+// Route B rendering (2026-07-18): the target is NOT a world-space object. Each frame this pushes
+// the active target's az/el + radius + ramped strength to the vignette shader (via
+// VideoTestSceneManager.SetBlobProbe), which composites it as a LOCAL modulation of the real
+// scene pixels — a soft desaturation + gentle dim, so it reads as a natural haze/smudge when
+// foveated and vanishes pre-attentively, never a foreign overlaid object. Because it modulates
+// the already-filtered colour, a target in a defocused/dimmed area is filtered too (supervisor
+// Point 3): on the blacked-out Hard-Dark periphery it simply disappears, like a real object there.
+// See Dissertation/probe-target-design.md.
 //
 // The same random selection (seeded) is generated once per app run and reused for every
 // mode-1/mode-2 activation and every video loop, so mode 1 (SignPop on) and mode 2 (no
@@ -61,11 +69,39 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [Tooltip("Person candidates must have at least this predicted effect strength (VideoTestSceneManager.PersonPredictedStrength at the lifetime midpoint, against the locked window) — otherwise a blob lands on a person the runtime will never visibly highlight and the mode-1-vs-2 comparison degenerates. Requires the window to be locked before Activate (TestModeSequencer does this).")]
         [SerializeField, Range(0f, 1f)] private float m_personMinPredictedStrength = 0.7f;
 
-        [Header("Blob visuals — deliberately low-salience")]
-        [SerializeField] private float m_blobDistance = 8f;
-        [SerializeField, Range(0.2f, 8f)] private float m_blobSizeDeg = 1.0f;
-        [Tooltip("Muted, desaturated, partially transparent tone — meant to blend with typical background rather than pop. Alpha needs the marker material to actually support blending (SelectionDotMat does, same as the existing locked-dot alpha 0.55).")]
-        [SerializeField] private Color m_blobColor = new(0.40f, 0.38f, 0.30f, 0.5f);
+        public enum ProbeStyle { Desaturate = 0, Halo = 1, Bubble = 2, LocalContrastRing = 3 }
+
+        [Header("Blob probe — scene-pixel modulation (Route B: composited in the vignette shader)")]
+        [Tooltip("Probe visual style. Desaturate = colour-loss smudge (blends most; can look like the YOLO window). Halo = soft bright rim. Bubble = glassy droplet (refracts scene); most natural but content-DEPENDENT. LocalContrastRing = a thin, fixed-colour translucent ring that fades in and holds steady — no pulsing/shimmer. Colour content-dependence is handled by counterbalancing + screening, not per-pixel. Recommended for the measured study.")]
+        [SerializeField] private ProbeStyle m_probeStyle = ProbeStyle.LocalContrastRing;
+        [Tooltip("Rim intensity. For Halo/Bubble = glass-edge brightness. For LocalContrastRing = the luminance CONTRAST STEP the ring holds vs its local surround (the content-independence knob) — 0.4-0.6 is a clear-but-not-blaring ring; 0.9 is very strong.")]
+        [SerializeField, Range(0f, 1.5f)] private float m_blobRim = 0.5f;
+        [Tooltip("(Ring) Ring colour (RGB) and its persistent alpha (A). Low-but-present alpha = a translucent ring that fades in and holds, without drawing attention. Fixed colour (no scene-coupled flip), so it never pulses/shimmers.")]
+        [SerializeField] private Color m_blobRingColor = new(1f, 0.85f, 0.1f, 0.4f); // yellow, low persistent alpha
+        [Tooltip("(Ring) Thickness — Gaussian sigma in normalized radius. Smaller = thinner ring.")]
+        [SerializeField, Range(0.02f, 0.2f)] private float m_blobRingWidth = 0.05f;
+        [Tooltip("(Bubble) Refraction/magnification of the droplet lens, in angular space. 0.45 ~ 1.8x magnification at the core; raise for a stronger lens, lower toward 0.25 if it warps too much.")]
+        [SerializeField, Range(0f, 0.7f)] private float m_blobLens = 0.45f;
+        [Tooltip("OFF (default) = every probe is the same fixed angular size (m_blobSizeDeg), position still tracks the object. ON = size matches the real detection box (locked per appearance). You asked for fixed size, so this is off.")]
+        [SerializeField] private bool m_boxMatchSize = false;
+        [Tooltip("The fixed angular size of every probe (used when box-matching is off). This is the uniform-size knob.")]
+        [SerializeField, Range(0.2f, 8f)] private float m_blobSizeDeg = 1.6f;
+        [SerializeField, Range(0.2f, 4f)] private float m_blobMinSizeDeg = 1.2f;
+        [SerializeField, Range(0.5f, 6f)] private float m_blobMaxSizeDeg = 2.5f;
+        [Tooltip("Local DESATURATION at the probe core (0..1). The probe reads as a faint colour-loss / haze on the real scene pixels — texture fully preserved, no overlaid object. Primary detection cue; content-dependent (invisible over already-grey areas, hence paired with a small dim).")]
+        [SerializeField, Range(0f, 1f)] private float m_blobDesat = 0.7f;
+        [Tooltip("Gentle luminance DIP at the probe core (0..1). Kept small so it stays natural (like a smudge) over any content, including grey road. Titrate this + desat against the ceiling to land the ~60-85% no-filter hit rate.")]
+        [SerializeField, Range(0f, 0.5f)] private float m_blobDim = 0.08f;
+        [Tooltip("Gaussian falloff sigma as a fraction of the blob RADIUS — soft rim, no hard edge (removes the pre-attentive silhouette cue).")]
+        [SerializeField, Range(0.2f, 1f)] private float m_blobSigmaFrac = 0.5f;
+        [Tooltip("Onset ramp (seconds): the probe fades in from its lifetime start instead of appearing abruptly. A gradual, non-transient onset avoids the exogenous capture an abrupt onset triggers (Yantis & Jonides; Simons; Cole). Static once ramped — no pulsing/looming.")]
+        [SerializeField, Range(0f, 2f)] private float m_onsetRampSeconds = 0.5f;
+
+        [Header("DEBUG — confirm-it-works (turn OFF for the real study probe)")]
+        [Tooltip("TEMPORARY: renders each probe as a big, solid, bright patch (m_debugColor) at full strength, no onset ramp, ignoring the chosen style. Use it to confirm the probe appears at the right place/time; then turn OFF to get the real probe style.")]
+        [SerializeField] private bool m_debugObviousBlob = false;
+        [SerializeField, Range(1f, 12f)] private float m_debugBlobSizeDeg = 4f;
+        [SerializeField] private Color m_debugColor = new(1f, 0f, 1f, 1f); // magenta — never occurs naturally in the scene
 
         [Header("Pointer (left controller, matches ClickProbeTest)")]
         [SerializeField] private bool m_showPointerReticle = true;
@@ -106,9 +142,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private int m_ptr;
         private float m_lastVt = -1f;
         private string m_modeLabel = "";
+        private BlobTarget m_sizeLockedFor;   // ring size is locked once per target appearance...
+        private float m_lockedSizeDeg = 1f;   // ...so it never grows/shrinks with the moving box
 
-        private GameObject m_blobGO;
-        private Material m_blobMat;
         private GameObject m_reticleGO;
         private Material m_reticleMat;
         private Coroutine m_flashCoroutine;
@@ -137,6 +173,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             EnsureVisuals();
             m_ptr = 0;
             m_lastVt = -1f;
+            m_sizeLockedFor = null; // recompute the locked ring size for the first target of this run
             if (m_targets != null) foreach (var tg in m_targets) tg.resolved = false;
             m_active = true;
         }
@@ -144,7 +181,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         public void Deactivate()
         {
             m_active = false;
-            if (m_blobGO != null) m_blobGO.SetActive(false);
+            if (m_flashCoroutine != null) { StopCoroutine(m_flashCoroutine); m_flashCoroutine = null; }
+            if (m_video != null) m_video.SetBlobProbe(false, Vector2.zero, 0f, 0f, 0f);
             if (m_reticleGO != null) m_reticleGO.SetActive(false);
         }
 
@@ -355,6 +393,13 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
             UpdatePointer();
 
+            // Push the probe shape/amount every frame (not just on Activate) so it can't be lost to
+            // init ordering and so Inspector tweaks apply live. Cheap (a few SetFloat calls).
+            // In debug mode the bright m_debugColor is fed through the flash-tint channel.
+            m_video.SetBlobProbeStatics((int)m_probeStyle, m_blobSigmaFrac, m_blobDesat, m_blobDim,
+                                        m_blobRim, m_blobLens, m_blobRingColor, m_blobRingWidth,
+                                        m_debugObviousBlob ? m_debugColor : m_hitFlashColor);
+
             while (m_ptr < m_targets.Count && vt > m_targets[m_ptr].tEnd + m_hitGraceSec)
             {
                 var tg = m_targets[m_ptr];
@@ -371,12 +416,43 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 haveAzEl = true;
             }
 
+            // Lock the ring SIZE once per target appearance — position still tracks the object, but
+            // the size is fixed for the target's whole lifetime (sized from the lifetime's midpoint
+            // box). Per-frame box-matching made the ring grow/shrink with the approaching object and
+            // jitter with YOLO's box; locking removes that "breathing".
+            if (current != null && !ReferenceEquals(current, m_sizeLockedFor))
+            {
+                m_lockedSizeDeg = m_boxMatchSize
+                    ? Mathf.Clamp(RectMaxAngularDeg(InterpolateAzElRect(current, (current.tStart + current.tEnd) * 0.5f)),
+                                  m_blobMinSizeDeg, m_blobMaxSizeDeg)
+                    : m_blobSizeDeg;
+                m_sizeLockedFor = current;
+            }
+
             // The just-hit target stays "current" until its window naturally closes — while the
-            // hit flash coroutine owns m_blobGO's transform/visibility, don't fight it here.
+            // hit-flash coroutine owns the shader probe, don't fight it here.
             if (m_flashCoroutine == null)
             {
                 bool visible = current != null && !current.resolved && vt <= current.tEnd; // hidden during the grace tail
-                if (visible) ShowBlob(curAzEl); else HideBlob();
+                if (visible)
+                {
+                    // Onset ramp: fade in over the first m_onsetRampSeconds of the target's life
+                    // (keyed to video time, so mode 1 and mode 2 ramp identically).
+                    float ramp = m_onsetRampSeconds > 0f
+                        ? Mathf.Clamp01((vt - current.tStart) / m_onsetRampSeconds)
+                        : 1f;
+                    if (m_debugObviousBlob)
+                    {
+                        // Big, full-strength, solid bright patch (flash channel = m_debugColor at 1)
+                        // so you can unambiguously confirm placement/timing.
+                        m_video.SetBlobProbe(true, curAzEl, 0.5f * m_debugBlobSizeDeg * Mathf.Deg2Rad, 1f, 1f);
+                    }
+                    else
+                    {
+                        m_video.SetBlobProbe(true, curAzEl, 0.5f * m_lockedSizeDeg * Mathf.Deg2Rad, ramp, 0f);
+                    }
+                }
+                else m_video.SetBlobProbe(false, curAzEl, 0f, 0f, 0f);
             }
 
             if (OVRInput.GetDown(m_clickButton))
@@ -390,7 +466,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                         current.resolved = true;
                         float rt = vt - current.tStart;
                         LogOutcome(current, "hit", rt, angDist);
-                        PlayHitFeedback(curAzEl);
+                        PlayHitFeedback(curAzEl, 0.5f * m_lockedSizeDeg * Mathf.Deg2Rad);
                     }
                     else
                     {
@@ -404,7 +480,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
         }
 
-        private Vector2 InterpolateAzEl(BlobTarget tg, float vt)
+        private Vector4 InterpolateAzElRect(BlobTarget tg, float vt)
         {
             var samples = tg.samples;
             (float t, Vector4 box) s0 = samples[0], s1 = samples[samples.Count - 1];
@@ -418,9 +494,19 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             float frac = s1.t > s0.t ? Mathf.Clamp01((vt - s0.t) / (s1.t - s0.t)) : 0f;
             Vector4 box = Vector4.Lerp(s0.box, s1.box, frac);
-            Vector4 rect = m_video.DetectionBoxToAzElRect(box);
+            return m_video.DetectionBoxToAzElRect(box);
+        }
+
+        private Vector2 InterpolateAzEl(BlobTarget tg, float vt)
+        {
+            Vector4 rect = InterpolateAzElRect(tg, vt);
             return new Vector2((rect.x + rect.y) * 0.5f, (rect.z + rect.w) * 0.5f);
         }
+
+        // Angular size (deg) of an az/el rect — the larger of its width/height, used to
+        // box-match the blob to the real detection it stands in for.
+        private static float RectMaxAngularDeg(Vector4 rect) =>
+            Mathf.Max(rect.y - rect.x, rect.w - rect.z) * Mathf.Rad2Deg;
 
         private static float AngularDistanceDeg(float az1, float el1, float az2, float el2) =>
             Vector3.Angle(Dir(az1, el1), Dir(az2, el2));
@@ -439,36 +525,13 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_reticleGO.transform.position = head + Dir(az, el) * m_reticleDistance;
         }
 
-        private void ShowBlob(Vector2 azEl)
-        {
-            if (m_blobGO == null) return;
-            Vector3 head = Camera.main != null ? Camera.main.transform.position : transform.position;
-            m_blobGO.transform.position = head + Dir(azEl.x, azEl.y) * m_blobDistance;
-            float sizeM = 2f * m_blobDistance * Mathf.Tan(0.5f * m_blobSizeDeg * Mathf.Deg2Rad);
-            m_blobGO.transform.localScale = Vector3.one * sizeM;
-            m_blobGO.SetActive(true);
-        }
-
-        private void HideBlob()
-        {
-            if (m_blobGO != null) m_blobGO.SetActive(false);
-        }
-
         // ---- visuals (built once, parented under this persistent object so they survive scene loads) ----
+        // Route B: the blob target itself has NO GameObject — it's a scene-pixel modulation composited
+        // in the vignette shader (see VideoTestSceneManager.SetBlobProbe). Only the aim reticle is a
+        // world-space object here.
 
         private void EnsureVisuals()
         {
-            if (m_blobGO == null)
-            {
-                m_blobGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                m_blobGO.name = "BlobTarget";
-                m_blobGO.transform.SetParent(transform, false);
-                Destroy(m_blobGO.GetComponent<Collider>());
-                m_blobMat = NewMarkerMaterial(m_blobColor);
-                m_blobMat.renderQueue = 4150; // above vignette sphere(3000)/dots(4000)/toast(4100)
-                m_blobGO.GetComponent<MeshRenderer>().sharedMaterial = m_blobMat;
-                m_blobGO.SetActive(false);
-            }
             if (m_reticleGO == null)
             {
                 m_reticleGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -483,8 +546,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             if (m_audioSource == null)
             {
-                // On this component's own (always-active) GameObject, not m_blobGO — m_blobGO
-                // toggles active/inactive constantly, which would silently drop PlayOneShot calls.
+                // On this component's own (always-active) GameObject so PlayOneShot never drops.
                 m_audioSource = gameObject.AddComponent<AudioSource>();
                 m_audioSource.playOnAwake = false;
                 m_audioSource.spatialBlend = 0f; // 2D — a confirmation cue, not a locatable sound
@@ -494,27 +556,28 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         // ---- hit feedback: brief flash + synthesized beep (no audio asset needed) ----
 
-        private void PlayHitFeedback(Vector2 azEl)
+        private void PlayHitFeedback(Vector2 azEl, float radiusRad)
         {
             if (m_flashCoroutine != null) StopCoroutine(m_flashCoroutine);
-            m_flashCoroutine = StartCoroutine(HitFlash(azEl));
+            m_flashCoroutine = StartCoroutine(HitFlash(azEl, radiusRad));
             if (m_hitBeep && m_audioSource != null) m_audioSource.PlayOneShot(GetBeepClip());
         }
 
-        private IEnumerator HitFlash(Vector2 azEl)
+        // Brief green flash at the hit location, driven through the shader probe (flash 1->0 over
+        // m_hitFlashSeconds). The colour comes from m_hitFlashColor (pushed as the flash tint in
+        // Activate); here we just fade the flash mix and hold the probe at the last position.
+        private IEnumerator HitFlash(Vector2 azEl, float radiusRad)
         {
-            if (m_blobGO == null) yield break;
-            Vector3 head = Camera.main != null ? Camera.main.transform.position : transform.position;
-            m_blobGO.transform.position = head + Dir(azEl.x, azEl.y) * m_blobDistance;
-            float baseSizeM = 2f * m_blobDistance * Mathf.Tan(0.5f * m_blobSizeDeg * Mathf.Deg2Rad);
-            m_blobGO.transform.localScale = Vector3.one * baseSizeM * m_hitFlashScale;
-            m_blobMat.color = m_hitFlashColor;
-            m_blobGO.SetActive(true);
-
-            yield return new WaitForSeconds(m_hitFlashSeconds);
-
-            m_blobGO.SetActive(false);
-            m_blobMat.color = m_blobColor; // restore normal appearance for the next target
+            float flashRad = radiusRad * m_hitFlashScale;
+            float t = 0f;
+            while (t < m_hitFlashSeconds)
+            {
+                t += Time.deltaTime;
+                float f = Mathf.Clamp01(1f - t / Mathf.Max(m_hitFlashSeconds, 1e-4f));
+                if (m_video != null) m_video.SetBlobProbe(true, azEl, flashRad, 1f, f);
+                yield return null;
+            }
+            if (m_video != null) m_video.SetBlobProbe(false, azEl, radiusRad, 0f, 0f);
             m_flashCoroutine = null;
         }
 
@@ -594,8 +657,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             m_log?.Flush();
             m_log?.Dispose();
-            if (m_blobGO != null) Destroy(m_blobGO);
-            if (m_blobMat != null) Destroy(m_blobMat);
+            if (m_video != null) m_video.SetBlobProbe(false, Vector2.zero, 0f, 0f, 0f);
             if (m_reticleGO != null) Destroy(m_reticleGO);
             if (m_reticleMat != null) Destroy(m_reticleMat);
         }

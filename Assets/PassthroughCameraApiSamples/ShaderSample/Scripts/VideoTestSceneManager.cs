@@ -257,6 +257,23 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_eqUOffsetId         = Shader.PropertyToID("_EqUOffset");
         private static readonly int s_eqVOffsetId         = Shader.PropertyToID("_EqVOffset");
 
+        // Blob probe (Route B) — a low-salience click-target composited as a local modulation
+        // of the scene pixels inside the vignette shader (BlobTargetController drives these).
+        private static readonly int s_blobActiveId    = Shader.PropertyToID("_BlobActive");
+        private static readonly int s_blobAzElId       = Shader.PropertyToID("_BlobAzEl");
+        private static readonly int s_blobRadiusId     = Shader.PropertyToID("_BlobRadius");
+        private static readonly int s_blobSigmaId      = Shader.PropertyToID("_BlobSigma");
+        private static readonly int s_blobStyleId      = Shader.PropertyToID("_BlobStyle");
+        private static readonly int s_blobDesatId      = Shader.PropertyToID("_BlobDesat");
+        private static readonly int s_blobDimId        = Shader.PropertyToID("_BlobDim");
+        private static readonly int s_blobRimId        = Shader.PropertyToID("_BlobRim");
+        private static readonly int s_blobLensId       = Shader.PropertyToID("_BlobLens");
+        private static readonly int s_blobRingColorId  = Shader.PropertyToID("_BlobRingColor");
+        private static readonly int s_blobRingWidthId  = Shader.PropertyToID("_BlobRingWidth");
+        private static readonly int s_blobStrengthId   = Shader.PropertyToID("_BlobStrength");
+        private static readonly int s_blobFlashId      = Shader.PropertyToID("_BlobFlash");
+        private static readonly int s_blobFlashColorId = Shader.PropertyToID("_BlobFlashColor");
+
         // FlatClipToEquirect composite material (flat clip mode)
         private static readonly int s_flatMainTexId  = Shader.PropertyToID("_MainTex");
         private static readonly int s_flatTanHalfId  = Shader.PropertyToID("_TanHalf");
@@ -569,6 +586,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat("_GrainMode",     0f);
             m_material.SetFloat("_OutlineMode",   0f);
             m_material.SetFloat("_SpotLiftMode",  0f);
+            m_material.SetFloat(s_blobActiveId,   0f); // no blob probe until BlobTargetController activates one
 
             if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
 
@@ -1228,6 +1246,39 @@ namespace PassthroughCameraSamples.ShaderSample
         public bool StudyInputLock { get; set; }
         public bool StudyEffectSuppressed { get; set; }
         public bool MotionEnabled { get => m_enableMotion; set => m_enableMotion = value; }
+
+        // ---- blob-probe support (BlobTargetController, Route B) ----
+
+        /// <summary>Static blob-probe shape/amount — set once when the blob task activates. The
+        /// probe is a scene-pixel modulation composited in the vignette shader (soft desaturation
+        /// + gentle dim), so a probe in a defocused area is filtered too (supervisor Point 3).</summary>
+        public void SetBlobProbeStatics(int style, float sigmaFrac, float desat, float dim,
+                                        float rim, float lens, Color ringColor, float ringWidth,
+                                        Color flashColor)
+        {
+            if (m_material == null) return;
+            m_material.SetFloat(s_blobStyleId, style);
+            m_material.SetFloat(s_blobSigmaId, sigmaFrac);
+            m_material.SetFloat(s_blobDesatId, desat);
+            m_material.SetFloat(s_blobDimId,   dim);
+            m_material.SetFloat(s_blobRimId,   rim);
+            m_material.SetFloat(s_blobLensId,  lens);
+            m_material.SetColor(s_blobRingColorId, ringColor);
+            m_material.SetFloat(s_blobRingWidthId, ringWidth);
+            m_material.SetColor(s_blobFlashColorId, flashColor);
+        }
+
+        /// <summary>Per-frame blob-probe state. azEl in radians; radiusRad = angular radius;
+        /// strength 0..1 (onset ramp); flash 0..1 (hit cue). active=false clears it.</summary>
+        public void SetBlobProbe(bool active, Vector2 azEl, float radiusRad, float strength, float flash)
+        {
+            if (m_material == null) return;
+            m_material.SetFloat(s_blobActiveId, active ? 1f : 0f);
+            m_material.SetVector(s_blobAzElId, new Vector4(azEl.x, azEl.y, 0f, 0f));
+            m_material.SetFloat(s_blobRadiusId, radiusRad);
+            m_material.SetFloat(s_blobStrengthId, strength);
+            m_material.SetFloat(s_blobFlashId, flash);
+        }
 
         // ---- click-capture support (ClickProbeTest) ----
 

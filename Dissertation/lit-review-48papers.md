@@ -1,9 +1,30 @@
-# Literature Review Source — 48 Papers in 8 Thematic Sections
+# Literature Review Source — Thematic Core (48 Papers) + Corpus Map
 
-> Source material provided by the author (2026-07-05). Covers 48 research papers organised into 8
-> thematic sections, ordered by relevance to the dissertation: *Guiding User Attention in Real-World
+> Source material provided by the author (2026-07-05). Sections 1–8 below are the original **48-paper
+> thematic core**, organised by relevance to the dissertation: *Guiding User Attention in Real-World
 > Tasks Using XR Overlays* on Meta Quest (Passthrough AR). PDF filenames in parentheses refer to the
 > author's local paper collection. ⭐ marks papers the author flagged as particularly actionable.
+>
+> **This file is the thematic core, NOT the full bibliography.** The project now draws on ~110 unique
+> works; the ~60 beyond this core (user-study methodology, statistics, instruments, perception/comfort,
+> DR precedents, platform constraints, CV datasets, and stimulus/probe design) live elsewhere — see
+> the **Corpus Map** immediately below. Section 9 (added 2026-07-18) folds the probe/target-design
+> literature into this file because it directly extends §2 and §8.
+>
+> ### Corpus Map — where the rest of the ~110 sources are catalogued
+> - **`testing-strategy-v2.md` §12 "Literature Grounding"** — the de-facto testing-methodology
+>   bibliography (DRT/ISO 17488, NASA-TLX, VRSQ, UFOV, TOST/Lakens, Caine small-N, head-pose-as-gaze,
+>   the Frontiers 2025 distractor study, the arXiv perceptual-gap and PCA-compositing papers).
+> - **Per-chapter "References" sections** — `ch2-related-work.md` is the fullest (~60 entries);
+>   each other chapter repeats the subset it cites.
+> - **`chapters/VERIFY-citations.md`** — cross-chapter verification checklist (a coincidental *second*
+>   "48 items", unrelated to the 48-paper core); effectively a partial master index of the additions.
+> - **`.agent-docs/research/attention-guidance-research.md`** (2026-07-03) — verified mode-design
+>   survey with [FT]/[AB] tags; source of most §2.3–2.4 and ch4 citations + the CV/detection datasets.
+> - **`.agent-docs/research/demo-design-research.md`** (2026-07-08) — deep research on stimulus/task
+>   design (hazard-perception clips, CPT vs multi-target, scoring windows, Rusch conspicuity ceiling).
+> - **`probe-target-design.md`** (2026-07-18) — the natural-but-detectable blob spec, drawn from §2/§8
+>   here plus the new stimulus-design sources in §9.
 >
 > NOTE (added during synthesis): section themes reference the older Dynamic/Semi-Dynamic/Static mode
 > names and the classroom scenario; the Related Work chapter maps these onto the current system
@@ -166,6 +187,74 @@ or mute** distractions to enhance focus.
 > **Key Takeaway:** Cognitive Load Theory justifies the entire project. Shader intensity should scale
 > with scene saliency. Attention tunnelling is the primary risk of the static mode and must be
 > addressed in the evaluation design.
+
+## 9. Subtle Probe / Target Design & Stimulus Engineering (added 2026-07-18)
+
+Not in the original 48 — added to ground the design of the **blob click-targets** used in the informal
+driving harness so they are *detectable when attended but not pre-attentively salient* (supervisor
+Point 1). Full synthesis and the parameter spec are in `probe-target-design.md`; this is the index.
+
+- **Subtle Gaze Direction** *(Bailey, McNamara, Sudarsanam & Grimm 2009, ACM TOG 28(4))* ⭐ — the
+  canonical subtle-cue envelope: ~0.76–1° Gaussian-windowed region, ~±10% luminance modulation of the
+  underlying pixels, luminance > warm–cool chroma. Our task inverts SGD's purpose but reuses the
+  stimulus envelope. *(Base paper; the 48 held only the SGD follow-ons under §2.)*
+- **Subtle Gaze Guidance for Immersive Environments** *(Grogorick, Stengel, Eisemann & Magnor 2017,
+  SAP '17)* ⭐ — the HMD/immersive port; eccentricity-dependent stimulus elongation so a cue reads as
+  circular over wide-FOV projection. Directly relevant to compositing over 360° video.
+- **Detection Response Task, ISO 17488:2016** — the standardised driving-workload probe (~1°,
+  peripheral, modest supra-threshold luminance, 3–5 s uncertainty, 100–2500 ms window); the formal
+  paradigm the blob task operationalises as a naturalistic variant. *(Also in `testing-strategy §12`.)*
+- **Peripheral Detection under load** *(van Winsum 2018, Human Factors 60(6))* — stimulus alpha is a
+  standard graded conspicuity knob; DRT/PDT performance drops under load (keeps hit-rate off ceiling).
+- **Sensitivity to gaze-contingent contrast increments in naturalistic movies** *(Wallis, Dorr & Bex
+  2015, Journal of Vision 15(8):3)* ⭐ — the near-exact methodological analogue: 2° Gaussian (σ=0.5°)
+  band-limited local-contrast increment, 600 ms ramped envelope, **modulating underlying pixels** not
+  overpainting; detection plateaus ~85%; high-edge-density regions mask the probe → scene-adaptive
+  contrast needed.
+- **Abrupt visual onsets & selective attention** *(Yantis & Jonides 1984 JEP:HPP 10(5);
+  Jonides & Yantis 1988 Percept. & Psychophys. 43(4))* — abrupt onset is the strongest exogenous
+  capture cue → justification for a **ramped** onset.
+- **Change blindness without disruption** *(Simons, Franconeri & Reimer 2000, Perception 29(10))* and
+  **Non-transient luminance changes do not capture attention** *(Cole, Kuhn & Skarratt 2011, APP
+  73(5))* — gradual/non-transient changes are fully visible yet not captured → the warrant for ramping.
+- **Moving & looming stimuli capture attention** *(Franconeri & Simons 2003, Percept. & Psychophys.
+  65(7))* — keep the probe **static** (no pulsing/growth).
+- **To see or not to see** *(Rensink, O'Regan & Clark 1997, Psychological Science 8(5))* — attention is
+  required to perceive scene changes; scene-consistency rationale.
+- Supporting: **Krajancich, Kellnhofer & Wetzstein 2023 (ACM TOG 42(4))** peripheral sensitivity is
+  attention-gated in HMDs; **Road Hazard Stimuli dataset 2023 (Behavior Research Methods)** naturalistic
+  scene-consistent targets + click response modality.
+
+> **Key Takeaway:** The blob must lose all four of its current pop-out cues — hard edge, flat fill,
+> abrupt onset, background-independent contrast — replaced by a soft Gaussian window, texture-preserving
+> local modulation, a ~500 ms ramp, and Weber contrast (~8–20%) calibrated per scene region. Target an
+> informative ~60–85% no-filter hit rate, not maximal subtlety. See `probe-target-design.md`.
+
+## 10. Probe-detection TEST METHODOLOGY (added 2026-07-18)
+
+How comparable studies make probe-detection a valid attention measure, and how content-dependence is
+handled. Full procedure + our implementation in `probe-target-design.md` §4c. Because the paired design
+(same targets/background in both conditions) makes per-target difficulty cancel in the ON−OFF
+difference, the needed defenses are a baseline pass + item screening, not per-participant calibration.
+
+- **Detection/Response Task standard** *(ISO 17488:2016; Stojmenova & Sodnik 2018, Sensors 18(2):594)* —
+  fixed, standardised probe; hit window 100–2500 ms; deliberately NOT per-person calibrated.
+- **Dual-task / full-attention baseline** *(Pashler 1994, Psych Bulletin 116(2):220; Kahneman 1973;
+  Posner 1980)* — measure the probe task alone, express deficit relative to baseline.
+- **Signal detection theory** *(Stanislaw & Todorov 1999, BRMIC 31(1):137; Macmillan & Creelman 2005;
+  Hautus 1995 log-linear; Wolfe et al. 2005 prevalence; Carrasco 2011 — attention moves d′)* — d′
+  separates visibility from attention; needs catch/no-signal trials.
+- **Item screening / floor-ceiling** *(Snodgrass & Vanderwart 1980; Loftus 1978; Liu & Wang 2021;
+  Wagenmakers et al. 2012)* — drop or model items at scale boundaries; truncation is the one real bias.
+- **Crossed subject×item mixed models** *(Baayen, Davidson & Bates 2008, JML 59(4):390; Barr et al. 2013
+  "keep it maximal"; Clark 1973 language-as-fixed-effect)* — absorb per-target difficulty as a random
+  effect, recover power without discarding data.
+- **Adaptive calibration (documented as NOT needed here)** *(Levitt 1971 transformed up-down;
+  Watson & Pelli 1983 QUEST; Watson 2017 QUEST+)* — redundant for a paired design.
+
+> **Key Takeaway:** Minimum viable procedure for this paired design = no-filter baseline block + item
+> screening + ISO scoring + crossed mixed models; d′ via catch trials is the best add-on. Implemented in
+> `TestModeSequencer` (baseline block) and `Tools/analysis/blob_probe.py` (screening / ISO RT / d′).
 
 ---
 

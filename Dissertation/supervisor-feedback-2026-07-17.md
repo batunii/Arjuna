@@ -38,6 +38,22 @@ failure — is a conclusive row. Nothing to change; cite this when presenting.
 - Blob salience: `BlobTargetController` exposes size (`m_blobSizeDeg` 1.0°), colour/alpha
   (`m_blobColor`, muted 0.5-alpha tone). Needs empirical tuning against the ceiling: if pilot
   hit-rates approach 100% in the no-filter mode, dim/shrink further. NOT yet piloted.
+- **Design spec now written (2026-07-18): `probe-target-design.md`.** The blob has four independent
+  pre-attentive pop-out cues (hard silhouette, flat fill, abrupt onset, background-independent
+  contrast) — dimming alpha fixes none of them. Fix = soft Gaussian window + texture-preserving local
+  modulation + ~500 ms ramped onset + Weber contrast ~8–20% calibrated per scene region, box-matched
+  size. Grounded in SGD (Bailey 2009, Grogorick 2017), DRT/ISO 17488, Wallis/Dorr/Bex 2015, and the
+  onset-capture literature (Yantis & Jonides; Simons; Cole). Target an informative ~60–85% no-filter
+  hit rate, watching the `false_alarm` column for artefact-confusion. Implementation Route A (soft
+  billboard + multiply blend) pilots fast; Route B (shader-composited modulation) also delivers
+  Point 3 (behind-filter) and is the natural post-study improvement (Point 6b).
+- **Route B implemented 2026-07-18** (Route A was built then rejected — even a faint dark overlay is
+  an added tint, not a modulation of the real scene, and darkening competes with the Dark modes). The
+  blob is now composited *inside* `CameraSphereVignette.shader` as a local desaturation+dim of the
+  actual scene pixels (soft Gaussian, box-matched, 0.5 s ramp), driven by `SetBlobProbe`. Reads as a
+  natural smudge, texture preserved, never a foreign object — and delivers Point 3 for free (see
+  below). Compiles clean; NOT yet piloted on device — next step is the salience self-pilot
+  (`m_blobDesat`/`m_blobDim`) against the 60–85% band, watching `false_alarm`.
 
 ## Point 2 — Bifurcate analysis: central window vs peripheral (YOLO-driven) areas
 
@@ -50,6 +66,13 @@ failure — is a conclusive row. Nothing to change; cite this when presenting.
 - The blob CSV (`blobtargets_*.csv`) has no region tag. Now that the harness locks a fixed
   window (±25°az/±15°el), region (inside window / near edge / periphery) is computable at
   selection time — add a `region` column and split hit-rates in analysis.
+- **Probe-validity procedure added 2026-07-18** (methods research → `probe-target-design.md` §4c,
+  `lit-review` §10). The paired same-target/same-background design makes per-target difficulty cancel in
+  the ON−OFF difference (can't bias the mean; only floor/ceiling truncation can). Defenses implemented:
+  a no-filter **baseline block** (`TestModeSequencer`), and `Tools/analysis/blob_probe.py` for
+  **item-screening** (drop floor/ceiling targets), **ISO-17488 RT scoring**, and an **approximate d′**
+  (rigorous d′ needs catch trials — next step). This directly answers the "was a miss inattention or
+  invisibility?" concern under Points 1/3.
 - Note for discussion: person-blob targets are now *by design* near-region only
   (predicted-strength ≥ 0.7 selection filter), i.e. the person test measures "noticing people
   entering/near the focus region", not all-periphery. Sign targets remain unconstrained.
@@ -58,21 +81,23 @@ failure — is a conclusive row. Nothing to change; cite this when presenting.
 - "Brightness induction" (contrast against the dimmed surround raising salience): worth one
   line in the dissertation discussion either way.
 
-## Point 3 — Targets in defocus areas must appear BEHIND the filter  ⚠ NOT FIXED
+## Point 3 — Targets in defocus areas must appear BEHIND the filter  ✅ FIXED 2026-07-18
 
 > If a target occurs in (or moves into) a defocus area it should be filtered/defocused too —
 > otherwise it artificially pops out and you measure the experimental artefact, not the app.
 
-**Status: OPEN — this is the most important unfixed item.** The blob is a separate world-space
-sphere at render queue 4150, drawn *on top of* the vignette sphere (queue 3000) at fixed
-colour/alpha regardless of mode or region. In Hard Dark, a blob in the blacked-out periphery is
-fully visible — exactly the artefact John describes; in SignPop the blob is equally visible in
-mode 1 and mode 2 over *dimmed* vs *natural* surroundings.
-Fix direction: `BlobTargetController` queries the manager for the filter state at the blob's
-az/el (inside window? inside a detection carve-out? current dim level) and scales the blob's
-alpha/brightness to match what a real object there would suffer.
-`VideoTestSceneManager.PersonPredictedStrength` and `ActiveRect` already expose most of the
-needed geometry.
+**Status: FIXED — fell out of the Route B blob redesign.** The blob is no longer a separate
+world-space sphere drawn on top of the vignette. As of 2026-07-18 it is composited *inside*
+`CameraSphereVignette.shader` as a local modulation of the scene pixels, applied as the **last**
+step in `frag` — i.e. on the colour that has *already* been through the focus-window carve-out,
+detection highlights, and peripheral dim/desat. So a blob in a defocused area is modulated on top
+of already-filtered content: in Hard Dark's blacked-out periphery it renders on black and is
+invisible (exactly like a real object there would be); in the dimmed periphery it is proportionally
+suppressed. `BlobTargetController` pushes az/el + radius + ramped strength via
+`VideoTestSceneManager.SetBlobProbe`; the shader does the region-correct filtering automatically.
+See `probe-target-design.md` §4 (Route B) and Point 1 above. *Remaining nuance:* the modulation is
+desaturation+dim, so its detectability is content-dependent (Wallis 2015) — per-region contrast
+calibration is the one refinement not yet done.
 
 ## Point 4 — Lock the window size for evaluation
 

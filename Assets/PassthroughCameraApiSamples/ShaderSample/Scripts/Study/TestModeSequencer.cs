@@ -6,10 +6,11 @@
 // SwitchFeedbackController) — no scene wiring, no menu step. Just Play or build.
 //
 // Default sequence (edit m_modes below to change/reorder):
-//   1. SignPop    + Video        (VideoTestScene)
-//   2. No Filter  + Video        (VideoTestScene, same clip)
-//   3. Hard Dark  + Passthrough  (CameraSphereVignette)
-//   4. No Filter  + Passthrough  (CameraSphereVignette)
+//   1. Baseline   + Video        (VideoTestScene — probes, filter OFF, detect-only screening pass)
+//   2. SignPop    + Video        (VideoTestScene)
+//   3. No Filter  + Video        (VideoTestScene, same clip)
+//   4. Hard Dark  + Passthrough  (CameraSphereVignette)
+//   5. No Filter  + Passthrough  (CameraSphereVignette)
 //
 // Per-mode controls:
 //   X — toggle. Video modes: play/pause the clip. Passthrough modes: start the vignette
@@ -51,6 +52,14 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField]
         private List<TestModeEntry> m_modes = new()
         {
+            // Baseline block (probe-detection methods, procedure #1): probes with the filter OFF,
+            // run first as a detect-only pass, to measure each target's baseline detectability.
+            // blob_probe.py uses it to screen out floor/ceiling targets before the ON-vs-OFF
+            // comparison (see Dissertation/probe-target-design.md sec 4c). It shares the same
+            // seeded targets, so any practice/learning effect is equal across the later modes and
+            // cancels in the paired ON-OFF difference.
+            new TestModeEntry { label = "Baseline (detect only, no filter)", stage = TestStage.VideoScene,
+                vignetteMode = VignetteMode.SignPop, noFilter = true },
             new TestModeEntry { label = "SignPop + Video", stage = TestStage.VideoScene,
                 vignetteMode = VignetteMode.SignPop, noFilter = false },
             new TestModeEntry { label = "No Filter + Video", stage = TestStage.VideoScene,
