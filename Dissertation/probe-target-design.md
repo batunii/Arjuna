@@ -6,8 +6,10 @@
 > pre-attentively, yet **is** reliably recognised as a click target once the participant attends to
 > that region. Sources: the existing corpus (see `lit-review-48papers.md` §2, §8) plus a targeted
 > stimulus-design search (SGD, DRT/ISO 17488, gaze-contingent psychophysics, onset-capture theory).
-> This note is design-justification material for the dissertation and a spec for the eventual code
-> change; nothing here is implemented yet.
+> This note is design-justification material for the dissertation and the probe-design spec. The
+> probe styles and methods here are now IMPLEMENTED and wired into an end-to-end authoring → split →
+> screening → experiment pipeline — see **`authored-pool-pipeline.md`** for the operational pipeline,
+> tools, and current data status (as of 2026-07-19).
 
 ---
 

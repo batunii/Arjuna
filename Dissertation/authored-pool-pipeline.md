@@ -1,0 +1,126 @@
+# Authored-Pool Target Pipeline (informal driving harness)
+
+> Compiled 2026-07-19. End-to-end pipeline for the driving-task click-probe study: hand-author a pool
+> of real click-targets, screen them for clickability, split into two counterbalanced sets, and run
+> the filter-vs-no-filter experiment with simultaneous ring probes. Branch: `Test/PointAuthoring`.
+> This is the *informal* harness (standalone from StudyLogger); it produces its own CSVs. The probe
+> visual design + methods rationale live in `probe-target-design.md`; this doc is the operational
+> pipeline and current data status.
+
+## Why this exists
+Auto-selecting targets from the YOLO bake produced uneven/uninteresting probes. Instead we
+hand-curate real detections (traffic lights, people) as the target pool, screen which are actually
+clickable, and split them into two matched sets so filter/no-filter can be counterbalanced across
+participants without any participant seeing a target twice (avoids the memorisation confound).
+
+## Stages
+
+### 1. Authoring — `PointAuthoringTool.cs` (+ `Assets/Editor/PointAuthoringMenu.cs`)
+Point EITHER controller at the playing 360° video and pull the trigger; it matches your aim + video
+time to the nearest baked YOLO detection LIFETIME and records that detection as a target. Suppresses
+the manager's filter + right-trigger window-painting (raw video; triggers free to mark). Clip plays
+once; at the end **X = replay & keep appending**, **B = finish**. Either-hand reticles (cyan/orange).
+Add via **Meta/Study/Point Authoring → Add To Open Scene** in `VideoTestScene`.
+- Output: `authored_points_<stamp>.csv` — `point_id,cls,kind,t_start,t_end,duration_s,az_mid_deg,
+  el_mid_deg,eccentricity_deg,box_height_deg`. Flushed per mark.
+- A "point" is a detection *lifetime* (span from the bake), not the instant clicked. Clicks matching
+  no detection are discarded.
+
+### 2. Merge + dedup + duration filter
+Across multiple authoring passes, merge all `authored_points_*.csv` and **dedup by detection identity**
+`(cls, t_start, t_end)` (re-marking the same object never double-counts). Then drop the too-brief
+non-clickable blips with a **uniform ≥1 s duration filter** (people kept regardless was considered,
+but a single uniform rule is cleaner; the ≥1 s cut only removes near-instant targets — real
+floor/ceiling screening is stage 4).
+- **Result (2026-07-19): 71 unique → 58 after ≥1 s** (24 traffic lights + 34 people; 0 stop signs).
+- Region tagged from the locked window: centre if `|az_mid|≤25° & |el_mid|≤15°`, else periphery →
+  centre 39, periphery 19 (periphery is people-dominated; only 3 peripheral lights).
+
+### 3. Split into counterbalanced sets — `Tools/analysis/split_pool.py`
+Partitions the 58 into two sets **matched on the properties that drive difficulty**:
+- **Stratify** on `class × region` (hard) → each set balanced on those by construction.
+- **Optimise** (seeded random-restart) to equalise `duration`, `onset (t_start)`, `eccentricity`.
+- **Simultaneity balancing** (`W_OVERLAP`): penalise same-set temporally-overlapping pairs so
+  overlapping clusters distribute across sets → lower per-set peak concurrency.
+- Output `pool_split.csv` (= pool + `region` + `set` columns).
+- **Result: A=29, B=29**, class/region matched, duration/onset/ecc means near-identical, and **max
+  simultaneous rings A=2, B=3** (whole pool was 5 → distributed). Sets are interchangeable; the
+  per-participant rotation happens at runtime.
+
+### 4. Baseline clickability screening — presenter **baseline mode**
+Run the pool with **no filter, no counterbalance**, click everything, ~2 passes; a target missed in
+*both* passes is a floor (unclickable) candidate. **Run per set (A then B)** so each is screened at
+the SAME simultaneity the experiment uses (2–3 rings) — screening the whole 58 at once over-crowds
+(peak 5) and falsely floors targets.
+- Presenter: `m_baselineMode` on, `m_baselineSet = A`/`B`. Logs `authored_results_*.csv` tagged
+  `condition=BASELINE`. Analysis = per-target hit-rate across passes (I run it ad-hoc; `blob_probe.py`
+  covers the same idea for the older schema and needs a small adapt for `authored_results`).
+- **Result (2026-07-19, A n=2, B n=2): 6 consistent floor candidates**, all short (1–2 s):
+  set A ids 3, 22, 24, 27; set B ids 16, 40. Validation of the per-set approach: the crowded all-58
+  run had falsely floored ids 23 & 49 — both were **hit** once tested un-crowded.
+- **Status: nothing dropped yet** — held until the filter runs are done (dropping/re-splitting now
+  would change set membership and break comparability with the no-filter passes already collected).
+
+### 5. Experiment runtime — `AuthoredTargetPresenter.cs`
+Loads `pool_split.csv` (from `persistentDataPath`; adb-push it there), resolves each point to its
+baked lifetime (so rings follow the moving objects), and presents ONE set as **simultaneous ring
+probes**, scoring multi-target hits.
+- **Counterbalance:** even pid → Filter=A / NoFilter=B; odd → swapped. `m_forceSet` (Auto/A/B)
+  overrides this for piloting specific set×condition combos.
+- **Condition drives the filter:** NoFilter = raw video (`StudyEffectSuppressed`); Filter = vignette
+  (`m_filterMode`, default SignPop) formed over the **locked window**, with rings composited AFTER
+  the filter (a probe in a dimmed area is dimmed too — supervisor Point 3).
+- **Locked window** (`m_windowHalfWidthDeg/HeightDeg`) — painting is off; this fixed window replaces
+  it. Currently small (down to 0.1° half); set the intended size before real filter runs.
+- **Motion suppression is disabled** during runs (`MotionEnabled=false`) — the filter is the
+  manipulation and must not fade on head movement.
+- Output `authored_results_<stamp>.csv` — `t_ms,pid,condition,set,target_id,kind,t_start,t_end,
+  duration_s,outcome,rt_s,angle_deg`. Outcomes: hit / miss / bad_aim (n/a here) / false_alarm.
+- Add via **Meta/Study/Authored Study → Add Presenter To Open Scene**.
+
+### Multi-probe rendering (enabling change)
+`CameraSphereVignette.shader` now composites up to **12 simultaneous blob probes** (`_BlobData[]` /
+`_BlobFlash4[]` arrays, `ApplyOneBlob` per probe, `ApplyBlobs` loop). `VideoTestSceneManager` exposes
+`SetBlobProbes(count,data,flash)`; the single-probe `SetBlobProbe` is kept (slot 0) so the older
+`BlobTargetController` is unchanged. Probe style is the fixed-colour **ring** (see probe-target-design).
+
+## Key design decisions
+- **Simultaneous probes, not one-at-a-time** — the authored pool has up to 5 targets on screen at
+  once; one-at-a-time would force dropping most. Simultaneous keeps them all (needs multi-probe render).
+- **Per-set baseline screening** at the real crowding (not the whole pool at once).
+- **Hold all dropping** until filter runs are in, to preserve no-filter↔filter comparability on the
+  same sets.
+- **Window size is a study parameter** — currently tiny for visibility; pick the intended windscreen
+  size before collecting filter data.
+
+## File map
+- `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/Study/PointAuthoringTool.cs` — authoring
+- `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/Study/AuthoredTargetPresenter.cs` — runtime + baseline
+- `Assets/Editor/PointAuthoringMenu.cs` — Meta/Study menus (authoring tool + presenter)
+- `Assets/PassthroughCameraApiSamples/ShaderSample/Shaders/CameraSphereVignette.shader` — multi-probe
+- `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/VideoTestSceneManager.cs` — SetBlobProbes, controller aim, video controls (VideoLength/Looping/RestartVideo)
+- `Tools/analysis/split_pool.py` — set splitter; `Tools/analysis/blob_probe.py` — screening/ISO/d′ (older schema)
+
+## Current data status (2026-07-19)
+- Authored pool: **58** (post ≥1 s filter), split into A/B (29 each), `pool_split.csv` pushed to device.
+- Baseline screening: A ×2, B ×2 done → **6 floor candidates** (not dropped).
+- Filter runs: **pending** (first attempt failed on the motion-suppression bug, now fixed).
+
+## Bug-fix log (this arc)
+- Authoring replay: `RestartVideo` uses `Stop()+Play()` (a stopped player ignored `time=0`).
+- Authoring showed dark/painted: presenter sets `StudyEffectSuppressed`+`StudyInputLock`.
+- Filter not visible: **motion suppression** was zeroing the vignette on head movement → disabled;
+  window shrunk so dimming is obvious.
+- Window slider extended down to 0.1° half.
+
+## Durability gap (action item)
+The authored CSVs, `pool_split.csv`, and results currently live on the **device** + a **temporary
+scratchpad backup** — NOT in the repo. Before relying on them long-term, save `pool_split.csv` and the
+raw `authored_points_*.csv` into a tracked location (e.g. `Dissertation/authored/`).
+
+## Next steps
+1. Set the intended window size; run **A-filter** and **B-filter** (matching the no-filter passes).
+2. Aggregate **filter vs no-filter per set** (hit-rate / RT / false alarms) — the actual effect.
+3. Finalise screening: drop the 6 floors → re-run `split_pool.py` on the 52 survivors → use for
+   subsequent runs.
+4. Persist the pool/results into the repo.
