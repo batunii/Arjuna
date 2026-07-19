@@ -101,22 +101,26 @@ probes**, scoring multi-target hits.
 - `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/VideoTestSceneManager.cs` — SetBlobProbes, controller aim, video controls (VideoLength/Looping/RestartVideo)
 - `Tools/analysis/split_pool.py` — set splitter; `Tools/analysis/blob_probe.py` — screening/ISO/d′ (older schema)
 
-## Current data status (2026-07-19)
-- Authored pool: **58** (post ≥1 s filter), split into A/B (29 each), `pool_split.csv` pushed to device.
-- Baseline screening: A ×2, B ×2 done → **6 floor candidates** (not dropped).
-- Filter runs: **pending** (first attempt failed on the motion-suppression bug, now fixed).
+## Current data status — see `authored/HANDOFF.md` for the full current picture
+- Authored pool: **58** (post ≥1 s filter), split A/B (29 each). Data now persisted in
+  `Dissertation/authored/` (working) + `Dissertation/authored/raw/` (raw device pulls).
+- Baseline screening: A ×2, B ×2 done → **6 floor candidates** (A 3,22,24,27; B 16,40; not dropped).
+- **Filter runs: done but 0% hit (0/34, set A)** — the filter renders fine (diag `effStrength=1`) but
+  the ~2° window + probe-filtered-after-vignette (Point 3) dims every probe to invisibility → all
+  missed. **Blocked on window size**; enlarge before re-running. Details in HANDOFF.
 
 ## Bug-fix log (this arc)
 - Authoring replay: `RestartVideo` uses `Stop()+Play()` (a stopped player ignored `time=0`).
 - Authoring showed dark/painted: presenter sets `StudyEffectSuppressed`+`StudyInputLock`.
-- Filter not visible: **motion suppression** was zeroing the vignette on head movement → disabled;
-  window shrunk so dimming is obvious.
-- Window slider extended down to 0.1° half.
+- Filter not visible: **`PointAuthoringTool` left in the scene** forced `StudyEffectSuppressed=true`
+  each frame (+ motion suppression). Fix: remove authoring tool before presenter runs; presenter sets
+  `MotionEnabled=false`. (Rule: only one of the two components in the scene at once — a guard is a TODO.)
+  Vignette confirmed rendering at full strength once alone.
+- Window slider extended down to 0.1° half — but note the tiny window is what now floors the Filter
+  condition at 0%; a windscreen-sized window is needed for the real comparison.
 
-## Durability gap (action item)
-The authored CSVs, `pool_split.csv`, and results currently live on the **device** + a **temporary
-scratchpad backup** — NOT in the repo. Before relying on them long-term, save `pool_split.csv` and the
-raw `authored_points_*.csv` into a tracked location (e.g. `Dissertation/authored/`).
+## Durability — DONE
+The pool, split, and all raw device CSVs are now committed under `Dissertation/authored/`.
 
 ## Next steps
 1. Set the intended window size; run **A-filter** and **B-filter** (matching the no-filter passes).

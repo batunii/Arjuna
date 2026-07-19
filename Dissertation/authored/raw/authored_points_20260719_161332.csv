@@ -1,0 +1,2 @@
+point_id,cls,kind,t_start,t_end,duration_s,az_mid_deg,el_mid_deg,eccentricity_deg,box_height_deg
+0,9,traffic_light,0.500,2.500,2.000,5.904,4.761,7.579,0.810

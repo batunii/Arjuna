@@ -1,0 +1,5 @@
+t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
+1784469874492,1,BASELINE,A,-1,,,,,false_alarm,,
+1784469874832,1,BASELINE,A,-1,,,,,false_alarm,,
+1784469874859,1,BASELINE,A,-1,,,,,false_alarm,,
+1784469892324,1,BASELINE,A,3,person,20.500,22.000,1.500,miss,,
