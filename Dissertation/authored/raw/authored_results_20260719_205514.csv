@@ -24,3 +24,6 @@ t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angl
 1784491208740,1,Filter,A,41,traffic_light,315.000,316.000,1.000,miss,,
 1784491309701,1,Filter,A,45,traffic_light,363.500,417.000,53.500,miss,,
 1784491311203,1,Filter,A,44,person,362.000,418.500,56.500,miss,,
+1784494569245,1,Filter,A,50,traffic_light,456.500,458.000,1.500,miss,,
+1784494580762,1,Filter,A,52,person,464.000,469.500,5.500,miss,,
+1784494581265,1,Filter,A,51,person,459.000,470.000,11.000,miss,,

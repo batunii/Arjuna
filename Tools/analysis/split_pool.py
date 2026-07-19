@@ -17,8 +17,12 @@ there is no within-set temporal-overlap constraint. (If the study switches to
 one-probe-at-a-time, that constraint would force dropping overlapping targets —
 not handled here.)
 
+Practice targets: --practice takes point_ids to set aside as set "P". They are
+excluded from the A/B optimisation and written with set=P; the presenter shows
+them in EVERY run (both sets, both conditions) as unscored warm-up clicks.
+
 CLI:
-    python Tools/analysis/split_pool.py <pool.csv> [--seed-tries 20000] [--out split.csv]
+    python Tools/analysis/split_pool.py <pool.csv> [--seed-tries 20000] [--out split.csv] [--practice 0,58]
 Input columns: point_id,cls,kind,t_start,t_end,duration_s,az_mid_deg,el_mid_deg,
                eccentricity_deg,box_height_deg[,region]
 """
@@ -108,19 +112,31 @@ def main():
     ap.add_argument("pool", type=Path)
     ap.add_argument("--seed-tries", type=int, default=20000)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--practice", type=str, default="",
+                    help="comma-separated point_ids set aside as set P (shown every run, unscored)")
     args = ap.parse_args()
 
-    rows = load(args.pool)
+    practice_ids = {s.strip() for s in args.practice.split(",") if s.strip()}
+    all_rows = load(args.pool)
+    practice = [r for r in all_rows if r["point_id"] in practice_ids]
+    rows = [r for r in all_rows if r["point_id"] not in practice_ids]
+    missing = practice_ids - {r["point_id"] for r in practice}
+    if missing:
+        sys.exit(f"--practice ids not in pool: {sorted(missing)}")
+    if practice:
+        print("practice (set P):", [(r["point_id"], r["kind"], f"t={r['t_start']:.1f}") for r in practice])
     print(f"pool: {len(rows)}  class x region: {dict(Counter((r['kind'], r['region']) for r in rows))}")
     assign, score, _ = split(rows, args.seed_tries)
+    for r in practice:
+        assign[r["point_id"]] = "P"
     print(f"\nbest imbalance score: {score:.3f}  (lower = better matched)")
     report(rows, assign)
 
     if args.out:
         with open(args.out, "w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()) + ["set"])
+            w = csv.DictWriter(fh, fieldnames=list(all_rows[0].keys()) + ["set"])
             w.writeheader()
-            for r in rows:
+            for r in all_rows:
                 out = dict(r); out["set"] = assign[r["point_id"]]; w.writerow(out)
         print(f"\nwrote {args.out}")
     return 0
