@@ -29,6 +29,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
     {
         public enum Condition { Filter, NoFilter }
         public enum BaselineSet { All, A, B }
+        public enum SetOverride { Auto, A, B }
 
         [SerializeField] private VideoTestSceneManager m_video;
         [SerializeField] private string m_poolFileName = "pool_split.csv";
@@ -37,6 +38,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private int m_participantId = 1;
         [SerializeField] private Condition m_condition = Condition.NoFilter;
         [SerializeField] private VignetteMode m_filterMode = VignetteMode.SignPop;
+        [Tooltip("Experiment runs (baseline off): force a specific set regardless of participant counterbalance — for piloting specific set x condition combos. Auto = normal counterbalance by participant id.")]
+        [SerializeField] private SetOverride m_forceSet = SetOverride.Auto;
 
         [Header("Baseline screening")]
         [Tooltip("Screening pass: NO filter, NO counterbalance. Click everything you can; let it loop a few times. Then screen out targets you couldn't reliably hit. Overrides condition/participant.")]
@@ -99,7 +102,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
             m_setForRun = m_baselineMode
                 ? (m_baselineSet == BaselineSet.All ? "ALL" : m_baselineSet.ToString())
-                : SetForRun(m_participantId, m_condition);
+                : (m_forceSet != SetOverride.Auto ? m_forceSet.ToString()
+                                                  : SetForRun(m_participantId, m_condition));
             LoadPool();
             Debug.Log(m_baselineMode
                 ? $"[AuthoredPresenter] BASELINE screening (set {m_setForRun}), no filter; {m_targets.Count} targets. Click everything."
