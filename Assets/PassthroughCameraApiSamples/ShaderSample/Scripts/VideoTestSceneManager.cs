@@ -1328,6 +1328,39 @@ namespace PassthroughCameraSamples.ShaderSample
             else m_videoPlayer.Pause();
         }
 
+        // ---- point-authoring support (PointAuthoringTool) ----
+
+        /// <summary>Clip length in seconds (0 if no player / not prepared).</summary>
+        public double VideoLength => m_videoPlayer != null ? m_videoPlayer.length : 0.0;
+
+        /// <summary>Loop the primary video. Authoring turns this off so the clip ends (offering
+        /// replay/finish); the normal test harness leaves it on (blob targets reset per loop).</summary>
+        public bool VideoLooping
+        {
+            get => m_videoPlayer != null && m_videoPlayer.isLooping;
+            set { if (m_videoPlayer != null) m_videoPlayer.isLooping = value; }
+        }
+
+        /// <summary>Seek to the start and play — used by authoring "replay".</summary>
+        public void RestartVideo()
+        {
+            if (m_videoPlayer == null) return;
+            m_videoPlayer.Stop(); // resets playback time to 0 — a stopped/ended player ignores a bare time=0
+            m_videoPlayer.Play();
+        }
+
+        /// <summary>Right-controller aim as az/el (radians) — mirror of GetLeftControllerAzEl.</summary>
+        public void GetRightControllerAzEl(out float az, out float el)
+        {
+            var rot = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
+            Vector3 worldDir = m_cameraRig != null
+                ? m_cameraRig.TransformDirection(rot * Vector3.forward)
+                : rot * Vector3.forward;
+            worldDir = worldDir.normalized;
+            az = Mathf.Atan2(worldDir.x, worldDir.z);
+            el = Mathf.Asin(Mathf.Clamp(worldDir.y, -1f, 1f));
+        }
+
         public void StudySetWindow(Vector4 azElRadians)
         {
             m_activeRect = azElRadians;
