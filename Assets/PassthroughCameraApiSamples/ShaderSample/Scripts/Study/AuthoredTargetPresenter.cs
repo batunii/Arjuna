@@ -48,9 +48,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private BaselineSet m_baselineSet = BaselineSet.A;
 
         [Header("Locked focus window (constant geometry, both conditions)")]
-        [Tooltip("Half-width/height of the fixed clear window in degrees. Painting is locked off, so this IS the window. Default ~4deg square (small = filter dims most of the view, clearly visible); raise toward 25/15 for a windscreen-sized focus in the real study.")]
-        [SerializeField, Range(1f, 80f)] private float m_windowHalfWidthDeg = 2f;
-        [SerializeField, Range(1f, 60f)] private float m_windowHalfHeightDeg = 2f;
+        [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Slider goes down to 0.1deg half (0.2deg window) for a very small focus; raise toward 25/15 for a windscreen.")]
+        [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 1f;
+        [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 1f;
 
         [Header("Probe (ring) — matches the piloted style")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
