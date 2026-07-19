@@ -48,8 +48,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private BaselineSet m_baselineSet = BaselineSet.A;
 
         [Header("Locked focus window (constant geometry, both conditions)")]
-        [SerializeField, Range(5f, 80f)] private float m_windowHalfWidthDeg = 25f;
-        [SerializeField, Range(5f, 60f)] private float m_windowHalfHeightDeg = 15f;
+        [Tooltip("Half-width/height of the fixed clear window in degrees. Painting is locked off, so this IS the window. Default ~4deg square (small = filter dims most of the view, clearly visible); raise toward 25/15 for a windscreen-sized focus in the real study.")]
+        [SerializeField, Range(1f, 80f)] private float m_windowHalfWidthDeg = 2f;
+        [SerializeField, Range(1f, 60f)] private float m_windowHalfHeightDeg = 2f;
 
         [Header("Probe (ring) — matches the piloted style")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
@@ -188,7 +189,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private void ApplyCondition()
         {
-            m_video.StudyInputLock = true; // participant can't repaint the window
+            m_video.StudyInputLock = true;   // participant can't repaint the window
+            m_video.MotionEnabled = false;   // the filter IS the manipulation — don't let head motion fade it
             float halfW = m_windowHalfWidthDeg * Mathf.Deg2Rad, halfH = m_windowHalfHeightDeg * Mathf.Deg2Rad;
             m_video.StudySetWindow(new Vector4(-halfW, halfW, -halfH, halfH));
             if (m_baselineMode || m_condition == Condition.NoFilter)
