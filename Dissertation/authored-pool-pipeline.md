@@ -26,15 +26,20 @@ Add via **Meta/Study/Point Authoring → Add To Open Scene** in `VideoTestScene`
 - A "point" is a detection *lifetime* (span from the bake), not the instant clicked. Clicks matching
   no detection are discarded.
 
-### 2. Merge + dedup + duration filter
+### 2. Merge + dedup + duration filter — `Tools/analysis/merge_pool.py`
 Across multiple authoring passes, merge all `authored_points_*.csv` and **dedup by detection identity**
 `(cls, t_start, t_end)` (re-marking the same object never double-counts). Then drop the too-brief
 non-clickable blips with a **uniform ≥1 s duration filter** (people kept regardless was considered,
 but a single uniform rule is cleaner; the ≥1 s cut only removes near-instant targets — real
-floor/ceiling screening is stage 4).
-- **Result (2026-07-19): 71 unique → 58 after ≥1 s** (24 traffic lights + 34 people; 0 stop signs).
+floor/ceiling screening is stage 4). Scripted as `merge_pool.py` (2026-07-19): `--existing` preserves
+prior point_ids across rebuilds so old results stay linkable; new detections append at the next ids.
+- Bake lifetimes are **quantized to 0.5 s steps** — a softer 0.6 s cut is a no-op; sub-1 s means
+  exactly 0.5 s blips (25 of them, excluded: confirmed floors were 1–2 s, so 0.5 s ≈ certain floor).
+- **Result v1 (2026-07-19): 71 unique → 58 after ≥1 s** (3 files merged).
+  **Result v2 (2026-07-19 evening): all 9 files → 107 unique → 82 after ≥1 s** (31 traffic lights +
+  51 people); ids 0–57 preserved, newcomers 58–81.
 - Region tagged from the locked window: centre if `|az_mid|≤25° & |el_mid|≤15°`, else periphery →
-  centre 39, periphery 19 (periphery is people-dominated; only 3 peripheral lights).
+  v2: centre 52, periphery 30 (periphery is people-dominated; only 3 peripheral lights).
 
 ### 3. Split into counterbalanced sets — `Tools/analysis/split_pool.py`
 Partitions the 58 into two sets **matched on the properties that drive difficulty**:
@@ -43,8 +48,15 @@ Partitions the 58 into two sets **matched on the properties that drive difficult
 - **Simultaneity balancing** (`W_OVERLAP`): penalise same-set temporally-overlapping pairs so
   overlapping clusters distribute across sets → lower per-set peak concurrency.
 - Output `pool_split.csv` (= pool + `region` + `set` columns).
-- **Result: A=29, B=29**, class/region matched, duration/onset/ecc means near-identical, and **max
-  simultaneous rings A=2, B=3** (whole pool was 5 → distributed). Sets are interchangeable; the
+- **Practice targets** (`--practice <ids>`): set aside as set **P**, excluded from the A/B
+  optimisation; the presenter shows them in every run as unscored warm-up (logged set=P, dropped in
+  analysis). Current: ids 0 & 58 — the pool's two temporally-first targets (centre lights, ending
+  2.5 s; first scored target 6.5 s/10.5 s into runs A/B).
+- **Result v1: A=29, B=29**, max simultaneous rings A=2, B=3 (whole pool 5).
+  **Result v2 (full re-split of the 82-target pool, 2026-07-19 evening): A=40, B=40 + 2 P**,
+  class/region matched, duration/onset/ecc means near-identical, peak simultaneous rings per run
+  **A=3, B=4** (shader cap 12). ⚠ The re-split changed set membership, so the v1 per-set baseline
+  screening is superseded — **re-screen A and B before filter runs.** Sets are interchangeable; the
   per-participant rotation happens at runtime.
 
 ### 4. Baseline clickability screening — presenter **baseline mode**

@@ -74,7 +74,7 @@ public static class PointAuthoringMenu
         so.ApplyModifiedPropertiesWithoutUndo();
         Selection.activeGameObject = go;
         EditorSceneManager.MarkSceneDirty(go.scene);
-        Debug.Log("[PointAuthoringMenu] Added AuthoredTargetPresenter. Set m_participantId + m_condition, "
+        Debug.Log("[PointAuthoringMenu] Added AuthoredTargetPresenter. Set m_participantId + m_mode, "
                 + "push pool_split.csv to the device persistentDataPath, then build the video scene.");
     }
 

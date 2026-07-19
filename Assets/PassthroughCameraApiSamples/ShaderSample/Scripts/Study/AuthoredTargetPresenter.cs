@@ -3,15 +3,30 @@
 // Loads pool_split.csv (the counterbalance sets A/B produced by Tools/analysis/split_pool.py),
 // resolves each point back to its baked YOLO detection lifetime (for per-frame position), and
 // presents ONE set as SIMULTANEOUS ring probes over the driving video while the participant clicks
-// them with either controller. Hit/miss/RT per target is logged to authored_results_<stamp>.csv.
+// them with either controller. Hit/miss/RT per target is logged to authored_results_*.csv.
 //
-// Counterbalance: which set is shown depends on (participant id parity, condition), so across
-// participants each set appears equally in each condition:
-//     even pid: Filter->A, NoFilter->B      odd pid: Filter->B, NoFilter->A
-// Run once per condition (set m_participantId + m_condition), rebuild/relaunch for the other.
+// RUN FLOW (one build = one mode; switch m_mode in the inspector and rebuild):
+//   boot  -> video paused at 0, HUD shows the mode + "Press X to start".
+//   X     -> video restarts from 0. The practice targets (pool set P — the two temporally-first
+//            points) ramp in, then the video PAUSES and the HUD asks the participant to pull
+//            EITHER trigger on each highlighted ring. It resumes only when both are clicked.
+//   play  -> the set's targets present as rings; clicks score hit/miss/false_alarm as before.
+//   end   -> when the video ends (no looping) the pass is over: unresolved targets log as miss,
+//            the CSV is closed, HUD shows the tally. X starts a fresh pass (new CSV, same mode).
 //
-// Condition drives the filter: NoFilter suppresses the vignette (raw video); Filter forms the
-// vignette (m_filterMode) over the locked window. Probes are composited AFTER the filter, so a
+// Modes (single dropdown): BaselineA/B = screening (no filter, that set); FilterA/B, NoFilterA/B =
+// experiment with the set forced (piloting); AutoFilter/AutoNoFilter = experiment with the set
+// from participant-id parity (even pid: Filter->A, NoFilter->B; odd: swapped).
+//
+// Participant id -1 = experimenter pilot; results file is named authored_results_PILOT_<mode>_
+// <stamp>.csv. Real participants (pid >= 0) get authored_results_P<pid>_<mode>_<stamp>.csv.
+// Every pass gets its own timestamped file either way.
+//
+// Practice: pool rows with set=P are shown in EVERY run as warm-up. They behave like normal
+// probes but log set=P, so analysis drops them (the participant's first two clicks never score).
+//
+// Condition drives the filter: NoFilter/Baseline suppress the vignette (raw video); Filter forms
+// the vignette (m_filterMode) over the locked window. Probes are composited AFTER the filter, so a
 // target in a defocused area is filtered too (supervisor Point 3). Window painting is locked off.
 //
 // pool_split.csv is loaded from persistentDataPath (adb push it there) with a StreamingAssets
@@ -22,35 +37,36 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PassthroughCameraSamples.ShaderSample.Study
 {
     public class AuthoredTargetPresenter : MonoBehaviour
     {
-        public enum Condition { Filter, NoFilter }
-        public enum BaselineSet { All, A, B }
-        public enum SetOverride { Auto, A, B }
+        public enum StudyMode
+        {
+            BaselineA, BaselineB,
+            FilterA, FilterB,
+            NoFilterA, NoFilterB,
+            AutoFilter, AutoNoFilter,
+        }
+
+        private enum Phase { Armed, Running, Done }
 
         [SerializeField] private VideoTestSceneManager m_video;
         [SerializeField] private string m_poolFileName = "pool_split.csv";
 
-        [Header("Run identity (drives counterbalancing)")]
-        [SerializeField] private int m_participantId = 1;
-        [SerializeField] private Condition m_condition = Condition.NoFilter;
+        [Header("Run identity")]
+        [Tooltip("-1 = experimenter pilot run (results named PILOT). >= 0 = real participant.")]
+        [SerializeField] private int m_participantId = -1;
+        [Tooltip("The ONE thing to change between builds. Baseline = screening (no filter). Filter/NoFilter with a set = forced (piloting). Auto* = set from participant-id parity.")]
+        [SerializeField] private StudyMode m_mode = StudyMode.BaselineA;
         [SerializeField] private VignetteMode m_filterMode = VignetteMode.SignPop;
-        [Tooltip("Experiment runs (baseline off): force a specific set regardless of participant counterbalance — for piloting specific set x condition combos. Auto = normal counterbalance by participant id.")]
-        [SerializeField] private SetOverride m_forceSet = SetOverride.Auto;
-
-        [Header("Baseline screening")]
-        [Tooltip("Screening pass: NO filter, NO counterbalance. Click everything you can; let it loop a few times. Then screen out targets you couldn't reliably hit. Overrides condition/participant.")]
-        [SerializeField] private bool m_baselineMode = false;
-        [Tooltip("Baseline only: which set to show. Run A then B to screen each at the SAME simultaneity the experiment uses (one set at a time, ~2-3 rings). All = the whole pool at once (more crowded than the experiment).")]
-        [SerializeField] private BaselineSet m_baselineSet = BaselineSet.A;
 
         [Header("Locked focus window (constant geometry, both conditions)")]
-        [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Slider goes down to 0.1deg half (0.2deg window) for a very small focus; raise toward 25/15 for a windscreen.")]
-        [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 1f;
-        [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 1f;
+        [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Raise toward 25/15 for a windscreen.")]
+        [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 25f;
+        [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 15f;
 
         [Header("Probe (ring) — matches the piloted style")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
@@ -60,9 +76,12 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private Color m_hitFlashColor = new(0.3f, 1f, 0.4f, 0.9f);
         [SerializeField, Range(0.05f, 1f)] private float m_hitFlashSeconds = 0.25f;
 
-        [Header("Hit detection")]
+        [Header("Input")]
+        [SerializeField] private OVRInput.RawButton m_startButton = OVRInput.RawButton.X;
         [SerializeField] private OVRInput.RawButton m_markLeft = OVRInput.RawButton.LIndexTrigger;
         [SerializeField] private OVRInput.RawButton m_markRight = OVRInput.RawButton.RIndexTrigger;
+
+        [Header("Hit detection")]
         [SerializeField, Range(1f, 30f)] private float m_hitAngleToleranceDeg = 10f;
         [SerializeField, Range(0f, 3f)] private float m_hitGraceSec = 0.75f;
         [SerializeField, Range(0f, 2f)] private float m_holdSeconds = 0.5f;
@@ -82,8 +101,17 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private readonly List<Target> m_targets = new();
         private string m_setForRun;
-        private bool m_started;
+        private bool m_initialised;
+        private Phase m_phase = Phase.Armed;
         private float m_lastVt = -1f;
+
+        // practice gate
+        private float m_practiceGateT = -1f;    // video time at which to pause for practice clicks
+        private bool m_practicePaused;
+        private bool m_practiceDone;
+
+        // per-pass tally for the end-of-run HUD
+        private int m_passHits, m_passMisses, m_passFalseAlarms, m_passNumber;
 
         private readonly Vector4[] m_data = new Vector4[12];
         private readonly Vector4[] m_flash = new Vector4[12];
@@ -93,31 +121,51 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private const string k_header =
             "t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg";
 
+        // HUD (same proven pattern as PointAuthoringTool: world-space canvas, head-following)
+        private GameObject m_uiRoot;
+        private Text m_uiText;
+
         private static string Kind(int cls) => cls switch
         {
             9 => "traffic_light", 11 => "stop_sign", 0 => "person", _ => "unknown",
         };
 
+        private bool IsBaseline => m_mode == StudyMode.BaselineA || m_mode == StudyMode.BaselineB;
+
+        private bool IsFilterCondition =>
+            m_mode == StudyMode.FilterA || m_mode == StudyMode.FilterB || m_mode == StudyMode.AutoFilter;
+
+        private string ConditionLabel => IsBaseline ? "BASELINE" : (IsFilterCondition ? "Filter" : "NoFilter");
+
+        private string ModeTag => $"{(IsBaseline ? "BASELINE" : IsFilterCondition ? "FILTER" : "NOFILTER")}-{m_setForRun}";
+
+        private string WhoTag => m_participantId < 0 ? "PILOT" : $"P{m_participantId}";
+
         private void Start()
         {
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
-            m_setForRun = m_baselineMode
-                ? (m_baselineSet == BaselineSet.All ? "ALL" : m_baselineSet.ToString())
-                : (m_forceSet != SetOverride.Auto ? m_forceSet.ToString()
-                                                  : SetForRun(m_participantId, m_condition));
+            m_setForRun = ResolveSet();
             LoadPool();
-            Debug.Log(m_baselineMode
-                ? $"[AuthoredPresenter] BASELINE screening (set {m_setForRun}), no filter; {m_targets.Count} targets. Click everything."
-                : $"[AuthoredPresenter] pid {m_participantId} / {m_condition} -> set {m_setForRun}; {m_targets.Count} targets.");
+            Debug.Log($"[AuthoredPresenter] {WhoTag} {ModeTag}: {m_targets.Count} targets "
+                    + $"(incl. practice). Press {m_startButton} to start.");
+            BuildHUD();
         }
 
-        // even pid: Filter->A, NoFilter->B ; odd pid: swapped. Each set appears in each condition
-        // equally across an even participant count.
-        private static string SetForRun(int pid, Condition cond)
+        private string ResolveSet()
         {
-            bool even = (pid % 2) == 0;
-            bool wantA = (cond == Condition.Filter) == even;
-            return wantA ? "A" : "B";
+            switch (m_mode)
+            {
+                case StudyMode.BaselineA:
+                case StudyMode.FilterA:
+                case StudyMode.NoFilterA: return "A";
+                case StudyMode.BaselineB:
+                case StudyMode.FilterB:
+                case StudyMode.NoFilterB: return "B";
+                default: // Auto*: even pid: Filter->A, NoFilter->B ; odd pid: swapped.
+                    bool even = (m_participantId % 2) == 0;
+                    bool wantA = IsFilterCondition == even;
+                    return wantA ? "A" : "B";
+            }
         }
 
         private void Update()
@@ -125,28 +173,82 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (TestModeSequencer.Instance != null) { Destroy(TestModeSequencer.Instance.gameObject); return; }
             if (m_video == null) return;
 
-            if (!m_started)
+            if (!m_initialised)
             {
-                m_started = true;
+                m_initialised = true;
                 ApplyCondition();
                 ResolveLifetimes();
+                ComputePracticeGate();
                 m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
                                             m_ringColor, m_ringWidth, m_hitFlashColor);
-                m_video.SetVideoPlaying(true);
+                m_video.VideoLooping = false;
+                m_video.SetVideoPlaying(false);
+                m_video.SetBlobProbes(0, m_data, m_flash);
+                SetHUD($"{WhoTag}  |  {ModeTag}\n\nPress X to start");
             }
 
+            switch (m_phase)
+            {
+                case Phase.Armed:
+                case Phase.Done:
+                    m_video.VideoLooping = false;   // the manager boots with looping on; keep it off
+                    if (OVRInput.GetDown(m_startButton)) StartPass();
+                    break;
+                case Phase.Running:
+                    TickRun();
+                    break;
+            }
+        }
+
+        private void StartPass()
+        {
+            foreach (var t in m_targets) { t.resolved = false; t.flash = 0f; }
+            m_passHits = m_passMisses = m_passFalseAlarms = 0;
+            m_passNumber++;
+            m_practicePaused = false;
+            m_practiceDone = m_practiceGateT < 0f;   // no practice targets -> skip the gate
+            m_lastVt = -1f;
+            m_video.VideoLooping = false;
+            m_video.RestartVideo();
+            m_phase = Phase.Running;
+            SetHUD("");
+            Debug.Log($"[AuthoredPresenter] pass {m_passNumber} started ({ModeTag}).");
+        }
+
+        private void TickRun()
+        {
             float vt = m_video.VideoTime;
             if (vt < 0f) return;
             float dt = Time.deltaTime;
-
-            if (m_lastVt >= 0f && vt < m_lastVt - 1f)         // video looped
-                foreach (var t in m_targets) { t.resolved = false; t.flash = 0f; }
             m_lastVt = vt;
+
+            // Practice gate: once the practice rings have fully ramped in, hold the video and
+            // require a click on each before the clip proceeds (the participant's warm-up).
+            if (!m_practiceDone)
+            {
+                if (!m_practicePaused && vt >= m_practiceGateT)
+                {
+                    m_practicePaused = true;
+                    m_video.SetVideoPlaying(false);
+                    SetHUD("Practice: pull EITHER trigger\nto select each highlighted ring");
+                }
+                if (m_practicePaused && AllPracticeResolved())
+                {
+                    m_practicePaused = false;
+                    m_practiceDone = true;
+                    m_video.SetVideoPlaying(true);
+                    SetHUD("");
+                }
+            }
+
+            // End of clip = end of pass (video does not loop).
+            double len = m_video.VideoLength;
+            if (m_practiceDone && len > 1.0 && vt >= (float)len - 0.15f) { EndPass(); return; }
 
             // Resolve misses (window + grace passed, never hit).
             foreach (var t in m_targets)
                 if (!t.resolved && vt > t.tEnd + m_hitGraceSec && vt < t.tEnd + m_hitGraceSec + 0.5f)
-                    { t.resolved = true; Log(t, "miss", -1f, -1f); }
+                    { t.resolved = true; m_passMisses++; Log(t, "miss", -1f, -1f); }
 
             // Build the simultaneous probe set (active, unresolved, or flashing).
             int n = 0;
@@ -170,6 +272,36 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (OVRInput.GetDown(m_markRight)) { m_video.GetRightControllerAzEl(out float a, out float e); TryHit(a, e, vt); }
         }
 
+        private void EndPass()
+        {
+            foreach (var t in m_targets)
+                if (!t.resolved) { t.resolved = true; m_passMisses++; Log(t, "miss", -1f, -1f); }
+            m_video.SetBlobProbes(0, m_data, m_flash);
+            m_video.SetVideoPlaying(false);
+            CloseLog();
+            m_phase = Phase.Done;
+            int scored = m_passHits + m_passMisses;   // includes practice; close enough for the HUD
+            SetHUD($"Pass {m_passNumber} complete — {m_passHits}/{scored} hit, "
+                 + $"{m_passFalseAlarms} false alarms\n\nPress X for another pass");
+            Debug.Log($"[AuthoredPresenter] pass {m_passNumber} done: {m_passHits}/{scored} hit, "
+                    + $"{m_passFalseAlarms} FA -> {m_logPath}");
+        }
+
+        private bool AllPracticeResolved()
+        {
+            foreach (var t in m_targets)
+                if (t.set == "P" && !t.resolved) return false;
+            return true;
+        }
+
+        private void ComputePracticeGate()
+        {
+            m_practiceGateT = -1f;
+            foreach (var t in m_targets)
+                if (t.set == "P")
+                    m_practiceGateT = Mathf.Max(m_practiceGateT, t.tStart + m_onsetRampSeconds);
+        }
+
         private void TryHit(float az, float el, float vt)
         {
             Target best = null; float bestAng = m_hitAngleToleranceDeg;
@@ -180,8 +312,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 float ang = AngDeg(az, el, p.x, p.y);
                 if (ang < bestAng) { bestAng = ang; best = t; }
             }
-            if (best == null) { Log(null, "false_alarm", -1f, -1f); return; }
+            if (best == null) { m_passFalseAlarms++; Log(null, "false_alarm", -1f, -1f); return; }
             best.resolved = true; best.flash = 1f;
+            m_passHits++;
             Log(best, "hit", vt - best.tStart, bestAng);
         }
 
@@ -193,15 +326,15 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_video.MotionEnabled = false;   // the filter IS the manipulation — don't let head motion fade it
             float halfW = m_windowHalfWidthDeg * Mathf.Deg2Rad, halfH = m_windowHalfHeightDeg * Mathf.Deg2Rad;
             m_video.StudySetWindow(new Vector4(-halfW, halfW, -halfH, halfH));
-            if (m_baselineMode || m_condition == Condition.NoFilter)
-            {
-                m_video.StudyEffectSuppressed = true;       // raw video (baseline screening + no-filter condition)
-            }
-            else
+            if (!IsBaseline && IsFilterCondition)
             {
                 m_video.StudyEffectSuppressed = false;
                 m_video.StudySetMode(m_filterMode);
                 m_video.StudySetActive(true);               // form the vignette
+            }
+            else
+            {
+                m_video.StudyEffectSuppressed = true;       // raw video (baseline screening + no-filter condition)
             }
         }
 
@@ -226,7 +359,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 if (string.IsNullOrWhiteSpace(lines[li])) continue;
                 var f = lines[li].Split(',');
                 string set = f[cols["set"]].Trim();
-                if (m_setForRun != "ALL" && set != m_setForRun) continue; // "ALL" = whole pool (baseline)
+                // Set "P" = practice targets: shown in EVERY run (both sets, both conditions) as
+                // warm-up; logged with set=P so analysis excludes them.
+                if (set != m_setForRun && set != "P") continue;
                 int cls = int.Parse(f[cols["cls"]], CultureInfo.InvariantCulture);
                 m_targets.Add(new Target
                 {
@@ -276,6 +411,49 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             return new Vector3(Mathf.Sin(az) * cosEl, Mathf.Sin(el), Mathf.Cos(az) * cosEl);
         }
 
+        // ---- HUD ----
+
+        private void SetHUD(string text)
+        {
+            if (m_uiText != null) m_uiText.text = text;
+            if (m_uiRoot != null) m_uiRoot.SetActive(!string.IsNullOrEmpty(text));
+        }
+
+        private void BuildHUD()
+        {
+            if (m_uiRoot != null) return;
+            m_uiRoot = new GameObject("PresenterHUD");
+            m_uiRoot.transform.SetParent(transform, false);
+            var canvas = m_uiRoot.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            m_uiRoot.GetComponent<RectTransform>().sizeDelta = new Vector2(700f, 200f);
+            m_uiRoot.transform.localScale = Vector3.one * 0.0015f;
+            var mat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
+
+            var textGO = new GameObject("Text");
+            textGO.transform.SetParent(m_uiRoot.transform, false);
+            m_uiText = textGO.AddComponent<Text>();
+            m_uiText.material = mat;
+            m_uiText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                         ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            m_uiText.fontSize = 30;
+            m_uiText.alignment = TextAnchor.MiddleCenter;
+            m_uiText.color = Color.white;
+            var rt = textGO.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        }
+
+        private void LateUpdate()
+        {
+            if (m_uiRoot == null || !m_uiRoot.activeSelf || Camera.main == null) return;
+            Transform h = Camera.main.transform;
+            Vector3 fwd = Vector3.ProjectOnPlane(h.forward, Vector3.up);
+            fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : h.forward;
+            m_uiRoot.transform.position = h.position + fwd * 1.5f + Vector3.down * 0.35f;
+            m_uiRoot.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+        }
+
         // ---- logging ----
 
         private void Log(Target t, string outcome, float rt, float ang)
@@ -283,19 +461,26 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (m_log == null)
             {
                 string stamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-                m_logPath = Path.Combine(Application.persistentDataPath, $"authored_results_{stamp}.csv");
+                m_logPath = Path.Combine(Application.persistentDataPath,
+                                         $"authored_results_{WhoTag}_{ModeTag}_{stamp}.csv");
                 m_log = new StreamWriter(m_logPath, false, new UTF8Encoding(false));
                 m_log.WriteLine(k_header);
                 Debug.Log($"[AuthoredPresenter] logging to {m_logPath}");
             }
             long ms = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            string cond = m_baselineMode ? "BASELINE" : m_condition.ToString();
+            // Target rows carry the target's OWN set: practice targets log set=P (excluded in
+            // analysis) even though they play inside an A/B run.
             string row = t != null
-                ? string.Join(",", ms, m_participantId, cond, m_setForRun, t.id, t.kind,
+                ? string.Join(",", ms, m_participantId, ConditionLabel, t.set, t.id, t.kind,
                               F(t.tStart), F(t.tEnd), F(t.tEnd - t.tStart), outcome, F(rt), F(ang))
-                : string.Join(",", ms, m_participantId, cond, m_setForRun, -1, "",
+                : string.Join(",", ms, m_participantId, ConditionLabel, m_setForRun, -1, "",
                               "", "", "", outcome, F(rt), F(ang));
             m_log.WriteLine(row); m_log.Flush();
+        }
+
+        private void CloseLog()
+        {
+            m_log?.Flush(); m_log?.Dispose(); m_log = null;
         }
 
         private static float P(string[] f, Dictionary<string, int> cols, string key) =>
@@ -303,6 +488,6 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private static string F(float v) => v < 0f ? "" : v.ToString("F3", CultureInfo.InvariantCulture);
 
-        private void OnDestroy() { m_log?.Flush(); m_log?.Dispose(); }
+        private void OnDestroy() { CloseLog(); }
     }
 }

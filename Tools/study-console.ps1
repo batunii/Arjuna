@@ -15,13 +15,15 @@
 #   .\Tools\study-console.ps1 install         # install -r Builds/Android/study.apk + launch
 #   .\Tools\study-console.ps1 launch          # (re)launch the app
 #   .\Tools\study-console.ps1 pull            # pull session CSVs into .\logs\ and list them
+#   .\Tools\study-console.ps1 apull           # pull authored-study CSVs into Dissertation\authored\raw\
+#   .\Tools\study-console.ps1 awipe           # delete device authored CSVs that are safely on the PC
 #
 # adb is resolved from PATH, falling back to Unity's bundled platform-tools.
 
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet("logcat", "pid", "practice", "space", "tlx", "place", "skipc",
-                 "incident", "switch", "end", "install", "launch", "pull")]
+                 "incident", "switch", "end", "install", "launch", "pull", "apull", "awipe")]
     [string]$Command,
 
     [Parameter(Position = 1)]
@@ -74,5 +76,42 @@ switch ($Command) {
         Get-ChildItem -Recurse $dest -Filter "study_P*.csv" | Sort-Object LastWriteTime |
             ForEach-Object { Write-Host ("{0}  {1:N0} KB" -f $_.FullName, ($_.Length / 1KB)) }
         Write-Host "Next: python Tools\validate_session.py <csv>"
+    }
+    "apull"    {
+        # Authored-study data (AuthoredTargetPresenter): copy every authored_* CSV to the repo.
+        # Copy only — use awipe (after verifying) to clear the headset.
+        $dest = Join-Path $RepoRoot "Dissertation\authored\raw"
+        New-Item -ItemType Directory -Force $dest | Out-Null
+        $remote = "/sdcard/Android/data/$Package/files"
+        $names = (& $adb shell "ls $remote" ) -split "`n" |
+            ForEach-Object { $_.Trim() } | Where-Object { $_ -like "authored_*" }
+        if (-not $names) { Write-Host "no authored_* files on device"; break }
+        $pulled = 0
+        foreach ($n in $names) {
+            & $adb pull "$remote/$n" (Join-Path $dest $n) | Out-Null
+            $local = Get-Item (Join-Path $dest $n)
+            Write-Host ("pulled  {0}  {1:N1} KB" -f $n, ($local.Length / 1KB))
+            $pulled++
+        }
+        Write-Host "$pulled file(s) -> $dest"
+    }
+    "awipe"    {
+        # Delete device authored_* CSVs, but ONLY those whose byte size matches the local copy
+        # in Dissertation\authored\raw (i.e. safely pulled). Anything unmatched is kept + listed.
+        $dest = Join-Path $RepoRoot "Dissertation\authored\raw"
+        $remote = "/sdcard/Android/data/$Package/files"
+        $names = (& $adb shell "ls $remote" ) -split "`n" |
+            ForEach-Object { $_.Trim() } | Where-Object { $_ -like "authored_*" }
+        if (-not $names) { Write-Host "no authored_* files on device"; break }
+        foreach ($n in $names) {
+            $localPath = Join-Path $dest $n
+            $remoteSize = [long]((& $adb shell "stat -c %s $remote/$n").Trim())
+            if ((Test-Path $localPath) -and ((Get-Item $localPath).Length -eq $remoteSize)) {
+                & $adb shell "rm $remote/$n" | Out-Null
+                Write-Host "wiped   $n"
+            } else {
+                Write-Host "KEPT    $n  (no verified local copy - run apull first)"
+            }
+        }
     }
 }

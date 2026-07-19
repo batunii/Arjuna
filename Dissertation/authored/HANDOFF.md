@@ -44,22 +44,43 @@ Validation: the crowded all-58 run falsely floored ids 23 & 49 — both hit once
 dimmed probes couldn't be seen/clicked). Uninformative until the window is enlarged. No Filter/set-B
 runs yet.
 
-## The pool
-- 71 unique authored (dedup by cls+t_start+t_end) → **58 after ≥1 s filter** (24 traffic lights + 34
-  people; 0 stop signs) → `pool_uniform_1s.csv`.
-- Split (stratified class×region + duration/onset/ecc + simultaneity balancing) → **A=29, B=29**,
-  max simultaneous rings A=2/B=3 → `pool_split.csv` (the runtime loads this; also pushed to device).
-- Note: an extra authoring file `authored_points_20260719_032344.csv` postdates the split and was NOT
-  merged into the 58 — reconcile if those points were meant to be included.
+## The pool (REBUILT 2026-07-19 evening — v2, 82 targets)
+- ALL 9 authoring files merged (`Tools/analysis/merge_pool.py`, stage 2 now scripted): 107 unique
+  (dedup by cls+t_start+t_end) → **82 after ≥1 s filter** (31 traffic lights + 51 people).
+  The previously-unreconciled `032344` pass contributed 17 new targets; the afternoon files
+  (authoring tool left in scene during baseline runs) contributed 7.
+- **≥0.6 s relaxation was considered and is a NO-OP**: bake lifetimes are quantized to 0.5 s steps,
+  so nothing exists between 0.6 and 1.0 s. The 25 dropped points are all 0.5 s blips (kept out —
+  the 6 confirmed floors were 1–2 s, so 0.5 s targets are near-certain floors).
+- **point_ids 0–57 preserved** from the v1 pool (old results stay linkable); newcomers are ids 58–81.
+- **Practice set P (2026-07-19): ids 0 & 58** — the pool's two temporally-first targets (both centre
+  traffic lights, t=0.0–2.5 s / 0.5–2.5 s). Shown in EVERY run (both sets, both conditions) as
+  unscored warm-up clicks; the presenter logs them with set=P so analysis drops them. First scored
+  target starts at 6.5 s (run A) / 10.5 s (run B) — a natural breather after practice.
+- **Full re-split** (user decision; supersedes the v1 A/B membership) → **A=40, B=40** (+2 P),
+  class×region matched (13/13 centre lights, 1/2 periph lights, 12/12 centre people, 14/13 periph
+  people), duration/onset/ecc means near-identical, peak simultaneous rings per run (incl. practice)
+  **A=3, B=4** (shader cap 12) → `pool_split.csv`. NOT yet pushed to device.
+- ⚠ Consequence: the v1 per-set baseline screening no longer matches set membership — **re-run
+  baseline screening (A ×2, B ×2) on the new split before filter runs.** Prior per-target results
+  remain valid history via the preserved ids (the 6 old floors are still expected floors).
 
 ## How to run each stage (all in `VideoTestScene`)
 - **Author:** Meta/Study/Point Authoring → Add To Open Scene. Either trigger marks; X play/pause;
   clip end → X replay / B finish. → `authored_points_*.csv`. (Remove it before running the presenter.)
-- **Split:** `python Tools/analysis/split_pool.py Dissertation/authored/pool_uniform_1s.csv --out pool_split.csv`
-- **Baseline screen:** Meta/Study/Authored Study → Add Presenter. `m_baselineMode` on, `m_baselineSet=A`
-  then B, ~2 passes each, click everything. → `authored_results_*.csv` (condition=BASELINE).
-- **Experiment:** presenter, `m_baselineMode` off, `m_condition=Filter`/`NoFilter`, `m_forceSet=A`/`B`
-  (or Auto for participant counterbalance), **set a proper window size first**. → `authored_results_*.csv`.
+- **Merge:** `python Tools/analysis/merge_pool.py Dissertation/authored/raw --existing Dissertation/authored/pool_uniform_1s.csv --min-duration 1.0 --out Dissertation/authored/pool_uniform_1s.csv` (dedup + ≥1 s + stable ids)
+- **Split:** `python Tools/analysis/split_pool.py Dissertation/authored/pool_uniform_1s.csv --practice 0,58 --out Dissertation/authored/pool_split.csv` (`--practice` = warm-up ids → set P)
+- **Run (presenter, 2026-07-19 rework):** ONE dropdown `m_mode` selects everything —
+  `BaselineA/B` (screening, no filter), `FilterA/B`, `NoFilterA/B` (forced set, piloting),
+  `AutoFilter/AutoNoFilter` (set from pid parity). `m_participantId=-1` = pilot (file named PILOT),
+  `>=0` = real participant. Change mode → rebuild → run. In-headset flow: **X starts** (video held
+  at 0 with a HUD banner); the 2 practice rings ramp in and the **video pauses** with "pull EITHER
+  trigger" text until both are clicked; video plays once (no loop); at clip end the pass closes its
+  CSV and shows the tally; **X starts a fresh pass** (new CSV). Files:
+  `authored_results_<PILOT|P#>_<MODE>-<set>_<stamp>.csv`.
+- **Pull results to PC:** `.\Tools\study-console.ps1 apull` (→ `Dissertation/authored/raw/`);
+  then `.\Tools\study-console.ps1 awipe` deletes device copies ONLY where byte-size matches the
+  pulled local file.
 - **Push pool to device (needed for device runs):**
   `MSYS_NO_PATHCONV=1 adb push Dissertation/authored/pool_split.csv /storage/emulated/0/Android/data/com.samples.passthroughcamera/files/pool_split.csv`
 
@@ -81,13 +102,16 @@ Analysis: `Tools/analysis/split_pool.py`, `Tools/analysis/blob_probe.py` (older 
 (force-set), 44359a2 (filter fix), 7a27c40 (window slider), 95f303f (pipeline doc).
 
 ## Next steps (in order)
-1. **Enlarge the window** (~20–25 / 12–15) and re-run **A-filter + B-filter** (2 passes each). Consider
-   whether probes should be *fully* filtered (Point 3, currently → 0% floor) or kept partly visible in
-   defocus so the Filter condition is measurable — a real design decision to make/discuss.
-2. Aggregate **filter vs no-filter per set** (hit-rate / RT / false alarms) — the actual effect.
-3. Finalise screening: drop the 6 floors → re-run `split_pool.py` on 52 survivors.
-4. Consider a mutual-exclusion guard between PointAuthoringTool and AuthoredTargetPresenter.
-5. Reconcile the un-merged `authored_points_20260719_032344.csv` if those points were intended.
+1. **Push the new `pool_split.csv` to the device** (adb command below) — the runtime loads it.
+2. **Re-run baseline screening on the v2 split** (`m_baselineMode` on, A ×2 then B ×2) — required
+   because the full re-split changed set membership/crowding. Watch for floors among ids 58–81.
+3. **Enlarge the window** (~20–25 / 12–15; scene currently has 4×4 — too small) and run
+   **A-filter + B-filter** (2 passes each). Consider whether probes should be *fully* filtered
+   (Point 3, previously → 0% floor) or kept partly visible in defocus so the Filter condition is
+   measurable — a real design decision to make/discuss.
+4. Aggregate **filter vs no-filter per set** (hit-rate / RT / false alarms) — the actual effect.
+5. Finalise screening: drop confirmed floors → re-run `split_pool.py` on survivors.
+6. Consider a mutual-exclusion guard between PointAuthoringTool and AuthoredTargetPresenter.
 
 ## CSV schemas
 - `authored_points_*`: point_id,cls,kind,t_start,t_end,duration_s,az_mid_deg,el_mid_deg,eccentricity_deg,box_height_deg
