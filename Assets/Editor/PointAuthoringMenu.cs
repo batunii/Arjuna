@@ -71,6 +71,12 @@ public static class PointAuthoringMenu
             var video = Object.FindObjectOfType<VideoTestSceneManager>();
             if (video != null) videoProp.objectReferenceValue = video;
         }
+        var reticleProp = so.FindProperty("m_reticleMaterialTemplate");
+        if (reticleProp != null)
+        {
+            Material dot = FindDotMaterial();
+            if (dot != null) reticleProp.objectReferenceValue = dot;
+        }
         so.ApplyModifiedPropertiesWithoutUndo();
         Selection.activeGameObject = go;
         EditorSceneManager.MarkSceneDirty(go.scene);

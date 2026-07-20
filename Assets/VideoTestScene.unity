@@ -1366,7 +1366,7 @@ MonoBehaviour:
   m_video: {fileID: 949970469}
   m_poolFileName: pool_split.csv
   m_participantId: -1
-  m_mode: 9
+  m_mode: 2
   m_filterMode: 10
   m_blockASceneName: CameraSphereVignette
   m_windowHalfWidthDeg: 4
@@ -1383,6 +1383,11 @@ MonoBehaviour:
   m_hitAngleToleranceDeg: 10
   m_hitGraceSec: 0.75
   m_holdSeconds: 0.5
+  m_reticleMaterialTemplate: {fileID: 2100000, guid: b18da3256e7208b41853d86c2d948044, type: 2}
+  m_reticleDistance: 6
+  m_reticleSize: 0.06
+  m_reticleColorLeft: {r: 0.2, g: 0.9, b: 1, a: 1}
+  m_reticleColorRight: {r: 1, g: 0.6, b: 0.15, a: 1}
 --- !u!4 &1540902431
 Transform:
   m_ObjectHideFlags: 0

@@ -107,6 +107,16 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField, Range(0f, 3f)] private float m_hitGraceSec = 0.75f;
         [SerializeField, Range(0f, 2f)] private float m_holdSeconds = 0.5f;
 
+        [Header("Aim reticles (the 360 video hides the real controllers)")]
+        [Tooltip("Unlit material template (SelectionDotMat) — Shader.Find is stripped on Android.")]
+        [SerializeField] private Material m_reticleMaterialTemplate;
+        [SerializeField] private float m_reticleDistance = 6f;
+        [SerializeField] private float m_reticleSize = 0.06f;
+        [SerializeField] private Color m_reticleColorLeft = new(0.2f, 0.9f, 1f, 1f);
+        [SerializeField] private Color m_reticleColorRight = new(1f, 0.6f, 0.15f, 1f);
+
+        private GameObject m_reticleL, m_reticleR;
+
         private static readonly HashSet<int> k_classes = new() { 0, 9, 11 };
 
         private class Target
@@ -217,8 +227,14 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 m_video.VideoLooping = false;
                 m_video.SetVideoPlaying(false);
                 m_video.SetBlobProbes(0, m_data, m_flash);
+                // The video sphere hides the participant's real controllers, and the manager's
+                // own cursor dot is hidden under StudyInputLock — these reticles are the only
+                // aim feedback. (Used to come from ClickProbeTest on the old StudyRig.)
+                m_reticleL = CreateReticle("AimReticleL", m_reticleColorLeft);
+                m_reticleR = CreateReticle("AimReticleR", m_reticleColorRight);
                 SetHUD($"{WhoTag}  |  {ModeTag}\n\nPress X to start");
             }
+            UpdateReticles();
 
             switch (m_phase)
             {
@@ -516,6 +532,35 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             return new Vector2((r.x + r.y) * 0.5f, (r.z + r.w) * 0.5f);
         }
 
+        // ---- aim reticles ----
+
+        private GameObject CreateReticle(string name, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = name;
+            Destroy(go.GetComponent<Collider>());
+            var mat = m_reticleMaterialTemplate != null
+                ? new Material(m_reticleMaterialTemplate)
+                : new Material(Shader.Find("Standard"));
+            if (m_reticleMaterialTemplate == null)
+                Debug.LogWarning("[AuthoredPresenter] No reticle material template — Shader.Find fallback breaks in Android builds.");
+            mat.color = color;
+            mat.renderQueue = 4200;   // above the vignette sphere and the shader-composited probes
+            go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            go.transform.localScale = Vector3.one * m_reticleSize;
+            return go;
+        }
+
+        private void UpdateReticles()
+        {
+            if (m_reticleL == null || Camera.main == null) return;
+            Vector3 org = Camera.main.transform.position;
+            m_video.GetLeftControllerAzEl(out float la, out float le);
+            m_video.GetRightControllerAzEl(out float ra, out float re);
+            m_reticleL.transform.position = org + Dir(la, le) * m_reticleDistance;
+            m_reticleR.transform.position = org + Dir(ra, re) * m_reticleDistance;
+        }
+
         private static float AngDeg(float az1, float el1, float az2, float el2) =>
             Vector3.Angle(Dir(az1, el1), Dir(az2, el2));
 
@@ -602,6 +647,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private static string F(float v) => v < 0f ? "" : v.ToString("F3", CultureInfo.InvariantCulture);
 
-        private void OnDestroy() { CloseLog(); }
+        private void OnDestroy()
+        {
+            CloseLog();
+            if (m_reticleL != null) Destroy(m_reticleL);
+            if (m_reticleR != null) Destroy(m_reticleR);
+        }
     }
 }
