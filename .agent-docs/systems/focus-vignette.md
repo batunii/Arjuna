@@ -112,7 +112,13 @@ distance exactly as looking at a fixed object would.
   without any shader changes (the shader already just consumes `_FocusRect` in az/el space).
 - **Fails gracefully:** if any corner ray misses (out of depth range, outside the depth camera
   frustum, reflective/transparent surface), `m_hasWorldAnchor` stays false and that selection just
-  behaves like the legacy head-relative bearing — logged via `SetDebug()`.
+  behaves like the legacy head-relative bearing — logged via `SetDebug()` **with the per-corner
+  `EnvironmentRaycastHitStatus` values** (added 2026-07-20 after an on-device all-corners miss
+  whose cause was undiagnosable — the old message conflated 5 distinct failure statuses).
+- **NotReady auto-retry (added 2026-07-20):** the native raycaster is created asynchronously at
+  scene load and reports `NotReady` until then, so painting in the first seconds after entering
+  the scene used to fail permanently. A `NotReady` result now retries every 0.25 s for up to 10 s
+  (`k_anchorRetrySeconds`), aborting silently if the selection or mode changes meanwhile.
 - **Cleared** on: new paint (`justPressed`), B-button clear, mode cycle (A button), `StudySetMode`,
   `StudySetWindow`/`StudyClearWindow` — so a stale anchor never silently reactivates after a mode
   switch back to Hard Dark.

@@ -18,6 +18,15 @@
 // experiment with the set forced (piloting); AutoFilter/AutoNoFilter = experiment with the set
 // from participant-id parity (even pid: Filter->A, NoFilter->B; odd: swapped).
 //
+// BlockA_HardDark / BlockA_NoFilter = the passthrough test block's two arms, launched from the
+// same dropdown so ALL test controls live in one place. X loads the CameraSphereVignette scene;
+// the presenter survives the load just long enough to configure the vignette manager there —
+// HardDark mode with the world-anchor depth-raycast backend (EnvironmentRaycastManager, wired in
+// that scene since 2026-07-16: painted windows lock onto real geometry), or the same setup with
+// the effect suppressed (No Hard Dark baseline — identical procedure, invisible filter). The
+// participant paints the window with the right trigger as in free play. Nothing of the authored
+// harness runs in these modes. Hold Y (SceneSwitcher) to come back to the video scene.
+//
 // Participant id -1 = experimenter pilot; results file is named authored_results_PILOT_<mode>_
 // <stamp>.csv. Real participants (pid >= 0) get authored_results_P<pid>_<mode>_<stamp>.csv.
 // Every pass gets its own timestamped file either way.
@@ -37,6 +46,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace PassthroughCameraSamples.ShaderSample.Study
@@ -49,6 +59,12 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             FilterA, FilterB,
             NoFilterA, NoFilterB,
             AutoFilter, AutoNoFilter,
+            // The passthrough test block's two arms — X loads the passthrough scene and the
+            // launcher configures its vignette manager: HardDark (world-anchored via the scene's
+            // EnvironmentRaycastManager) vs the suppressed-effect baseline. Appended last so
+            // existing serialized m_mode values keep their meaning.
+            BlockA_HardDark,
+            BlockA_NoFilter,
         }
 
         private enum Phase { Armed, Running, Done }
@@ -59,9 +75,13 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [Header("Run identity")]
         [Tooltip("-1 = experimenter pilot run (results named PILOT). >= 0 = real participant.")]
         [SerializeField] private int m_participantId = -1;
-        [Tooltip("The ONE thing to change between builds. Baseline = screening (no filter). Filter/NoFilter with a set = forced (piloting). Auto* = set from participant-id parity.")]
+        [Tooltip("The ONE thing to change between builds. Baseline = screening (no filter). Filter/NoFilter with a set = forced (piloting). Auto* = set from participant-id parity. BlockA_* = the passthrough test block (X switches scene): HardDark (world-anchored window via depth raycast) or NoFilter (same procedure, effect suppressed).")]
         [SerializeField] private StudyMode m_mode = StudyMode.BaselineA;
         [SerializeField] private VignetteMode m_filterMode = VignetteMode.SignPop;
+
+        [Header("Block A launch (m_mode = BlockA only)")]
+        [Tooltip("Scene loaded when launching Block A. Its StudyRig (ConditionSequencer + CPTPanel + StudyLogger) runs the formal protocol, keyboard-driven over adb. Must match SceneSwitcher's name and be in Build Settings.")]
+        [SerializeField] private string m_blockASceneName = "CameraSphereVignette";
 
         [Header("Locked focus window (constant geometry, both conditions)")]
         [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Raise toward 25/15 for a windscreen.")]
@@ -130,6 +150,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             9 => "traffic_light", 11 => "stop_sign", 0 => "person", _ => "unknown",
         };
 
+        private bool IsBlockALaunch =>
+            m_mode == StudyMode.BlockA_HardDark || m_mode == StudyMode.BlockA_NoFilter;
+
         private bool IsBaseline => m_mode == StudyMode.BaselineA || m_mode == StudyMode.BaselineB;
 
         private bool IsFilterCondition =>
@@ -143,6 +166,14 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private void Start()
         {
+            if (IsBlockALaunch)
+            {
+                BuildHUD();
+                SetHUD(BlockAHudText());
+                Debug.Log($"[AuthoredPresenter] {m_mode} launcher armed. Press {m_startButton} to load "
+                        + $"'{m_blockASceneName}' — its StudyRig runs the formal protocol.");
+                return;
+            }
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
             m_setForRun = ResolveSet();
             LoadPool();
@@ -171,6 +202,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private void Update()
         {
             if (TestModeSequencer.Instance != null) { Destroy(TestModeSequencer.Instance.gameObject); return; }
+            if (IsBlockALaunch) { TickBlockALauncher(); return; }
             if (m_video == null) return;
 
             if (!m_initialised)
@@ -213,6 +245,87 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_phase = Phase.Running;
             SetHUD("");
             Debug.Log($"[AuthoredPresenter] pass {m_passNumber} started ({ModeTag}).");
+        }
+
+        // ---- Block A launcher (m_mode = BlockA_HardDark / BlockA_NoFilter) ----
+        // X performs a full scene load into the passthrough scene. The launcher survives the load
+        // (DontDestroyOnLoad) just long enough to configure the CameraSphereVignetteManager there:
+        // both arms get mode HardDark and free painting (right trigger — with the scene's
+        // EnvironmentRaycastManager wired, the painted window world-anchors onto real geometry),
+        // and the NoFilter arm suppresses the effect so the procedure is identical but invisible
+        // (the standard baseline pattern). Then it shows brief instructions and destroys itself;
+        // hold Y (SceneSwitcher) to come back.
+
+        private bool m_launchingBlockA;
+        private bool m_blockAInit;
+
+        private string BlockAHudText() =>
+            (m_mode == StudyMode.BlockA_HardDark
+                ? "BLOCK A — HARD DARK (world-anchored)\n"
+                : "BLOCK A — NO FILTER (baseline)\n")
+          + $"Press {m_startButton} to launch the passthrough scene";
+
+        private void TickBlockALauncher()
+        {
+            if (!m_blockAInit)
+            {
+                // Same first-Update timing the normal path uses: hold the video scene quiet
+                // behind the launcher HUD (the manager boots with the clip looping).
+                m_blockAInit = true;
+                if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
+                if (m_video != null) { m_video.VideoLooping = false; m_video.SetVideoPlaying(false); }
+            }
+            if (m_launchingBlockA || !OVRInput.GetDown(m_startButton)) return;
+            if (!Application.CanStreamedLevelBeLoaded(m_blockASceneName))
+            {
+                Debug.LogError($"[AuthoredPresenter] scene '{m_blockASceneName}' is not in Build Settings — cannot launch Block A.");
+                SetHUD($"Scene '{m_blockASceneName}' missing from build!");
+                return;
+            }
+            m_launchingBlockA = true;
+            SetHUD("Loading Block A…");
+            Debug.Log($"[AuthoredPresenter] Block A launch ({m_mode}) -> {m_blockASceneName}");
+            transform.SetParent(null);            // DontDestroyOnLoad needs a root object
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnBlockASceneLoaded;
+            SceneManager.LoadScene(m_blockASceneName, LoadSceneMode.Single);
+        }
+
+        private void OnBlockASceneLoaded(Scene scene, LoadSceneMode loadMode)
+        {
+            SceneManager.sceneLoaded -= OnBlockASceneLoaded;
+            StartCoroutine(ConfigureBlockA());
+        }
+
+        private System.Collections.IEnumerator ConfigureBlockA()
+        {
+            yield return null;   // let the scene's own Awake/Start settle first
+            var mgr = FindObjectOfType<CameraSphereVignetteManager>();
+            if (mgr == null)
+            {
+                Debug.LogError("[AuthoredPresenter] no CameraSphereVignetteManager in the loaded scene — Block A not configured.");
+                Destroy(gameObject);
+                yield break;
+            }
+
+            bool hardDark = m_mode == StudyMode.BlockA_HardDark;
+            IStudyVignetteControl ctrl = mgr;
+            ctrl.StudySetMode(VignetteMode.HardDark);   // both arms: identical mode/procedure
+            ctrl.StudyEffectSuppressed = !hardDark;     // baseline arm = same run, invisible effect
+            ctrl.StudyInputLock = false;                // participant paints the window
+
+            // World-anchor backend sanity check: without the scene's EnvironmentRaycastManager the
+            // painted Hard Dark window silently falls back to head-relative bearing.
+            if (hardDark && FindObjectOfType<Meta.XR.EnvironmentRaycastManager>() == null)
+                Debug.LogWarning("[AuthoredPresenter] EnvironmentRaycastManager missing — Hard Dark "
+                               + "window will NOT world-anchor (head-relative bearing fallback).");
+
+            Debug.Log($"[AuthoredPresenter] Block A configured: {(hardDark ? "HardDark (world-anchored)" : "NoFilter baseline")}.");
+            SetHUD((hardDark ? "BLOCK A — HARD DARK\n" : "BLOCK A — NO FILTER\n")
+                 + "Hold RIGHT trigger to paint the window, release to lock\n"
+                 + "B clears — hold Y to return to the video scene");
+            yield return new WaitForSeconds(6f);
+            Destroy(gameObject);
         }
 
         private void TickRun()

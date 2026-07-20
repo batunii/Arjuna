@@ -79,6 +79,15 @@ baked lifetime (so rings follow the moving objects), and presents ONE set as **s
 probes**, scoring multi-target hits.
 - **Counterbalance:** even pid → Filter=A / NoFilter=B; odd → swapped. `m_forceSet` (Auto/A/B)
   overrides this for piloting specific set×condition combos.
+- **Block A launchers (`m_mode = BlockA_HardDark` / `BlockA_NoFilter`, added 2026-07-20):** the
+  presenter doubles as the single launch point for ALL test blocks. These are the passthrough
+  test block's two arms: X loads `CameraSphereVignette`; the launcher survives the scene load
+  (`DontDestroyOnLoad`), configures the `CameraSphereVignetteManager` — both arms get mode
+  HardDark + free right-trigger window painting (the painted window **world-anchors onto real
+  geometry** via the scene's wired `EnvironmentRaycastManager`, the depth-raycast backend added
+  2026-07-16); the NoFilter arm additionally sets `StudyEffectSuppressed` so the procedure is
+  identical but the effect invisible (standard baseline pattern) — then shows brief instructions
+  and destroys itself. Hold Y (SceneSwitcher) to return to the video scene.
 - **Condition drives the filter:** NoFilter = raw video (`StudyEffectSuppressed`); Filter = vignette
   (`m_filterMode`, default SignPop) formed over the **locked window**, with rings composited AFTER
   the filter (a probe in a dimmed area is dimmed too — supervisor Point 3).

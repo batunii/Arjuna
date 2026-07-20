@@ -933,38 +933,81 @@ namespace PassthroughCameraSamples.ShaderSample
         // every corner hits real geometry, stores those world points so the window can be
         // re-projected from the current head position every frame instead of staying a fixed
         // bearing from wherever the head happened to be while painting.
+        //
+        // The native raycaster is created asynchronously when the scene loads and reports
+        // NotReady until then — a paint in the first seconds after entering the scene used to
+        // fail permanently for that reason alone. NotReady now retries until the raycaster comes
+        // up (or the deadline passes); any other failure logs the per-corner statuses
+        // (NoHit / RayOccluded / HitPointOutsideOfCameraFrustum / …) so the cause is visible.
+        private const float k_anchorRetrySeconds = 10f;
+
+        private Coroutine m_anchorRetry;
+
         private void TryWorldAnchorSelection()
         {
+            if (m_anchorRetry != null) { StopCoroutine(m_anchorRetry); m_anchorRetry = null; }
+            if (AttemptWorldAnchor(out bool notReady) || !notReady) return;
+            m_anchorRetry = StartCoroutine(RetryAnchorWhenReady(m_activeRect));
+        }
+
+        private IEnumerator RetryAnchorWhenReady(Vector4 rect)
+        {
+            float deadline = Time.time + k_anchorRetrySeconds;
+            while (Time.time < deadline)
+            {
+                yield return new WaitForSeconds(0.25f);
+                // Abort silently if the selection or mode changed while waiting.
+                if (m_vignetteMode != VignetteMode.HardDark || m_activeRect != rect)
+                    { m_anchorRetry = null; yield break; }
+                if (AttemptWorldAnchor(out bool notReady) || !notReady)
+                    { m_anchorRetry = null; yield break; }
+            }
+            m_anchorRetry = null;
+            SetDebug($"World-anchor failed: depth raycaster not ready after {k_anchorRetrySeconds:0} s — window will follow head.");
+        }
+
+        // Returns true if anchored. notReady = the raycaster is still initialising (retryable);
+        // every other miss is a real one and gets its statuses logged.
+        private bool AttemptWorldAnchor(out bool notReady)
+        {
+            notReady = false;
             m_hasWorldAnchor = false;
-            if (m_raycastManager == null || m_vignetteMode != VignetteMode.HardDark) return;
-            if (!EnvironmentRaycastManager.IsSupported) return;
-            if (m_activeRect == k_fullSphere) return;
+            if (m_raycastManager == null || m_vignetteMode != VignetteMode.HardDark) return false;
+            if (!EnvironmentRaycastManager.IsSupported)
+            {
+                SetDebug("World-anchor unavailable: depth raycast not supported on this device/session.");
+                return false;
+            }
+            if (m_activeRect == k_fullSphere) return false;
 
             Transform head = Camera.main != null ? Camera.main.transform : transform;
             Vector3   org  = head.position;
 
             bool ok = true;
-            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.z, out m_anchorBL);
-            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.z, out m_anchorBR);
-            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.w, out m_anchorTR);
-            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.w, out m_anchorTL);
+            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.z, out m_anchorBL, out var sBL);
+            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.z, out m_anchorBR, out var sBR);
+            ok &= RaycastCorner(org, m_activeRect.y, m_activeRect.w, out m_anchorTR, out var sTR);
+            ok &= RaycastCorner(org, m_activeRect.x, m_activeRect.w, out m_anchorTL, out var sTL);
 
             m_hasWorldAnchor = ok;
+            notReady = sBL == EnvironmentRaycastHitStatus.NotReady || sBR == EnvironmentRaycastHitStatus.NotReady
+                    || sTR == EnvironmentRaycastHitStatus.NotReady || sTL == EnvironmentRaycastHitStatus.NotReady;
             SetDebug(ok
                 ? "World-anchored to real object — window stays put as you move."
-                : "World-anchor failed (no depth hit on selection) — window will follow head.");
+                : notReady
+                    ? "World-anchor: depth raycaster still initialising — retrying…"
+                    : $"World-anchor failed — corners BL:{sBL} BR:{sBR} TR:{sTR} TL:{sTL} — window will follow head.");
+            return ok;
         }
 
-        private bool RaycastCorner(Vector3 origin, float az, float el, out Vector3 worldPoint)
+        private bool RaycastCorner(Vector3 origin, float az, float el, out Vector3 worldPoint,
+                                   out EnvironmentRaycastHitStatus status)
         {
             var ray = new Ray(origin, DirFromAzEl(az, el));
-            if (m_raycastManager.Raycast(ray, out var hit))
-            {
-                worldPoint = hit.point;
-                return true;
-            }
-            worldPoint = Vector3.zero;
-            return false;
+            bool hitOk = m_raycastManager.Raycast(ray, out var hit);
+            status = hit.status;
+            worldPoint = hitOk ? hit.point : Vector3.zero;
+            return hitOk;
         }
 
         // Re-derives az/el bounds from the anchored world corners relative to the CURRENT head

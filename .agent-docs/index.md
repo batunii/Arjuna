@@ -1,7 +1,7 @@
 # Unity-PassthroughCameraApiSamples — Agent Documentation
 
 > Auto-generated project knowledge base for AI agent comprehension.
-> Last updated: 2026-07-16
+> Last updated: 2026-07-20
 
 ## Quick Context
 
@@ -15,9 +15,9 @@ and custom shader effects. A `StartScene` menu launches each sample.
 attention-guidance study (`CameraSphereVignette` + `VideoTestScene` scenes, no `StartScene`) — see
 [Scene Flow § Dissertation study build](<scenes/_flow.md>#dissertation-study-build),
 [Focus Vignette](<systems/focus-vignette.md>), [Study Tooling](<systems/study-tooling.md>). Current
-work branch: `Test/TestBlobs` (off `Test/FinalCountDown`, off `feature/NewTests`) — **has
-uncommitted changes** as of this doc update; check `git status`/`git log` before assuming
-otherwise.
+work branch: `Test/AuthoredStudyRunner` (authored-pool driving harness — see Study Tooling § Layer 3
+and `Dissertation/authored/HANDOFF.md`); check `git status`/`git log` before assuming anything is
+committed.
 
 ## Document Map
 

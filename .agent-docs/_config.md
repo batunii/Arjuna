@@ -1,6 +1,6 @@
 ---
 last_full_scan: 2026-06-03
-last_update: 2026-07-14  # documented Study/ tooling (TestModeSequencer + BlobTargetController, informal Test/TestBlobs branch), VideoTestSceneManager as focus-vignette's video counterpart, refreshed focus-vignette.md's mode list (3 -> 11 modes) and added IStudyVignetteControl/StudySetActive; added VideoTestScene + CameraSphereVignette scene docs (previously undocumented dissertation-study scenes)
+last_update: 2026-07-20  # study-tooling.md: added Layer 3 (authored-pool harness: PointAuthoringTool + AuthoredTargetPresenter, branch Test/AuthoredStudyRunner) incl. the BlockA_HardDark/BlockA_NoFilter launcher modes (passthrough test block arms; HardDark uses the world-anchor EnvironmentRaycastManager backend); operational detail deliberately lives in Dissertation/authored-pool-pipeline.md + authored/HANDOFF.md
 documented_systems:
   - passthrough-camera-access
   - input

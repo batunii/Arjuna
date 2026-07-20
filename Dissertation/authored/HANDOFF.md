@@ -72,7 +72,13 @@ runs yet.
 - **Split:** `python Tools/analysis/split_pool.py Dissertation/authored/pool_uniform_1s.csv --practice 0,58 --out Dissertation/authored/pool_split.csv` (`--practice` = warm-up ids → set P)
 - **Run (presenter, 2026-07-19 rework):** ONE dropdown `m_mode` selects everything —
   `BaselineA/B` (screening, no filter), `FilterA/B`, `NoFilterA/B` (forced set, piloting),
-  `AutoFilter/AutoNoFilter` (set from pid parity). `m_participantId=-1` = pilot (file named PILOT),
+  `AutoFilter/AutoNoFilter` (set from pid parity), `BlockA_HardDark`/`BlockA_NoFilter` (added
+  2026-07-20: the passthrough test block's two arms — X loads `CameraSphereVignette`; the
+  presenter survives the load, sets the manager to HardDark with free right-trigger painting
+  (window world-anchors onto real geometry via the scene's `EnvironmentRaycastManager` — the
+  2026-07-16 depth-raycast backend) or the same setup with `StudyEffectSuppressed` for the
+  baseline, then self-destroys; hold Y to come back — the presenter is now the single launch
+  point for all test blocks). `m_participantId=-1` = pilot (file named PILOT),
   `>=0` = real participant. Change mode → rebuild → run. In-headset flow: **X starts** (video held
   at 0 with a HUD banner); the 2 practice rings ramp in and the **video pauses** with "pull EITHER
   trigger" text until both are clicked; video plays once (no loop); at clip end the pass closes its

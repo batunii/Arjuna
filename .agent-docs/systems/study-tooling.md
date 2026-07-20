@@ -1,8 +1,8 @@
 # System: Study Tooling
 
-Last updated: 2026-07-14
+Last updated: 2026-07-20
 
-Everything under `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/Study/`. Two distinct
+Everything under `Assets/PassthroughCameraApiSamples/ShaderSample/Scripts/Study/`. Three distinct
 layers share this folder — **do not conflate them**:
 
 1. **Formal study infrastructure** — drives the actual MSc dissertation data-collection sessions
@@ -12,6 +12,11 @@ layers share this folder — **do not conflate them**:
    `Test/FinalCountDown`/`Test/TestBlobs`) — a quick-iteration preview tool for demoing/tuning
    vignette modes. Deliberately **standalone** from layer 1: no shared logger, no scene wiring,
    self-bootstraps. Do not wire it into `ConditionSequencer` or `StudyLogger`.
+3. **Authored-pool driving harness** (`PointAuthoringTool` + `AuthoredTargetPresenter`, branches
+   `Test/PointAuthoring` → `Test/AuthoredStudyRunner`) — hand-curated click-target pipeline for
+   the driving-task filter-vs-no-filter experiment; own CSVs, not `StudyLogger`. See
+   [§ Layer 3](#layer-3--authored-pool-driving-harness) below; full pipeline docs live in
+   `Dissertation/authored-pool-pipeline.md` + `Dissertation/authored/HANDOFF.md` (kept current).
 
 Both layers drive the vignette managers exclusively through
 [`IStudyVignetteControl`](<../systems/focus-vignette.md>), implemented by both
@@ -178,6 +183,35 @@ is committed in a future session.
   state can ramp in via the existing gradual-formation coroutine instead of `StudySetMode`'s
   instant snap-to-full-strength, and an "off" state can reset without touching mode/window. See
   [focus-vignette.md](<../systems/focus-vignette.md>#study-api-istudyvignettecontrol).
+
+---
+
+## Layer 3 — Authored-pool driving harness (branch `Test/AuthoredStudyRunner`)
+
+Operational detail lives in `Dissertation/authored-pool-pipeline.md` and
+`Dissertation/authored/HANDOFF.md` — this section is just the component map.
+
+| Script | Role |
+|---|---|
+| `PointAuthoringTool.cs` | Author click-targets: aim at the playing 360° video, trigger marks the nearest baked YOLO detection lifetime → `authored_points_*.csv`. **Never in the scene together with the presenter** (it forces `StudyEffectSuppressed` every frame). |
+| `AuthoredTargetPresenter.cs` | Runtime for the experiment: loads `pool_split.csv`, presents one counterbalanced set as simultaneous ring probes (shader `_BlobData[]`, cap 12), logs `authored_results_*.csv`. One dropdown `m_mode` selects everything; one build = one mode. |
+
+`AuthoredTargetPresenter.StudyMode` (added via `Meta/Study/Authored Study` menu,
+`Assets/Editor/PointAuthoringMenu.cs`):
+
+- `BaselineA/B` — per-set clickability screening (no filter).
+- `FilterA/B`, `NoFilterA/B` — experiment conditions with the set forced (piloting).
+- `AutoFilter/AutoNoFilter` — set chosen from participant-id parity (the real counterbalance).
+- `BlockA_HardDark`, `BlockA_NoFilter` — the **passthrough test block's two arms** (added
+  2026-07-20, making the presenter the single launch point for all test blocks): X does a full
+  scene load into `CameraSphereVignette`; the presenter survives the load (`DontDestroyOnLoad`)
+  and configures the `CameraSphereVignetteManager` — both arms get mode HardDark + free
+  right-trigger painting, so the painted window **world-anchors onto real geometry** via the
+  scene's wired `EnvironmentRaycastManager` (the depth-raycast backend from 2026-07-16, see
+  [focus-vignette.md § World anchor](<focus-vignette.md>)); the NoFilter arm additionally sets
+  `StudyEffectSuppressed` (identical procedure, invisible effect — the standard baseline
+  pattern). It then shows brief HUD instructions and destroys itself; the formal `StudyRig` in
+  that scene sits idle unless driven by keyboard. Hold Y (`SceneSwitcher`) to come back.
 
 Related: [Focus Vignette](<focus-vignette.md>), [Video Test Scene](<video-test-scene.md>),
 [VideoTestScene](<../scenes/video-test-scene.md>), [CameraSphereVignette](<../scenes/camera-sphere-vignette.md>).
