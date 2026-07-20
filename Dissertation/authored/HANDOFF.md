@@ -77,8 +77,13 @@ runs yet.
   presenter survives the load, sets the manager to HardDark with free right-trigger painting
   (window world-anchors onto real geometry via the scene's `EnvironmentRaycastManager` — the
   2026-07-16 depth-raycast backend) or the same setup with `StudyEffectSuppressed` for the
-  baseline, then self-destroys; hold Y to come back — the presenter is now the single launch
-  point for all test blocks). `m_participantId=-1` = pilot (file named PILOT),
+  baseline, then self-destroys — the presenter is now the single launch point for all test blocks).
+- **QoL pass (branch `Test/StudyQoL`, 2026-07-20):** Block A modes run minimal-UI (no mode
+  toast, A-cycle/B-clear disabled — controllers ONLY paint the window there / click targets in
+  the video tests; debug text self-clears after 4 s). The Y-hold `SceneSwitcher`, the "SWITCHED"
+  toast bootstrap, and the formal `StudyRig` (+ old `ClickProbeTest` cyan reticle) were removed
+  from BOTH scenes — re-add rigs via `Meta > Study > Wire ...` if the formal protocol is ever
+  run. Returning from Block A to the video scene = relaunch the app. `m_participantId=-1` = pilot (file named PILOT),
   `>=0` = real participant. Change mode → rebuild → run. In-headset flow: **X starts** (video held
   at 0 with a HUD banner); the 2 practice rings ramp in and the **video pauses** with "pull EITHER
   trigger" text until both are clicked; video plays once (no loop); at clip end the pass closes its

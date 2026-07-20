@@ -24,8 +24,9 @@
 // HardDark mode with the world-anchor depth-raycast backend (EnvironmentRaycastManager, wired in
 // that scene since 2026-07-16: painted windows lock onto real geometry), or the same setup with
 // the effect suppressed (No Hard Dark baseline — identical procedure, invisible filter). The
-// participant paints the window with the right trigger as in free play. Nothing of the authored
-// harness runs in these modes. Hold Y (SceneSwitcher) to come back to the video scene.
+// participant paints the window with the right trigger; minimal-UI mode disables everything
+// else (mode toast/cycling, B clear). Nothing of the authored harness runs in these modes.
+// Getting back to the video scene = relaunch the app (SceneSwitcher was retired).
 //
 // Participant id -1 = experimenter pilot; results file is named authored_results_PILOT_<mode>_
 // <stamp>.csv. Real participants (pid >= 0) get authored_results_P<pid>_<mode>_<stamp>.csv.
@@ -171,7 +172,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 BuildHUD();
                 SetHUD(BlockAHudText());
                 Debug.Log($"[AuthoredPresenter] {m_mode} launcher armed. Press {m_startButton} to load "
-                        + $"'{m_blockASceneName}' — its StudyRig runs the formal protocol.");
+                        + $"'{m_blockASceneName}' and configure the vignette manager.");
                 return;
             }
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
@@ -253,8 +254,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         // both arms get mode HardDark and free painting (right trigger — with the scene's
         // EnvironmentRaycastManager wired, the painted window world-anchors onto real geometry),
         // and the NoFilter arm suppresses the effect so the procedure is identical but invisible
-        // (the standard baseline pattern). Then it shows brief instructions and destroys itself;
-        // hold Y (SceneSwitcher) to come back.
+        // (the standard baseline pattern). Then it shows brief instructions and destroys itself.
 
         private bool m_launchingBlockA;
         private bool m_blockAInit;
@@ -313,6 +313,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             ctrl.StudySetMode(VignetteMode.HardDark);   // both arms: identical mode/procedure
             ctrl.StudyEffectSuppressed = !hardDark;     // baseline arm = same run, invisible effect
             ctrl.StudyInputLock = false;                // participant paints the window
+            mgr.StudyMinimalUi = true;                  // no mode toast/cycling; debug text self-clears
 
             // World-anchor backend sanity check: without the scene's EnvironmentRaycastManager the
             // painted Hard Dark window silently falls back to head-relative bearing.
@@ -323,7 +324,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             Debug.Log($"[AuthoredPresenter] Block A configured: {(hardDark ? "HardDark (world-anchored)" : "NoFilter baseline")}.");
             SetHUD((hardDark ? "BLOCK A — HARD DARK\n" : "BLOCK A — NO FILTER\n")
                  + "Hold RIGHT trigger to paint the window, release to lock\n"
-                 + "B clears — hold Y to return to the video scene");
+                 + "Repaint any time to move it");
             yield return new WaitForSeconds(6f);
             Destroy(gameObject);
         }

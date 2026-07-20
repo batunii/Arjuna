@@ -619,6 +619,27 @@ namespace PassthroughCameraSamples.ShaderSample
         public bool StudyInputLock { get; set; }
         public bool StudyEffectSuppressed { get; set; }
 
+        // Minimal-UI test mode (set by the Block A launcher): painting stays live, but the
+        // A mode-cycle and B clear are disabled (controllers only select the window), the mode
+        // toast never shows, and debug messages auto-hide a few seconds after they appear.
+        private bool m_studyMinimalUi;
+        private Coroutine m_debugHideCoroutine;
+
+        public bool StudyMinimalUi
+        {
+            get => m_studyMinimalUi;
+            set
+            {
+                m_studyMinimalUi = value;
+                // Kill a toast already mid-show (Start() fires one before a launcher can set this).
+                if (value && m_modeUIGroup != null)
+                {
+                    m_modeUITimer = 0f;
+                    m_modeUIGroup.alpha = 0f;
+                }
+            }
+        }
+
         // Motion suppression has no enable flag in the passthrough scene — it is always on.
         public bool MotionEnabled { get => true; set { } }
 
@@ -682,8 +703,10 @@ namespace PassthroughCameraSamples.ShaderSample
             bool held         = OVRInput.Get(OVRInput.RawButton.RIndexTrigger);
             bool justPressed  = OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger);
             bool justReleased = OVRInput.GetUp(OVRInput.RawButton.RIndexTrigger);
-            bool aPressed     = OVRInput.GetDown(OVRInput.RawButton.A);
-            bool bPressed     = OVRInput.GetDown(OVRInput.RawButton.B);
+            // Minimal-UI test mode: the controller only paints the window — no mode
+            // cycling, no clearing (a repaint replaces the window anyway).
+            bool aPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.A);
+            bool bPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.B);
 
             // A button: cycle through all 6 modes
             if (aPressed)
@@ -1176,7 +1199,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void ShowModeToast()
         {
-            if (m_modeNameText == null) return;
+            if (m_modeNameText == null || m_studyMinimalUi) return;
 
             int cyclePos = System.Array.IndexOf(k_modeCycle, m_vignetteMode);
             int idx   = cyclePos >= 0 ? cyclePos + 1 : 1;
@@ -1402,8 +1425,25 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void SetDebug(string msg)
         {
-            if (m_debugText != null) m_debugText.text = msg;
+            if (m_debugText != null)
+            {
+                m_debugText.text = msg;
+                // Minimal-UI test mode: messages still show (anchor feedback matters while
+                // painting) but clear themselves instead of lingering as a UI artifact.
+                if (m_studyMinimalUi)
+                {
+                    if (m_debugHideCoroutine != null) StopCoroutine(m_debugHideCoroutine);
+                    m_debugHideCoroutine = StartCoroutine(HideDebugTextSoon());
+                }
+            }
             Debug.Log($"[CameraVignette] {msg}");
+        }
+
+        private IEnumerator HideDebugTextSoon()
+        {
+            yield return new WaitForSeconds(4f);
+            if (m_debugText != null) m_debugText.text = "";
+            m_debugHideCoroutine = null;
         }
     }
 }

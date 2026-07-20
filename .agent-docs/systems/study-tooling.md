@@ -210,8 +210,17 @@ Operational detail lives in `Dissertation/authored-pool-pipeline.md` and
   scene's wired `EnvironmentRaycastManager` (the depth-raycast backend from 2026-07-16, see
   [focus-vignette.md § World anchor](<focus-vignette.md>)); the NoFilter arm additionally sets
   `StudyEffectSuppressed` (identical procedure, invisible effect — the standard baseline
-  pattern). It then shows brief HUD instructions and destroys itself; the formal `StudyRig` in
-  that scene sits idle unless driven by keyboard. Hold Y (`SceneSwitcher`) to come back.
+  pattern). It then shows brief HUD instructions and destroys itself.
+
+**QoL state (branch `Test/StudyQoL`, 2026-07-20):** both scenes' `StudyRig` GameObjects were
+**removed** (with them the scene instances of `ConditionSequencer`/`StudyLogger`/`CPTPanel`/
+`ProbeScheduler`, the Y-hold `SceneSwitcher`, and the old `ClickProbeTest` cyan reticle); the
+`SwitchFeedbackController` "SWITCHED" toast bootstrap was deleted from code. All scripts remain —
+re-wire via `Meta > Study > Wire ...` (`Assets/Editor/SetupStudyRig.cs`) to run the formal
+protocol again. The Block A launcher arms set `CameraSphereVignetteManager.StudyMinimalUi`:
+no mode toast, A mode-cycle + B clear disabled (controllers only paint the window there / click
+targets in the video tests), `SetDebug` messages self-clear after 4 s. Returning from Block A to
+the video scene = relaunch the app.
 
 Related: [Focus Vignette](<focus-vignette.md>), [Video Test Scene](<video-test-scene.md>),
 [VideoTestScene](<../scenes/video-test-scene.md>), [CameraSphereVignette](<../scenes/camera-sphere-vignette.md>).

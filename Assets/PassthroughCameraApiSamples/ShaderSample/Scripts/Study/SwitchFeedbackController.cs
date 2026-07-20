@@ -26,13 +26,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private float        m_timer;
         private bool         m_seenFirstLoad;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
-        {
-            var go = new GameObject(nameof(SwitchFeedbackController));
-            DontDestroyOnLoad(go);
-            go.AddComponent<SwitchFeedbackController>();
-        }
+        // Bootstrap removed 2026-07-20 (Test/StudyQoL): the "SWITCHED" toast fired on every
+        // scene load — including the Block A launcher's — and read as a stray UI artifact
+        // during test runs. The class is kept (still referenced) but no longer self-spawns;
+        // add it to a GameObject manually if the toast is ever wanted again.
 
         private void OnEnable()  => SceneManager.sceneLoaded += OnSceneLoaded;
         private void OnDisable() => SceneManager.sceneLoaded -= OnSceneLoaded;
