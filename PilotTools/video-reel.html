@@ -66,6 +66,17 @@ v.addEventListener('play', () => {
   acquireWakeLock();
   if (!embedded) requestFsBestEffort();
 }, { once: true });
+
+// Muted autoplay is normally allowed, but some embedded/webview contexts still leave the
+// video paused (observed in-pane 2026-07-20). Nudge playback once decodable, and fall back
+// to first tap/click anywhere on the page.
+function tryPlay() {
+  const p = v.play();
+  if (p && p.catch) p.catch(() => {});
+}
+v.addEventListener('canplay', tryPlay);
+document.addEventListener('click', tryPlay);
+tryPlay();
 </script>
 </body>
 </html>

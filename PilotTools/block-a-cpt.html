@@ -20,26 +20,32 @@
      not for anything you'd draw study conclusions from.
      The frame itself is sized like a real phone/tablet propped on the desk (not stretched to
      fill the whole margin edge-to-edge) so it reads as a side prop, not a wall of video. */
+  /* The side columns get a real flex-basis (not 0) so the phones survive on ordinary
+     laptop-width windows: previously .screen claimed min(96vw, 1100px) outright, which on
+     anything narrower than ~1500px collapsed both side columns to their padding and the
+     "tablets" silently vanished (reported 2026-07-20). Now the three columns negotiate:
+     the task column shrinks from 1100px down to its 600px floor before the phones give
+     up meaningful width. */
   #distractorLeft, #distractorRight {
-    flex: 1 1 0; min-width: 0; display: flex; align-items: center;
+    flex: 1 1 220px; min-width: 0; display: flex; align-items: center;
   }
   /* Pushed outward toward the screen edges (not centred in the margin) so they sit further
      from the task, with a little breathing room off the browser edge itself. */
   #distractorLeft   { justify-content: flex-start; padding-left: 18px; }
   #distractorRight   { justify-content: flex-end; padding-right: 18px; }
   #distractorLeft iframe, #distractorRight iframe {
-    width: min(34vw, 440px); height: min(66vh, 740px); border: 0; display: block;
+    width: min(100%, 440px); height: min(66vh, 740px); border: 0; display: block;
     border-radius: 26px; background: #000;
     box-shadow: 0 0 0 8px #1c1c1f, 0 0 0 9px #333, 0 12px 40px rgba(0,0,0,0.55);
   }
   #centerCol {
-    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
-    justify-content: center;
+    flex: 0 1 1100px; min-width: 600px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
   }
   /* Framed to match the side video props (same border/shadow language) so all three working
      areas -- left distractor, central task, right distractor -- read as one consistent set. */
   .screen {
-    width: min(96vw, 1100px); padding: 32px;
+    width: 100%; padding: 32px;
     background: #131316; border-radius: 22px;
     box-shadow: 0 0 0 2px #26262a, 0 0 0 3px #38383e, 0 14px 44px rgba(0,0,0,0.5);
   }
@@ -70,9 +76,21 @@
   }
   #shape { width: 196px; height: 196px; background: #fff; visibility: hidden; }
   #shape.circle { border-radius: 50%; }
+  /* Extra shapes for the 1-back mode (CPT mode uses only circle + default square). */
+  #shape.triangle { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+  #shape.diamond  { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
   #flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; }
   #flash.hit { background: rgba(59,130,246,0.35); }
   #flash.miss, #flash.commission { background: rgba(220,38,38,0.35); }
+  /* Yes/No forced-choice buttons (1-back mode only; hidden for the CPT). */
+  #choiceRow { display: none; gap: 14px; margin-top: 18px; justify-content: center; }
+  #choiceRow button { margin-top: 0; min-width: 180px; padding: 14px 22px; font-size: 1.05rem; }
+  #choiceRow button:active { transform: scale(0.96); }
+  /* The chosen answer stays visibly marked (and full-opacity despite being disabled) until
+     the next shape, outlined green/red by correctness — the click must never feel ignored. */
+  #choiceRow button.chosen { opacity: 1; }
+  #choiceRow button.chosen.good { outline: 3px solid #4ade80; }
+  #choiceRow button.chosen.bad  { outline: 3px solid #f87171; }
   #abortBtn { margin-top: 24px; }
 
   /* ---- results screen ---- */
@@ -107,6 +125,12 @@
   <label for="pid">Participant ID</label>
   <input id="pid" type="number" min="0" value="0" inputmode="numeric">
 
+  <label for="taskMode">Task</label>
+  <select id="taskMode">
+    <option value="cpt">Go/No-Go CPT — circle = respond, square = withhold (current study spec)</option>
+    <option value="nback1">1-back (exploratory) — answer YES/NO on every shape: same as the previous one?</option>
+  </select>
+
   <label for="runType">Run</label>
   <select id="runType">
     <option value="practice">Practice (40 trials, seed 999, criterion ≥ 90% go-accuracy)</option>
@@ -140,6 +164,10 @@
     <div id="flash"></div>
     <div id="shape"></div>
   </div>
+  <div id="choiceRow">
+    <button id="yesBtn">YES — same (Y)</button>
+    <button id="noBtn" class="secondary">NO — different (N)</button>
+  </div>
   <button id="abortBtn" class="danger">Abort run</button>
 </div>
 
@@ -168,6 +196,21 @@ const PRACTICE_TRIALS = 40;
 const MAIN_TRIALS = 140;
 const PRACTICE_SEED = 999;
 const PRACTICE_CRITERION = 0.90;
+
+// ---- 1-back mode (exploratory — no Unity counterpart yet; see PilotTools/README.md) ----
+// Same trial engine (SOA, stimulus duration, trial counts, seeds, outcome categories); only
+// the target definition changes: respond when the current shape matches the PREVIOUS one.
+// ~30% repeat rate is the conventional 1-back target density; 4 shapes keep repeats
+// non-guessable while staying trivially discriminable at a glance.
+const NBACK_TARGET_PROPORTION = 0.3;
+const NBACK_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
+// Forced-choice timing (the CPT's 1.5s SOA with a full-SOA response window is too tight for a
+// yes/no decision on every trial, and back-to-back trials let a late answer land on the NEXT
+// shape — scored against a stimulus the participant hadn't processed, i.e. seemingly random
+// red flashes; reported 2026-07-20). Literature n-backs run ~2.5s SOA; 2.0s keeps it brisk.
+const NBACK_SOA_S = 2.0;     // onset-to-onset for 1-back trials (140 trials ≈ 4:40 per run)
+const NBACK_WINDOW_S = 1.7;  // answers accepted until here; the last 300ms shows feedback only
+const NBACK_MIN_RT_S = 0.25; // faster than any real choice — treat as spillover and ignore
 
 // ---- seeded PRNG (mulberry32) ----
 // NOTE: this is NOT the same PRNG family as .NET's System.Random used by CPTPanel.cs, so a
@@ -227,10 +270,68 @@ function buildSequence(trials, seed) {
   return seq;
 }
 
+// 1-back sequence: returns { flags, shapes } where flags[i] = "trial i is a repeat of i-1"
+// (the go/target trials) and shapes[i] is the shape class to display.
+// Constraints, mirroring the CPT builder's spirit:
+//   - trial 0 is never a target (there is nothing before it to repeat);
+//   - no two consecutive targets (three identical shapes in a row reads as a glitch);
+//   - no more than 8 consecutive non-targets (same max-drought cap as the CPT's go-run cap).
+// Adjacency is guaranteed by construction (gap sampling) rather than rejection, so unlike the
+// CPT builder this converges in a handful of attempts; only the drought cap can trigger a retry.
+function buildNBackSequence(trials, seed) {
+  const rand = mulberry32(seed);
+  const targets = Math.round(trials * NBACK_TARGET_PROPORTION);
+
+  let flags = null;
+  for (let attempt = 0; attempt < 1000000; attempt++) {
+    // Choose `targets` positions in [1, trials-1] with no two adjacent: pick sorted slots
+    // from a compressed range, then re-expand with +i so every pair is >= 2 apart.
+    const slots = (trials - 1) - targets + 1;
+    if (slots < targets) break; // infeasible; fall through to the even-spacing fallback
+    const picks = new Set();
+    while (picks.size < targets) picks.add(Math.floor(rand() * slots));
+    const positions = [...picks].sort((a, b) => a - b).map((v, i) => 1 + v + i);
+
+    const f = new Array(trials).fill(false);
+    for (const p of positions) f[p] = true;
+
+    let run = 0, ok = true;
+    for (const t of f) {
+      run = t ? 0 : run + 1;
+      if (run > 8) { ok = false; break; }
+    }
+    if (ok) { flags = f; break; }
+  }
+
+  if (!flags) {
+    console.warn('[BlockA-CPT] 1-back constraints not met by sampling; using even spacing.');
+    flags = new Array(trials).fill(false);
+    const step = trials / targets;
+    for (let k = 0; k < targets; k++) {
+      flags[Math.max(1, Math.min(trials - 1, Math.floor(k * step + step * 0.5)))] = true;
+    }
+  }
+
+  // Materialize shapes: a target repeats the previous shape; a non-target draws any OTHER
+  // shape (so a non-target can never accidentally be a repeat).
+  const shapes = [];
+  for (let i = 0; i < trials; i++) {
+    if (i > 0 && flags[i]) { shapes.push(shapes[i - 1]); continue; }
+    let s;
+    do { s = NBACK_SHAPES[Math.floor(rand() * NBACK_SHAPES.length)]; }
+    while (i > 0 && s === shapes[i - 1]);
+    shapes.push(s);
+  }
+  return { flags, shapes };
+}
+
 // ---- CSV log, same header/columns as StudyLogger.cs; head-pose columns blank (no VR here) ----
 const CSV_HEADER =
   't_ms,pid,block,condition,yaw_deg,pitch_deg,roll_deg,head_speed_dps,dr_intensity,mode,event,payload';
 let csvRows = [];
+// Mode stamp for the CSV `mode` column: CPT_PILOT for the spec task, NBACK1_PILOT for the
+// exploratory 1-back — so exports from the two tasks can never be mistaken for each other.
+let modeStamp = 'CPT_PILOT';
 
 function sanitize(s) {
   return String(s).replace(/,/g, ';').replace(/\n/g, ' ').replace(/\r/g, ' ');
@@ -238,7 +339,7 @@ function sanitize(s) {
 
 function logEvent(pid, condition, label, payload) {
   const row = [
-    Date.now(), pid, 'A', condition, '', '', '', '', '', 'CPT_PILOT',
+    Date.now(), pid, 'A', condition, '', '', '', '', '', modeStamp,
     label, sanitize(payload || ''),
   ].join(',');
   csvRows.push(row);
@@ -252,11 +353,20 @@ const panelEl = document.getElementById('panel');
 const shapeEl = document.getElementById('shape');
 const flashEl = document.getElementById('flash');
 const trialCountEl = document.getElementById('trialCount');
+const choiceRowEl = document.getElementById('choiceRow');
+const yesBtn = document.getElementById('yesBtn');
+const noBtn = document.getElementById('noBtn');
 const distractorContentEl = document.getElementById('distractorContent');
 const distractorLeftIframe = document.querySelector('#distractorLeft iframe');
 const distractorRightIframe = document.querySelector('#distractorRight iframe');
 
 let state = null; // set when a run starts
+// Run token: every startRun/endRun bumps this, and all trial timers carry the token they
+// were scheduled under. A callback whose token no longer matches state.token is a straggler
+// from a superseded run (aborted run's pending timer, double-clicked Start) and must no-op —
+// otherwise it forks a second trial chain that double-paces the run and scrambles outcomes
+// (observed 2026-07-20: an aborted run's surviving 1.5s timer re-entered the next run).
+let runToken = 0;
 
 // Swaps the side-margin iframes between the real study asset (TabletApp/distractor-reel.html)
 // and the exploratory real-footage player (video-reel.html, Tools/tiktok_captions.py output).
@@ -276,6 +386,9 @@ applyDistractorContent(); // apply the default selection (video) on page load, n
 
 document.getElementById('startBtn').addEventListener('click', startRun);
 document.getElementById('abortBtn').addEventListener('click', () => endRun(true));
+// blur() so a focused button can't be re-triggered by a later Space/Enter keypress.
+yesBtn.addEventListener('click', (e) => { e.currentTarget.blur(); handleChoice(true); });
+noBtn.addEventListener('click', (e) => { e.currentTarget.blur(); handleChoice(false); });
 document.getElementById('againBtn').addEventListener('click', () => {
   resultsEl.style.display = 'none';
   setupEl.style.display = 'block';
@@ -300,6 +413,7 @@ function startRun() {
   const pid = document.getElementById('pid').value.trim() || '0';
   const runType = document.getElementById('runType').value;
   const respondMode = document.getElementById('respondMode').value;
+  const taskMode = document.getElementById('taskMode').value;
 
   const isPractice = runType === 'practice';
   const trials = isPractice ? PRACTICE_TRIALS : MAIN_TRIALS;
@@ -309,18 +423,34 @@ function startRun() {
   const seed = isPractice ? PRACTICE_SEED : (parseInt(pid, 10) * 10 + slot);
   const condition = isPractice ? 'PRACTICE' : runType;
 
-  const sequence = buildSequence(trials, seed);
+  const isNBack = taskMode === 'nback1';
+  let sequence, shapes = null;
+  if (isNBack) {
+    const built = buildNBackSequence(trials, seed);
+    sequence = built.flags;
+    shapes = built.shapes;
+  } else {
+    sequence = buildSequence(trials, seed);
+  }
 
   state = {
     pid, condition, isPractice, respondMode, sequence,
+    taskMode, shapes,
+    token: ++runToken, startedIdx: -1, finishedIdx: -1,
     idx: 0, goCount: 0, goHits: 0, noGoCount: 0, commissions: 0,
+    correctRejects: 0, omissions: 0, choice: null,
     hitRTs: [], onsetTime: 0, responded: false, awaitingResponse: false,
-    trialTimer: null, hideTimer: null,
+    trialTimer: null, hideTimer: null, windowTimer: null,
   };
   csvRows = [];
+  modeStamp = isNBack ? 'NBACK1_PILOT' : 'CPT_PILOT';
+  choiceRowEl.style.display = isNBack ? 'flex' : 'none';
+  document.getElementById('hint').textContent = isNBack
+    ? 'Every shape: is it the SAME as the previous one? YES (Y) or NO (N). First shape: just memorize it.'
+    : 'Circle = respond (go). Square = withhold (no-go).';
   logEvent(pid, condition, 'CPT_PANEL_PLACED', 'dist_m=n/a;tool=block-a-cpt.html');
   logEvent(pid, condition, isPractice ? 'PRACTICE_START' : 'CPT_RUN_START',
-    `trials=${trials};seed=${seed};soa_s=${SOA_S}`);
+    `trials=${trials};seed=${seed};soa_s=${isNBack ? NBACK_SOA_S : SOA_S};task=${isNBack ? 'nback1' : 'cpt'}`);
 
   setupEl.style.display = 'none';
   resultsEl.style.display = 'none';
@@ -329,27 +459,56 @@ function startRun() {
   document.addEventListener('keydown', onKeyDown);
   panelEl.addEventListener('click', onClick);
 
-  runTrial();
+  runTrial(state.token);
 }
 
-function runTrial() {
-  if (!state || state.idx >= state.sequence.length) { endRun(false); return; }
+function runTrial(tok) {
+  if (!state || tok !== state.token) return; // straggler from a superseded run
+  if (state.idx >= state.sequence.length) { endRun(false); return; }
+  if (state.idx === state.startedIdx) return; // this trial is already running
+  state.startedIdx = state.idx;
+  clearTimeout(state.trialTimer);
+  clearTimeout(state.hideTimer);
+  clearTimeout(state.windowTimer);
 
   const isGo = state.sequence[state.idx];
   trialCountEl.textContent = `Trial ${state.idx + 1} / ${state.sequence.length}`;
 
-  shapeEl.className = isGo ? 'circle' : '';
+  const isNBack = state.taskMode === 'nback1';
+  shapeEl.className = isNBack ? state.shapes[state.idx] : (isGo ? 'circle' : '');
   shapeEl.style.visibility = 'visible';
   flashEl.className = '';
 
+  // The very first 1-back trial has no predecessor, so "same as previous?" is unanswerable —
+  // it is shown to memorize, not scored, and the choice buttons are disabled for it.
+  const scorable = !(isNBack && state.idx === 0);
+  yesBtn.disabled = noBtn.disabled = !scorable;
+  yesBtn.classList.remove('chosen', 'good', 'bad');
+  noBtn.classList.remove('chosen', 'good', 'bad');
+
   state.onsetTime = performance.now();
   state.responded = false;
-  state.awaitingResponse = true;
+  state.choice = null;
+  state.awaitingResponse = scorable;
   state.currentIsGo = isGo;
-  logEvent(state.pid, state.condition, 'CPT_ONSET', `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'}`);
+  logEvent(state.pid, state.condition, 'CPT_ONSET', `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'}`
+    + (isNBack ? `;shape=${state.shapes[state.idx]}` : ''));
 
   state.hideTimer = setTimeout(() => { shapeEl.style.visibility = 'hidden'; }, STIMULUS_S * 1000);
-  state.trialTimer = setTimeout(finishTrial, SOA_S * 1000);
+  if (isNBack && scorable) {
+    // Close the answer window before the trial ends: the remaining SOA is a feedback-only
+    // gap, so a timeout's red flash is actually visible (previously it was cleared by the
+    // next onset in the same tick) and a late answer can't spill onto the next shape.
+    state.windowTimer = setTimeout(() => {
+      if (!state || tok !== state.token) return;
+      state.awaitingResponse = false;
+      if (!state.responded) {
+        flashEl.className = 'miss';
+        yesBtn.disabled = noBtn.disabled = true;
+      }
+    }, NBACK_WINDOW_S * 1000);
+  }
+  state.trialTimer = setTimeout(() => finishTrial(tok), (isNBack ? NBACK_SOA_S : SOA_S) * 1000);
 }
 
 function handleResponse() {
@@ -359,23 +518,82 @@ function handleResponse() {
   flashEl.className = state.currentIsGo ? 'hit' : 'commission';
 }
 
+// 1-back forced choice: YES ("same as previous") or NO ("different") on every scored trial.
+// Feedback is immediate — panel flashes blue/red, and the chosen button stays outlined
+// (green/red) with both buttons locked until the next shape, so the answer visibly registered.
+function handleChoice(saidYes) {
+  if (!state || state.taskMode !== 'nback1' || !state.awaitingResponse || state.responded) return;
+  const rt = (performance.now() - state.onsetTime) / 1000;
+  if (rt < NBACK_MIN_RT_S) return; // spillover from the previous trial, not a real answer
+  state.responded = true;
+  state.choice = saidYes;
+  state.rt = rt;
+  const correct = saidYes === state.currentIsGo;
+  flashEl.className = correct ? 'hit' : 'commission';
+  (saidYes ? yesBtn : noBtn).classList.add('chosen', correct ? 'good' : 'bad');
+  yesBtn.disabled = noBtn.disabled = true; // answer locked in for this trial
+}
+
 function onKeyDown(e) {
+  if (!state) return;
+  if (state.taskMode === 'nback1') {
+    if (e.code === 'KeyY') { e.preventDefault(); handleChoice(true); }
+    else if (e.code === 'KeyN') { e.preventDefault(); handleChoice(false); }
+    return;
+  }
   if (e.code !== 'Space' && e.key !== ' ') return;
   e.preventDefault();
-  if (state && (state.respondMode === 'either' || state.respondMode === 'space')) handleResponse();
+  if (state.respondMode === 'either' || state.respondMode === 'space') handleResponse();
 }
 
 function onClick() {
-  if (state && (state.respondMode === 'either' || state.respondMode === 'click')) handleResponse();
+  if (!state || state.taskMode === 'nback1') return; // 1-back answers via buttons/keys only
+  if (state.respondMode === 'either' || state.respondMode === 'click') handleResponse();
 }
 
-function finishTrial() {
-  if (!state) return;
+function finishTrial(tok) {
+  if (!state || tok !== state.token) return; // straggler from a superseded run
+  if (state.idx === state.finishedIdx) return; // this trial was already scored
+  state.finishedIdx = state.idx;
   state.awaitingResponse = false;
   const isGo = state.currentIsGo;
+  const isNBack = state.taskMode === 'nback1';
   let outcome;
 
-  if (isGo) {
+  if (isNBack && state.idx === 0) {
+    outcome = 'first_unscored';
+  } else if (isNBack) {
+    // Forced choice: an answer is expected on every scored trial, so a timeout is an error
+    // in both directions — a missed repeat, or an unanswered non-repeat (tracked separately
+    // as no_response so erratic/disengaged runs are visible in the stats).
+    const rtMs = state.responded ? Math.round(state.rt * 1000) : null;
+    if (isGo) {
+      state.goCount++;
+      if (state.responded && state.choice) {
+        state.goHits++;
+        state.hitRTs.push(state.rt);
+        outcome = `hit;rt_ms=${rtMs}`;
+      } else if (state.responded) {
+        outcome = `miss;answered_no;rt_ms=${rtMs}`;
+      } else {
+        flashEl.className = 'miss';
+        outcome = 'miss;timeout';
+      }
+    } else {
+      state.noGoCount++;
+      if (state.responded && state.choice) {
+        state.commissions++;
+        outcome = `commission;rt_ms=${rtMs}`;
+      } else if (state.responded) {
+        state.correctRejects++;
+        outcome = `correct_reject;rt_ms=${rtMs}`;
+      } else {
+        state.omissions++;
+        flashEl.className = 'miss';
+        outcome = 'no_response';
+      }
+    }
+  } else if (isGo) {
     state.goCount++;
     if (state.responded) {
       state.goHits++;
@@ -397,13 +615,15 @@ function finishTrial() {
   logEvent(state.pid, state.condition, 'CPT_RESULT', `idx=${state.idx};outcome=${outcome}`);
 
   state.idx++;
-  setTimeout(runTrial, 0);
+  setTimeout(() => runTrial(tok), 0);
 }
 
 function endRun(aborted) {
   if (!state) return;
+  state.token = ++runToken; // invalidate any still-pending trial timers from this run
   clearTimeout(state.trialTimer);
   clearTimeout(state.hideTimer);
+  clearTimeout(state.windowTimer);
   document.removeEventListener('keydown', onKeyDown);
   panelEl.removeEventListener('click', onClick);
 
@@ -460,19 +680,29 @@ function showResults(aborted, goAcc, faRate) {
   document.getElementById('resultsTitle').textContent =
     aborted ? 'Run aborted' : (state.isPractice ? 'Practice complete' : `${state.condition} complete`);
 
+  const isNBack = state.taskMode === 'nback1';
   const dPrime = probit(goAcc) - probit(faRate);
+  const scored = state.goCount + state.noGoCount;
+  const overallAcc = scored ? (state.goHits + state.correctRejects) / scored : 0;
   const rows = [
+    ['Task', isNBack ? '1-back — yes/no (shape repeat)' : 'Go/No-Go CPT'],
     ['Participant', state.pid],
     ['Condition', state.condition],
     ['Trials completed', `${state.idx} / ${state.sequence.length}`],
-    ['Go trials', state.goCount],
-    ['Go accuracy (hit rate)', `${(goAcc * 100).toFixed(1)}%`],
-    ['No-go trials', state.noGoCount],
-    ['False alarms (commissions)', `${state.commissions} (${(faRate * 100).toFixed(1)}%)`],
+    [isNBack ? 'Repeat trials (correct = YES)' : 'Go trials', state.goCount],
+    [isNBack ? 'Hit rate (YES on repeats)' : 'Go accuracy (hit rate)', `${(goAcc * 100).toFixed(1)}%`],
+    [isNBack ? 'Non-repeat trials (correct = NO)' : 'No-go trials', state.noGoCount],
+    [isNBack ? 'False alarms (YES on non-repeats)' : 'False alarms (commissions)',
+      `${state.commissions} (${(faRate * 100).toFixed(1)}%)`],
     ['Mean hit RT', state.hitRTs.length ? `${Math.round(meanRT(state.hitRTs) * 1000)} ms` : '—'],
     ['Median hit RT', state.hitRTs.length ? `${Math.round(medianRT(state.hitRTs) * 1000)} ms` : '—'],
     ["d′ (sensitivity)", dPrime.toFixed(2)],
   ];
+  if (isNBack) {
+    rows.splice(8, 0,
+      ['No response (timed out)', state.omissions],
+      ['Overall accuracy', `${(overallAcc * 100).toFixed(1)}%`]);
+  }
 
   if (state.isPractice) {
     const pass = goAcc >= PRACTICE_CRITERION;
@@ -491,7 +721,7 @@ function saveCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `blockA_cpt_P${state.pid}_${state.condition}_${stamp}.csv`;
+  a.download = `blockA_${state.taskMode === 'nback1' ? 'nback1' : 'cpt'}_P${state.pid}_${state.condition}_${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

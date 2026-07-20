@@ -63,6 +63,47 @@ This pilot tool uses a 1,000,000-attempt cap instead (still only ~100ms, 0 fallb
 cap in `CPTPanel.cs`** (`attempt < 2000` → e.g. `attempt < 1_000_000`) — it's a one-line,
 zero-risk change; this runs once per `BeginRun` call, nowhere near a per-frame budget.
 
+## 1-back mode in `block-a-cpt.html` (added 2026-07-20, exploratory)
+
+The setup screen has a **Task** selector: `Go/No-Go CPT` (default — the study spec, everything
+above applies) or `1-back` — answer **YES ("same as the previous shape") or NO ("different")
+on every shape**, via on-screen buttons or the Y/N keys. Built after supervisor feedback
+(2026-07-17, point 6) that the CPT is bottom-up/reactive; the 1-back adds a
+working-memory/goal-maintenance component while keeping the trial engine unchanged (same
+SOA/stimulus timing, trial counts, seed formula, CSV schema, stats). Details:
+
+- **Forced choice, not go/no-go** (changed same day after first hands-on feel: watch-and-mostly-
+  do-nothing felt wrong): an answer is expected on every scored trial, feedback flashes
+  immediately (blue correct, red wrong) and the chosen button stays outlined green/red with both
+  buttons locked until the next shape. Outcomes: `hit` (YES on repeat), `miss;answered_no` /
+  `miss;timeout` (repeat missed), `commission` (YES on non-repeat), `correct_reject`
+  (NO on non-repeat), `no_response` (non-repeat timed out — counted separately as an
+  engagement/erraticness signal, which also serves feedback point 5b's outlier-detection ask).
+  The first trial has no predecessor, so it is shown to memorize and logged `first_unscored`.
+- **1-back timing differs from the CPT** (fixed 2026-07-20 after hands-on feel — with the CPT's
+  1.5s SOA and full-SOA response window, a late answer landed on the *next* shape and was scored
+  against a stimulus the participant hadn't processed, i.e. seemingly random wrong-answer
+  flashes): SOA 2.0s (140 trials ≈ 4:40 per run, vs the CPT's 3:30), stimulus 700ms unchanged,
+  answers accepted 0.25–1.7s after onset. Clicks before 0.25s are ignored as spillover from the
+  previous trial; after 1.7s the trial is closed and the remaining 300ms shows feedback only
+  (previously a timeout's red flash was cleared by the next onset in the same tick, so it was
+  never visible).
+- 4 shapes (circle, square, triangle, diamond), ~30% repeat rate (12 targets / 40 practice,
+  42 / 140 main). Trial 1 is never a target; no two consecutive targets (no triple-repeats);
+  max 8 trials between targets. Non-adjacency is guaranteed by gap-sampling construction, so
+  unlike the CPT builder this doesn't depend on a huge rejection-sampling attempt cap.
+- CSV `mode` column is stamped `NBACK1_PILOT` (vs `CPT_PILOT`), the run-start payload carries
+  `task=nback1` (vs `task=cpt`), onset payloads add `;shape=...`, and the exported filename says
+  `nback1` — exports from the two tasks can't be confused.
+- Results add `No response (timed out)` and `Overall accuracy` rows — overall accuracy is the
+  number to watch against the ~75–90% no-distractor band.
+- The practice criterion is still the CPT's ≥ 90% — provisional for 1-back; if this mode
+  graduates, the pilot should set its own band (target ~75–90% no-distractor accuracy).
+- **No Unity implementation exists.** Same status as `block-a-multitarget.html`: adopting this
+  for the real study means updating `testing-strategy-v2.md`, `CPTPanel.cs`, and re-checking the
+  stats plan (the DV stays signal-detection, so `h1_lmm.py` needs less rework than multitarget
+  would).
+
 ## What does NOT match (read before drawing conclusions from pilot data)
 
 - **PRNG family differs.** The trial sequence uses a JS `mulberry32` seeded PRNG, not
@@ -150,6 +191,19 @@ both tools did — only `block-a-cpt.html` embeds it as of 2026-07-16.)
 This is purely exploratory (trying how real high-motion video *feels* as peripheral
 distraction, side by side with the procedural option) — it doesn't change what the real
 study tablets show.
+
+### Layout fix: phones no longer vanish on laptop-width windows (2026-07-20)
+
+The original layout gave the task column `min(96vw, 1100px)` outright, so on any window
+narrower than ~1500px the side columns collapsed to their padding and the phones silently
+disappeared. The three columns now negotiate via flexbox: the task column shrinks from 1100px
+down to a 600px floor before the phones (flex-basis 220px each, width capped at 440px) give up
+meaningful width. On a 1366px window each phone gets ~180px; the ±35° eccentricity caveat below
+still applies as before. Same fix window: `video-reel.html` now retries `play()` after load
+(and on first click as a fallback) — some embedded contexts left the muted autoplay video
+paused, showing a black rectangle instead of footage. Also fixed: run timers now carry a run
+token, so an aborted run's still-pending 1.5s trial timer (or a double-clicked Start) can no
+longer fork a second trial chain that double-paces the next run and scrambles its outcomes.
 
 ### Layout: side clips sized/placed like tablets, main task framed (2026-07-16)
 
