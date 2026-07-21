@@ -107,9 +107,13 @@ runs yet.
   trigger" text until both are clicked; video plays once (no loop); at clip end the pass closes its
   CSV and shows the tally; **X starts a fresh pass** (new CSV). Files:
   `authored_results_<PILOT|P#>_<MODE>-<set>_<stamp>.csv`.
-- **Pull results to PC:** `.\Tools\study-console.ps1 apull` (→ `Dissertation/authored/raw/`);
-  then `.\Tools\study-console.ps1 awipe` deletes device copies ONLY where byte-size matches the
-  pulled local file.
+- **Pull results to PC:** ONE CLICK in Unity — **Meta > Study > Pull Study Data From Headset**
+  (`Assets/Editor/StudyDataPuller.cs`): pulls all `authored_results_*`/`authored_points_*` +
+  `session_ledger.csv` into `Dissertation/authored/raw/` (size-match skip), then runs
+  `Tools/analysis/authored_report.py` and prints the aggregate to the Console. Never deletes
+  from the device. CLI equivalent: `.\Tools\study-console.ps1 apull`; `awipe` (deliberate,
+  separate) deletes device copies ONLY where byte-size matches the pulled local file — note
+  awipe does not touch the ledger.
 - **Push pool to device (needed for device runs):**
   `MSYS_NO_PATHCONV=1 adb push Dissertation/authored/pool_split.csv /storage/emulated/0/Android/data/com.samples.passthroughcamera/files/pool_split.csv`
 
