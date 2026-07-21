@@ -1,0 +1,10 @@
+t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
+1784573130206,-1,BASELINE,A,-1,,,,,false_alarm,,
+1784573130307,-1,BASELINE,P,0,traffic_light,0.000,2.500,2.500,hit,1.001,4.470
+1784573133543,-1,BASELINE,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,4.798
+1784573140632,-1,BASELINE,A,-1,,,,,false_alarm,,
+1784573141057,-1,BASELINE,A,-1,,,,,false_alarm,,
+1784573141668,-1,BASELINE,A,-1,,,,,false_alarm,,
+1784573142030,-1,BASELINE,A,1,traffic_light,6.500,23.000,16.500,hit,2.976,9.127
+1784573142384,-1,BASELINE,A,-1,,,,,false_alarm,,
+1784573165323,-1,BASELINE,A,60,person,21.500,32.000,10.500,miss,,
