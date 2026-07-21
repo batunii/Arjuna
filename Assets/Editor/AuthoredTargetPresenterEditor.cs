@@ -80,7 +80,9 @@ public class AuthoredTargetPresenterEditor : Editor
         SerializedProperty set, SerializedProperty baseline, SerializedProperty filterFx,
         SerializedProperty pid)
     {
-        string who = pid.intValue < 0 ? (auto ? "next pid from ledger" : "PILOT") : $"P{pid.intValue}";
+        string who = pid.intValue < 0 ? (auto ? "next pid from ledger" : "PILOT")
+                   : pid.intValue >= 900 ? $"PILOT{pid.intValue} (excluded from balancing)"
+                   : $"P{pid.intValue}";
         if (auto)
             return $"Will run:  {who} · full 4-block session (assignment from device ledger)";
         if (passthrough)

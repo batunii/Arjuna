@@ -78,7 +78,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private string m_poolFileName = "pool_split.csv";
 
         [Header("Run identity")]
-        [Tooltip("Manual: -1 = experimenter pilot (results named PILOT), >= 0 = real participant. AutoSession: -1 = auto-assign the next id from the ledger (one relaunch per participant, no rebuild), >= 0 = run/resume that participant.")]
+        [Tooltip("Manual: -1 = experimenter pilot (results named PILOT), >= 0 = real participant. AutoSession: -1 = auto-assign the next real id from the ledger (one relaunch per participant, no rebuild), >= 0 = run/resume that participant. Pids >= 900 = pilot sessions in either mode: named PILOT<pid>, full flow, but excluded from balancing and auto-assignment.")]
         [SerializeField] private int m_participantId = -1;
 
         [Header("Session")]
@@ -208,7 +208,15 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private string ModeTag => $"{(IsBaseline ? "BASELINE" : IsFilterCondition ? "FILTER" : "NOFILTER")}-{m_setForRun}";
 
-        private string WhoTag => m_participantId < 0 ? "PILOT" : $"P{m_participantId}";
+        // pids >= 900 are experimenter pilots (the old ClickProbeTest 999 convention): they run
+        // full sessions with their own resume, but are named PILOT<pid> and excluded from the
+        // ledger balancing and from auto-assignment — personal runs can never occupy a real
+        // participant's counterbalance cell.
+        private const int k_pilotPidFloor = 900;
+
+        private string WhoTag => m_participantId < 0 ? "PILOT"
+            : m_participantId >= k_pilotPidFloor ? $"PILOT{m_participantId}"
+            : $"P{m_participantId}";
 
         private void Start()
         {
@@ -516,7 +524,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             int max = -1;
             foreach (var f in m_ledger)
-                if (f[0] == "PLAN" && int.TryParse(f[2], out int p)) max = Mathf.Max(max, p);
+                if (f[0] == "PLAN" && int.TryParse(f[2], out int p) && p < k_pilotPidFloor)
+                    max = Mathf.Max(max, p);
             return max + 1;
         }
 
@@ -530,10 +539,14 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             {
                 // Greedy balance: emptiest pairing cell first, then the least-used order within
                 // it; pid rotation breaks ties so a balanced ledger degrades to plain rotation.
+                // Pilot plans (pid >= 900) never count toward the balance.
+                bool RealPlan(string[] f) =>
+                    f[0] == "PLAN" && int.TryParse(f[2], out int p) && p >= 0 && p < k_pilotPidFloor;
+
                 int af = 0, bf = 0;
                 foreach (var f in m_ledger)
                 {
-                    if (f[0] != "PLAN") continue;
+                    if (!RealPlan(f)) continue;
                     if (f[3] == "AF") af++; else if (f[3] == "BF") bf++;
                 }
                 m_pairing = af < bf ? "AF" : bf < af ? "BF" : m_participantId % 2 == 0 ? "AF" : "BF";
@@ -541,7 +554,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 var counts = new Dictionary<string, int>();
                 foreach (var o in k_orders) counts[o] = 0;
                 foreach (var f in m_ledger)
-                    if (f[0] == "PLAN" && f[3] == m_pairing && counts.ContainsKey(f[4]))
+                    if (RealPlan(f) && f[3] == m_pairing && counts.ContainsKey(f[4]))
                         counts[f[4]]++;
                 m_order = k_orders[m_participantId % k_orders.Length];
                 foreach (var o in k_orders)

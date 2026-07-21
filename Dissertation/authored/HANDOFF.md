@@ -90,7 +90,10 @@ runs yet.
   pairing+order) and `BLOCK` (one per completed block — video pass end writes it automatically;
   **Block A blocks complete on X-press**, they produce no CSV of their own). App relaunch
   resumes mid-session from the ledger; **pid −1 auto-assigns the next id**, so one build serves
-  every participant (relaunch per participant, no rebuild). Manual mode = the override (redo a
+  every participant (relaunch per participant, no rebuild). **Pids ≥ 900 = experimenter pilots**
+  (the ClickProbeTest 999 convention): full session flow, files named `PILOT<pid>`, but excluded
+  from the balancing and from auto-assignment — rehearse the auto flow with pid 999 without
+  occupying a real counterbalance cell. Manual mode = the override (redo a
   block for a given pid: its BLOCK row marks it complete for the auto resume). Pull the ledger
   along with results when archiving.
 - **QoL pass (branch `Test/StudyQoL`, 2026-07-20):** Block A modes run minimal-UI (no mode
