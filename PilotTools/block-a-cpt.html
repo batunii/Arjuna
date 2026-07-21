@@ -69,7 +69,22 @@
   /* ---- task screen ---- */
   #task { display: none; flex-direction: column; align-items: center; text-align: center; }
   #hint { color: #888; font-size: 0.85rem; margin-bottom: 8px; }
-  #trialCount { color: #666; font-size: 0.8rem; margin-bottom: 18px; }
+  #trialCount { color: #666; font-size: 0.8rem; margin-bottom: 6px; }
+  /* Running tally (1-back only): correct / wrong / too-slow at a glance. */
+  #tally { color: #999; font-size: 0.9rem; margin-bottom: 10px; min-height: 1.2em; }
+  /* The one line that always says what to do or how the last answer went (1-back only).
+     Large and colored — the participant should never have to infer state from a subtle
+     color wash (feedback 2026-07-20: "am I doing it right or wrong?"). */
+  #question { font-size: 1.5rem; font-weight: 700; margin: 2px 0 14px; min-height: 1.6em; color: #eee; }
+  #question.good { color: #4ade80; }
+  #question.bad  { color: #f87171; }
+  #question.warn { color: #fbbf24; }
+  /* Response-window bar: drains over the answer window so the deadline is visible. */
+  #timebar {
+    width: 500px; max-width: 100%; height: 8px; background: #26262a;
+    border-radius: 4px; margin-top: 14px; overflow: hidden; visibility: hidden;
+  }
+  #timebarFill { height: 100%; width: 100%; background: #3b82f6; }
   #panel {
     width: 500px; height: 500px; background: #17171a; border-radius: 18px;
     display: flex; align-items: center; justify-content: center; position: relative;
@@ -83,14 +98,14 @@
   #flash.hit { background: rgba(59,130,246,0.35); }
   #flash.miss, #flash.commission { background: rgba(220,38,38,0.35); }
   /* Yes/No forced-choice buttons (1-back mode only; hidden for the CPT). */
-  #choiceRow { display: none; gap: 14px; margin-top: 18px; justify-content: center; }
-  #choiceRow button { margin-top: 0; min-width: 180px; padding: 14px 22px; font-size: 1.05rem; }
+  #choiceRow { display: none; gap: 18px; margin-top: 18px; justify-content: center; }
+  #choiceRow button { margin-top: 0; min-width: 220px; padding: 16px 26px; font-size: 1.15rem; line-height: 1.5; }
+  #choiceRow button .keys { font-size: 0.8rem; font-weight: 400; opacity: 0.75; }
   #choiceRow button:active { transform: scale(0.96); }
   /* The chosen answer stays visibly marked (and full-opacity despite being disabled) until
-     the next shape, outlined green/red by correctness — the click must never feel ignored. */
-  #choiceRow button.chosen { opacity: 1; }
-  #choiceRow button.chosen.good { outline: 3px solid #4ade80; }
-  #choiceRow button.chosen.bad  { outline: 3px solid #f87171; }
+     the next shape — the click must never feel ignored. Neutral outline only: per-trial
+     right/wrong feedback is deliberately NOT shown (see README). */
+  #choiceRow button.chosen { opacity: 1; outline: 3px solid #8b8b93; }
   #abortBtn { margin-top: 24px; }
 
   /* ---- results screen ---- */
@@ -160,15 +175,18 @@
 <div class="screen" id="task">
   <div id="hint">Circle = respond (go). Square = withhold (no-go).</div>
   <div id="trialCount">Trial 0 / 0</div>
+  <div id="tally"></div>
+  <div id="question"></div>
   <div id="panel">
     <div id="flash"></div>
     <div id="shape"></div>
   </div>
+  <div id="timebar"><div id="timebarFill"></div></div>
   <div id="choiceRow">
-    <button id="yesBtn">YES — same (Y)</button>
-    <button id="noBtn" class="secondary">NO — different (N)</button>
+    <button id="yesBtn">YES — same<br><span class="keys">Y · ← · 1</span></button>
+    <button id="noBtn" class="secondary">NO — different<br><span class="keys">N · → · 2</span></button>
   </div>
-  <button id="abortBtn" class="danger">Abort run</button>
+  <button id="abortBtn" class="danger">End run (Esc)</button>
 </div>
 
 <!-- ============ RESULTS ============ -->
@@ -207,9 +225,10 @@ const NBACK_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
 // Forced-choice timing (the CPT's 1.5s SOA with a full-SOA response window is too tight for a
 // yes/no decision on every trial, and back-to-back trials let a late answer land on the NEXT
 // shape — scored against a stimulus the participant hadn't processed, i.e. seemingly random
-// red flashes; reported 2026-07-20). Literature n-backs run ~2.5s SOA; 2.0s keeps it brisk.
-const NBACK_SOA_S = 2.0;     // onset-to-onset for 1-back trials (140 trials ≈ 4:40 per run)
-const NBACK_WINDOW_S = 1.7;  // answers accepted until here; the last 300ms shows feedback only
+// red flashes; reported 2026-07-20). Started at 2.0s; raised to the literature-standard 2.5s
+// the same day ("still a little hard" even when focused).
+const NBACK_SOA_S = 2.5;     // onset-to-onset for 1-back trials (140 trials ≈ 5:50 per run)
+const NBACK_WINDOW_S = 2.2;  // answers accepted until here; the last 300ms is a closed gap
 const NBACK_MIN_RT_S = 0.25; // faster than any real choice — treat as spillover and ignore
 
 // ---- seeded PRNG (mulberry32) ----
@@ -356,6 +375,35 @@ const trialCountEl = document.getElementById('trialCount');
 const choiceRowEl = document.getElementById('choiceRow');
 const yesBtn = document.getElementById('yesBtn');
 const noBtn = document.getElementById('noBtn');
+const questionEl = document.getElementById('question');
+const tallyEl = document.getElementById('tally');
+const timebarEl = document.getElementById('timebar');
+const timebarFillEl = document.getElementById('timebarFill');
+
+// ---- 1-back status helpers: the screen must always SAY what to do / how it went ----
+function setQuestion(text, cls) {
+  questionEl.textContent = text;
+  questionEl.className = cls || '';
+}
+
+// Neutral counts only — no running right/wrong score (correctness feedback is withheld
+// by design; the counters themselves still feed the CSV and the end-of-run stats).
+function updateTally() {
+  tallyEl.textContent = `answered ${state.nCorrect + state.nWrong}    ⏱ too slow ${state.nTimeout}`;
+}
+
+function startBar(ms) {
+  timebarEl.style.visibility = 'visible';
+  timebarFillEl.style.transition = 'none';
+  timebarFillEl.style.width = '100%';
+  void timebarFillEl.offsetWidth; // flush so the transition below starts from 100%
+  timebarFillEl.style.transition = `width ${ms}ms linear`;
+  timebarFillEl.style.width = '0%';
+}
+
+function stopBar() {
+  timebarEl.style.visibility = 'hidden';
+}
 const distractorContentEl = document.getElementById('distractorContent');
 const distractorLeftIframe = document.querySelector('#distractorLeft iframe');
 const distractorRightIframe = document.querySelector('#distractorRight iframe');
@@ -439,15 +487,21 @@ function startRun() {
     token: ++runToken, startedIdx: -1, finishedIdx: -1,
     idx: 0, goCount: 0, goHits: 0, noGoCount: 0, commissions: 0,
     correctRejects: 0, omissions: 0, choice: null,
+    nCorrect: 0, nWrong: 0, nTimeout: 0,
     hitRTs: [], onsetTime: 0, responded: false, awaitingResponse: false,
     trialTimer: null, hideTimer: null, windowTimer: null,
   };
   csvRows = [];
   modeStamp = isNBack ? 'NBACK1_PILOT' : 'CPT_PILOT';
   choiceRowEl.style.display = isNBack ? 'flex' : 'none';
+  questionEl.style.display = isNBack ? 'block' : 'none';
+  tallyEl.style.display = isNBack ? 'block' : 'none';
+  setQuestion('', '');
+  if (isNBack) updateTally(); else tallyEl.textContent = '';
+  stopBar();
   document.getElementById('hint').textContent = isNBack
-    ? 'Every shape: is it the SAME as the previous one? YES (Y) or NO (N). First shape: just memorize it.'
-    : 'Circle = respond (go). Square = withhold (no-go).';
+    ? 'YES (Y / ← / 1) = same as previous · NO (N / → / 2) = different · Esc ends the run'
+    : 'Circle = respond (go). Square = withhold (no-go). Esc ends the run.';
   logEvent(pid, condition, 'CPT_PANEL_PLACED', 'dist_m=n/a;tool=block-a-cpt.html');
   logEvent(pid, condition, isPractice ? 'PRACTICE_START' : 'CPT_RUN_START',
     `trials=${trials};seed=${seed};soa_s=${isNBack ? NBACK_SOA_S : SOA_S};task=${isNBack ? 'nback1' : 'cpt'}`);
@@ -483,8 +537,17 @@ function runTrial(tok) {
   // it is shown to memorize, not scored, and the choice buttons are disabled for it.
   const scorable = !(isNBack && state.idx === 0);
   yesBtn.disabled = noBtn.disabled = !scorable;
-  yesBtn.classList.remove('chosen', 'good', 'bad');
-  noBtn.classList.remove('chosen', 'good', 'bad');
+  yesBtn.classList.remove('chosen');
+  noBtn.classList.remove('chosen');
+  if (isNBack) {
+    if (scorable) {
+      setQuestion('Same as the previous shape?', '');
+      startBar(NBACK_WINDOW_S * 1000);
+    } else {
+      setQuestion('MEMORIZE this first shape — no answer needed', 'warn');
+      stopBar();
+    }
+  }
 
   state.onsetTime = performance.now();
   state.responded = false;
@@ -494,7 +557,10 @@ function runTrial(tok) {
   logEvent(state.pid, state.condition, 'CPT_ONSET', `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'}`
     + (isNBack ? `;shape=${state.shapes[state.idx]}` : ''));
 
-  state.hideTimer = setTimeout(() => { shapeEl.style.visibility = 'hidden'; }, STIMULUS_S * 1000);
+  // 1-back: the shape stays up for the whole answer window (hiding it at 700ms while the
+  // timer kept running read as a glitch — feedback 2026-07-20); the CPT keeps its spec 700ms.
+  state.hideTimer = setTimeout(() => { shapeEl.style.visibility = 'hidden'; },
+    (isNBack ? NBACK_WINDOW_S : STIMULUS_S) * 1000);
   if (isNBack && scorable) {
     // Close the answer window before the trial ends: the remaining SOA is a feedback-only
     // gap, so a timeout's red flash is actually visible (previously it was cleared by the
@@ -503,8 +569,9 @@ function runTrial(tok) {
       if (!state || tok !== state.token) return;
       state.awaitingResponse = false;
       if (!state.responded) {
-        flashEl.className = 'miss';
         yesBtn.disabled = noBtn.disabled = true;
+        setQuestion('⏱ Too slow — answer before the bar runs out', 'warn');
+        stopBar();
       }
     }, NBACK_WINDOW_S * 1000);
   }
@@ -519,8 +586,9 @@ function handleResponse() {
 }
 
 // 1-back forced choice: YES ("same as previous") or NO ("different") on every scored trial.
-// Feedback is immediate — panel flashes blue/red, and the chosen button stays outlined
-// (green/red) with both buttons locked until the next shape, so the answer visibly registered.
+// The answer visibly registers (chosen button outlined, both locked, "Answer recorded") but
+// correctness is deliberately NOT shown — per-trial right/wrong feedback shifts participant
+// strategy mid-run; scoring lives in the log and the end-of-run stats only.
 function handleChoice(saidYes) {
   if (!state || state.taskMode !== 'nback1' || !state.awaitingResponse || state.responded) return;
   const rt = (performance.now() - state.onsetTime) / 1000;
@@ -528,17 +596,23 @@ function handleChoice(saidYes) {
   state.responded = true;
   state.choice = saidYes;
   state.rt = rt;
-  const correct = saidYes === state.currentIsGo;
-  flashEl.className = correct ? 'hit' : 'commission';
-  (saidYes ? yesBtn : noBtn).classList.add('chosen', correct ? 'good' : 'bad');
+  (saidYes ? yesBtn : noBtn).classList.add('chosen');
   yesBtn.disabled = noBtn.disabled = true; // answer locked in for this trial
+  setQuestion('Answer recorded', '');
+  stopBar();
 }
 
 function onKeyDown(e) {
   if (!state) return;
+  if (e.code === 'Escape') { endRun(true); return; } // end the run any time (both tasks)
   if (state.taskMode === 'nback1') {
-    if (e.code === 'KeyY') { e.preventDefault(); handleChoice(true); }
-    else if (e.code === 'KeyN') { e.preventDefault(); handleChoice(false); }
+    // Multiple bindings so whatever hand position feels natural works: mnemonic letters,
+    // adjacent arrow keys (left button = YES = ←), or the number row.
+    if (e.code === 'KeyY' || e.code === 'ArrowLeft' || e.code === 'Digit1' || e.code === 'Numpad1') {
+      e.preventDefault(); handleChoice(true);
+    } else if (e.code === 'KeyN' || e.code === 'ArrowRight' || e.code === 'Digit2' || e.code === 'Numpad2') {
+      e.preventDefault(); handleChoice(false);
+    }
     return;
   }
   if (e.code !== 'Space' && e.key !== ' ') return;
@@ -572,27 +646,32 @@ function finishTrial(tok) {
       if (state.responded && state.choice) {
         state.goHits++;
         state.hitRTs.push(state.rt);
+        state.nCorrect++;
         outcome = `hit;rt_ms=${rtMs}`;
       } else if (state.responded) {
+        state.nWrong++;
         outcome = `miss;answered_no;rt_ms=${rtMs}`;
       } else {
-        flashEl.className = 'miss';
+        state.nTimeout++;
         outcome = 'miss;timeout';
       }
     } else {
       state.noGoCount++;
       if (state.responded && state.choice) {
         state.commissions++;
+        state.nWrong++;
         outcome = `commission;rt_ms=${rtMs}`;
       } else if (state.responded) {
         state.correctRejects++;
+        state.nCorrect++;
         outcome = `correct_reject;rt_ms=${rtMs}`;
       } else {
         state.omissions++;
-        flashEl.className = 'miss';
+        state.nTimeout++;
         outcome = 'no_response';
       }
     }
+    updateTally();
   } else if (isGo) {
     state.goCount++;
     if (state.responded) {

@@ -73,21 +73,27 @@ working-memory/goal-maintenance component while keeping the trial engine unchang
 SOA/stimulus timing, trial counts, seed formula, CSV schema, stats). Details:
 
 - **Forced choice, not go/no-go** (changed same day after first hands-on feel: watch-and-mostly-
-  do-nothing felt wrong): an answer is expected on every scored trial, feedback flashes
-  immediately (blue correct, red wrong) and the chosen button stays outlined green/red with both
-  buttons locked until the next shape. Outcomes: `hit` (YES on repeat), `miss;answered_no` /
-  `miss;timeout` (repeat missed), `commission` (YES on non-repeat), `correct_reject`
-  (NO on non-repeat), `no_response` (non-repeat timed out — counted separately as an
-  engagement/erraticness signal, which also serves feedback point 5b's outlier-detection ask).
-  The first trial has no predecessor, so it is shown to memorize and logged `first_unscored`.
+  do-nothing felt wrong): an answer is expected on every scored trial. Outcomes: `hit` (YES on
+  repeat), `miss;answered_no` / `miss;timeout` (repeat missed), `commission` (YES on non-repeat),
+  `correct_reject` (NO on non-repeat), `no_response` (non-repeat timed out — counted separately
+  as an engagement/erraticness signal, which also serves feedback point 5b's outlier-detection
+  ask). The first trial has no predecessor, so it is shown to memorize and logged
+  `first_unscored`.
+- **No per-trial right/wrong feedback** (removed 2026-07-20 at the user's call — also the
+  methodologically sound choice: trial-by-trial correctness feedback shifts speed/accuracy
+  strategy mid-run). The answer still visibly *registers* — chosen button outlined neutral grey,
+  both buttons locked, status line says "Answer recorded" — and "⏱ Too slow" still shows
+  (pacing compliance, not correctness). Correctness lives only in the CSV and the end-of-run
+  stats. If this graduates and practice needs learnable feedback, re-enabling it for practice
+  runs only is a small conditional.
 - **1-back timing differs from the CPT** (fixed 2026-07-20 after hands-on feel — with the CPT's
   1.5s SOA and full-SOA response window, a late answer landed on the *next* shape and was scored
-  against a stimulus the participant hadn't processed, i.e. seemingly random wrong-answer
-  flashes): SOA 2.0s (140 trials ≈ 4:40 per run, vs the CPT's 3:30), stimulus 700ms unchanged,
-  answers accepted 0.25–1.7s after onset. Clicks before 0.25s are ignored as spillover from the
-  previous trial; after 1.7s the trial is closed and the remaining 300ms shows feedback only
-  (previously a timeout's red flash was cleared by the next onset in the same tick, so it was
-  never visible).
+  against a stimulus the participant hadn't processed): SOA 2.5s — started at 2.0s, raised to
+  the literature-standard 2.5s the same day ("still a little hard") — so 140 trials ≈ 5:50 per
+  run vs the CPT's 3:30. Answers accepted 0.25–2.2s after onset. The shape stays visible for
+  the whole 2.2s window (hiding it at the CPT's 700ms while the timer kept running read as a
+  glitch); the last 300ms of each trial is a closed-window gap so late answers can't spill onto
+  the next shape. Clicks before 0.25s are ignored as spillover from the previous trial.
 - 4 shapes (circle, square, triangle, diamond), ~30% repeat rate (12 targets / 40 practice,
   42 / 140 main). Trial 1 is never a target; no two consecutive targets (no triple-repeats);
   max 8 trials between targets. Non-adjacency is guaranteed by gap-sampling construction, so
@@ -95,6 +101,16 @@ SOA/stimulus timing, trial counts, seed formula, CSV schema, stats). Details:
 - CSV `mode` column is stamped `NBACK1_PILOT` (vs `CPT_PILOT`), the run-start payload carries
   `task=nback1` (vs `task=cpt`), onset payloads add `;shape=...`, and the exported filename says
   `nback1` — exports from the two tasks can't be confused.
+- **The screen narrates itself** (2026-07-20, after "even knowing the rules I can't tell what
+  to do"): a large status line above the panel always states the current ask or state —
+  "MEMORIZE this first shape", "Same as the previous shape?", "Answer recorded", "⏱ Too slow" —
+  a time bar under the panel drains over the answer window, and a neutral running tally
+  (answered / too slow) sits under the trial counter. All of this is 1-back-only; the CPT
+  screen is unchanged.
+- **Controls:** YES = `Y` / `←` / `1` or the left button; NO = `N` / `→` / `2` or the right
+  button. `Esc` ends the run at any time (both tasks — the on-screen button says "End run
+  (Esc)"); an ended run still shows its stats and offers the CSV, flagged `CPT_RUN_ABORTED`
+  in the log.
 - Results add `No response (timed out)` and `Overall accuracy` rows — overall accuracy is the
   number to watch against the ~75–90% no-distractor band.
 - The practice criterion is still the CPT's ≥ 90% — provisional for 1-back; if this mode
