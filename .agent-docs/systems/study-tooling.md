@@ -214,6 +214,16 @@ greys out inapplicable fields + shows a "Will run" summary; `OnValidate` enforce
 CSV naming/labels are unchanged (`BASELINE/FILTER/NOFILTER-<set>` tags), so results stay
 comparable across the enum migration.
 
+**AutoSession (added 2026-07-20, scene default):** `m_sessionMode = AutoSession` drives one full
+participant session — 4 X-gated blocks (video filter/no-filter on opposite sets + Block A
+no-filter/filter, ABBA condition order), rest allowed in every gap, scene switches handled by
+the presenter (`DontDestroyOnLoad` across loads). Assignment is greedy-balanced across
+participants from `persistentDataPath/session_ledger.csv` (`PLAN` row per participant:
+pairing AF/BF × order V-F/V-N/P-F/P-N; `BLOCK` row per completed block), pid rotation breaking
+ties; relaunch resumes mid-session; pid −1 auto-assigns the next id (one build for the whole
+study). Block A blocks complete on X-press (ledger row only — no CSV). Manual mode is the
+override; its completed blocks also write ledger rows.
+
 **QoL state (branch `Test/StudyQoL`, 2026-07-20):** both scenes' `StudyRig` GameObjects were
 **removed** (with them the scene instances of `ConditionSequencer`/`StudyLogger`/`CPTPanel`/
 `ProbeScheduler`, the Y-hold `SceneSwitcher`, and the old `ClickProbeTest` cyan reticle); the

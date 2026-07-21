@@ -81,6 +81,18 @@ runs yet.
   "Will run: …" summary; `OnValidate` enforces the same rules. CSV naming/labels unchanged
   (BASELINE/FILTER/NOFILTER-set tags). The presenter remains the single launch point for all
   test blocks.
+- **AutoSession (added 2026-07-20, scene default):** `m_sessionMode = AutoSession` runs one full
+  participant session — 4 X-gated blocks with rest in every gap: video filter + video no-filter
+  (opposite sets) and Block A no-filter + filter, condition order ABBA-mirrored. Assignment
+  (which set gets the filter × which pair/condition starts, cells `AF/BF × V-F/V-N/P-F/P-N`) is
+  **greedy-balanced from the on-device `session_ledger.csv`** (a name `awipe` never deletes),
+  pid rotation breaking ties. Ledger rows: `PLAN` (one per participant at session start:
+  pairing+order) and `BLOCK` (one per completed block — video pass end writes it automatically;
+  **Block A blocks complete on X-press**, they produce no CSV of their own). App relaunch
+  resumes mid-session from the ledger; **pid −1 auto-assigns the next id**, so one build serves
+  every participant (relaunch per participant, no rebuild). Manual mode = the override (redo a
+  block for a given pid: its BLOCK row marks it complete for the auto resume). Pull the ledger
+  along with results when archiving.
 - **QoL pass (branch `Test/StudyQoL`, 2026-07-20):** Block A modes run minimal-UI (no mode
   toast, A-cycle/B-clear disabled — controllers ONLY paint the window there / click targets in
   the video tests; debug text self-clears after 4 s). The Y-hold `SceneSwitcher`, the "SWITCHED"

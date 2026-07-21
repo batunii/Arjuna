@@ -60,17 +60,32 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         public enum StudyEnvironment { DrivingVideo, MetaPassthrough }
         public enum TargetSet { Auto, A, B }
         public enum FilterCondition { WithFilter, NoFilter }
+        public enum SessionMode { Manual, AutoSession }
 
-        private enum Phase { Armed, Running, Done }
+        // One block of a participant session (AutoSession runs 4, Manual runs its single
+        // dropdown configuration over and over).
+        private class Block
+        {
+            public bool video;    // false = passthrough (Block A)
+            public bool filter;   // WithFilter arm
+            public string set;    // "A"/"B" for video, "-" for passthrough
+            public bool done;
+        }
+
+        private enum Phase { Armed, Running, Done, PassthroughRunning, Complete }
 
         [SerializeField] private VideoTestSceneManager m_video;
         [SerializeField] private string m_poolFileName = "pool_split.csv";
 
         [Header("Run identity")]
-        [Tooltip("-1 = experimenter pilot run (results named PILOT). >= 0 = real participant.")]
+        [Tooltip("Manual: -1 = experimenter pilot (results named PILOT), >= 0 = real participant. AutoSession: -1 = auto-assign the next id from the ledger (one relaunch per participant, no rebuild), >= 0 = run/resume that participant.")]
         [SerializeField] private int m_participantId = -1;
 
-        [Header("Run configuration")]
+        [Header("Session")]
+        [Tooltip("AutoSession = one full 4-block participant session (video filter/no-filter on opposite sets + Block A no-filter/filter, ABBA-mirrored), assignment greedy-balanced across participants from the on-device session_ledger.csv, blocks X-gated with rest between, Block A completes on X. Manual = run exactly the dropdowns below (the override).")]
+        [SerializeField] private SessionMode m_sessionMode = SessionMode.Manual;
+
+        [Header("Run configuration (Manual session mode)")]
         [Tooltip("DrivingVideo = authored-pool test in this scene. MetaPassthrough = Block A: X loads the passthrough scene and configures Hard Dark / baseline there (no authored data applies).")]
         [SerializeField] private StudyEnvironment m_environment = StudyEnvironment.DrivingVideo;
         [Tooltip("Video only. Auto = set from participant-id parity (even pid: Filter->A, NoFilter->B; odd swapped). A/B = forced (piloting/screening).")]
@@ -81,9 +96,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private bool m_baselineScreening;
         [SerializeField] private VignetteMode m_filterMode = VignetteMode.SignPop;
 
-        [Header("Block A launch (MetaPassthrough environment only)")]
-        [Tooltip("Scene loaded when launching Block A. Must be in Build Settings.")]
+        [Header("Scenes")]
+        [Tooltip("Scene loaded for Block A (passthrough) blocks. Must be in Build Settings.")]
         [SerializeField] private string m_blockASceneName = "CameraSphereVignette";
+        [Tooltip("Scene loaded to return to video blocks (AutoSession). Must be in Build Settings.")]
+        [SerializeField] private string m_videoSceneName = "VideoTestScene";
 
         [Header("Locked focus window (constant geometry, both conditions)")]
         [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Raise toward 25/15 for a windscreen.")]
@@ -137,6 +154,16 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private Phase m_phase = Phase.Armed;
         private float m_lastVt = -1f;
 
+        // Session driver state (see the "session" region below). Manual mode runs a plan of 1.
+        private readonly List<Block> m_plan = new();
+        private int m_blockIdx;
+        private bool m_effFilter;      // current block's condition — drives ApplyCondition/labels
+        private bool m_effBaseline;    // manual-only BASELINE tag
+        private bool m_sceneLoading;
+        private float m_xCooldown;     // debounce so one X press can't fall through two states
+
+        private Block Current => m_blockIdx < m_plan.Count ? m_plan[m_blockIdx] : null;
+
         // practice gate
         private float m_practiceGateT = -1f;    // video time at which to pause for practice clicks
         private bool m_practicePaused;
@@ -162,17 +189,19 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             9 => "traffic_light", 11 => "stop_sign", 0 => "person", _ => "unknown",
         };
 
+        // Manual-mode routing only; auto sessions route on the current Block instead.
         private bool IsBlockALaunch => m_environment == StudyEnvironment.MetaPassthrough;
 
-        private bool IsFilterCondition => m_filter == FilterCondition.WithFilter;
+        // Effective (current block) condition — set from the dropdowns in Manual, per block in auto.
+        private bool IsFilterCondition => m_effFilter;
 
-        private bool IsBaseline => !IsFilterCondition && m_baselineScreening;
+        private bool IsBaseline => m_effBaseline;
 
         // Keep illegal combos unrepresentable even if set through code/YAML — the custom
         // inspector greys these out, this enforces the same rules at the data level.
         private void OnValidate()
         {
-            if (IsFilterCondition) m_baselineScreening = false;
+            if (m_filter == FilterCondition.WithFilter) m_baselineScreening = false;
         }
 
         private string ConditionLabel => IsBaseline ? "BASELINE" : (IsFilterCondition ? "Filter" : "NoFilter");
@@ -183,20 +212,40 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private void Start()
         {
+            BuildHUD();
+            if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
+
+            if (m_sessionMode == SessionMode.AutoSession)
+            {
+                LoadLedger();
+                if (m_participantId < 0) m_participantId = NextLedgerPid();
+                EnsurePlanFromLedger();
+                m_blockIdx = FirstIncompleteBlock();
+                Debug.Log($"[AuthoredPresenter] AutoSession {WhoTag}: pairing={m_pairing} order={m_order}, "
+                        + $"starting at block {Mathf.Min(m_blockIdx + 1, m_plan.Count)}/{m_plan.Count}.");
+                if (m_blockIdx >= m_plan.Count)
+                {
+                    m_phase = Phase.Complete;
+                    SetHUD($"{WhoTag} — session already complete.\nRelaunch with a new participant id (or -1 = next).");
+                    return;
+                }
+                if (!Current.video)
+                    SetHUD(AutoBlockHud(Current, "Rest as needed — press X to launch"));
+                // Video blocks arm through the init tick in Update.
+                return;
+            }
+
+            m_effFilter = m_filter == FilterCondition.WithFilter;
+            m_effBaseline = !m_effFilter && m_baselineScreening;
+
             if (IsBlockALaunch)
             {
-                BuildHUD();
                 SetHUD(BlockAHudText());
                 Debug.Log($"[AuthoredPresenter] Block A ({m_filter}) launcher armed. Press {m_startButton} "
                         + $"to load '{m_blockASceneName}' and configure the vignette manager.");
                 return;
             }
-            if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
-            m_setForRun = ResolveSet();
-            LoadPool();
-            Debug.Log($"[AuthoredPresenter] {WhoTag} {ModeTag}: {m_targets.Count} targets "
-                    + $"(incl. practice). Press {m_startButton} to start.");
-            BuildHUD();
+            m_plan.Add(new Block { video = true, filter = m_effFilter, set = ResolveSet() });
         }
 
         private string ResolveSet()
@@ -207,7 +256,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 case TargetSet.B: return "B";
                 default: // Auto: even pid: Filter->A, NoFilter->B ; odd pid: swapped.
                     bool even = (m_participantId % 2) == 0;
-                    bool wantA = IsFilterCondition == even;
+                    bool wantA = (m_filter == FilterCondition.WithFilter) == even;
                     return wantA ? "A" : "B";
             }
         }
@@ -215,40 +264,66 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private void Update()
         {
             if (TestModeSequencer.Instance != null) { Destroy(TestModeSequencer.Instance.gameObject); return; }
-            if (IsBlockALaunch) { TickBlockALauncher(); return; }
-            if (m_video == null) return;
+            if (m_xCooldown > 0f) m_xCooldown -= Time.deltaTime;
+            if (m_sceneLoading || m_phase == Phase.Complete) return;
 
-            if (!m_initialised)
-            {
-                m_initialised = true;
-                ApplyCondition();
-                ResolveLifetimes();
-                ComputePracticeGate();
-                m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
-                                            m_ringColor, m_ringWidth, m_hitFlashColor);
-                m_video.VideoLooping = false;
-                m_video.SetVideoPlaying(false);
-                m_video.SetBlobProbes(0, m_data, m_flash);
-                // The video sphere hides the participant's real controllers, and the manager's
-                // own cursor dot is hidden under StudyInputLock — these reticles are the only
-                // aim feedback. (Used to come from ClickProbeTest on the old StudyRig.)
-                m_reticleL = CreateReticle("AimReticleL", m_reticleColorLeft);
-                m_reticleR = CreateReticle("AimReticleR", m_reticleColorRight);
-                SetHUD($"{WhoTag}  |  {ModeTag}\n\nPress X to start");
-            }
-            UpdateReticles();
+            // Manual passthrough = the fire-and-forget launcher (configures the scene, then dies).
+            if (m_sessionMode == SessionMode.Manual && IsBlockALaunch) { TickBlockALauncher(); return; }
 
-            switch (m_phase)
+            if (Current == null) return;
+
+            if (Current.video)
             {
-                case Phase.Armed:
-                case Phase.Done:
-                    m_video.VideoLooping = false;   // the manager boots with looping on; keep it off
-                    if (OVRInput.GetDown(m_startButton)) StartPass();
-                    break;
-                case Phase.Running:
-                    TickRun();
-                    break;
+                if (m_video == null) return;
+                if (!m_initialised)
+                {
+                    m_initialised = true;
+                    SetupVideoBlock(Current);
+                    ArmHud();
+                }
+                UpdateReticles();
+                switch (m_phase)
+                {
+                    case Phase.Armed:
+                    case Phase.Done:
+                        m_video.VideoLooping = false;   // the manager boots with looping on; keep it off
+                        if (XPressed()) OnAdvancePressed();
+                        break;
+                    case Phase.Running:
+                        TickRun();
+                        break;
+                }
             }
+            else // passthrough block (AutoSession only)
+            {
+                switch (m_phase)
+                {
+                    case Phase.Armed:
+                        if (!m_blockAInit)
+                        {
+                            // Boot-time only: hold the video scene quiet behind the launch HUD.
+                            m_blockAInit = true;
+                            if (m_video != null) { m_video.VideoLooping = false; m_video.SetVideoPlaying(false); }
+                        }
+                        if (XPressed()) LaunchPassthroughBlock();
+                        break;
+                    case Phase.PassthroughRunning:
+                        if (XPressed()) CompletePassthroughBlock();
+                        break;
+                }
+            }
+        }
+
+        private bool XPressed() => m_xCooldown <= 0f && OVRInput.GetDown(m_startButton);
+
+        private void OnAdvancePressed()
+        {
+            m_xCooldown = 0.5f;
+            if (m_phase == Phase.Armed) { StartPass(); return; }
+            // Done: Manual repeats the same block indefinitely (the override workflow);
+            // AutoSession moves the participant on to the next block.
+            if (m_sessionMode == SessionMode.Manual) StartPass();
+            else AdvanceBlock();
         }
 
         private void StartPass()
@@ -265,6 +340,263 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             SetHUD("");
             Debug.Log($"[AuthoredPresenter] pass {m_passNumber} started ({ModeTag}).");
         }
+
+        // ---- session driver (AutoSession) ----
+        // One participant = 4 X-gated blocks (rest as long as needed in every gap): the video
+        // pair (filter/no-filter on opposite sets) and the Block A pair, condition order
+        // ABBA-mirrored across the two pairs. Assignment (which set gets the filter + block
+        // order) is greedy-balanced across participants from the on-device ledger, pid rotation
+        // breaking ties. Block A blocks complete on X (the task itself runs outside the app).
+
+        private void SetupVideoBlock(Block b)
+        {
+            m_setForRun = b.set;
+            m_effFilter = b.filter;
+            if (m_sessionMode == SessionMode.AutoSession) m_effBaseline = false;
+            m_targets.Clear();
+            LoadPool();
+            ApplyCondition();
+            ResolveLifetimes();
+            ComputePracticeGate();
+            m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
+                                        m_ringColor, m_ringWidth, m_hitFlashColor);
+            m_video.VideoLooping = false;
+            m_video.SetVideoPlaying(false);
+            m_video.SetBlobProbes(0, m_data, m_flash);
+            if (m_reticleL == null)
+            {
+                // The video sphere hides the participant's real controllers, and the manager's
+                // own cursor dot is hidden under StudyInputLock — these reticles are the only
+                // aim feedback. (Used to come from ClickProbeTest on the old StudyRig.)
+                m_reticleL = CreateReticle("AimReticleL", m_reticleColorLeft);
+                m_reticleR = CreateReticle("AimReticleR", m_reticleColorRight);
+            }
+            Debug.Log($"[AuthoredPresenter] {WhoTag} {ModeTag}: {m_targets.Count} targets (incl. practice).");
+        }
+
+        private void ArmHud()
+        {
+            SetHUD(m_sessionMode == SessionMode.Manual
+                ? $"{WhoTag}  |  {ModeTag}\n\nPress X to start"
+                : AutoBlockHud(Current, "Rest as needed — press X to start"));
+        }
+
+        private string AutoBlockHud(Block b, string action) =>
+            $"{WhoTag} · Block {m_blockIdx + 1}/{m_plan.Count} — "
+          + (b.video ? $"VIDEO · set {b.set} · {(b.filter ? "FILTER" : "NO FILTER")}"
+                     : $"BLOCK A · {(b.filter ? "HARD DARK" : "NO FILTER")}")
+          + $"\n\n{action}";
+
+        private void AdvanceBlock()
+        {
+            Current.done = true;
+            m_blockIdx++;
+            m_xCooldown = 0.5f;
+            if (m_blockIdx >= m_plan.Count)
+            {
+                m_phase = Phase.Complete;
+                SetHUD($"{WhoTag} — session complete ({m_plan.Count} blocks).\n"
+                     + "Relaunch the app for the next participant.");
+                Debug.Log($"[AuthoredPresenter] session complete for {WhoTag}.");
+                return;
+            }
+
+            Block next = Current;
+            if (next.video && SceneManager.GetActiveScene().name != m_videoSceneName)
+            {
+                GoToScene(m_videoSceneName);
+                return;
+            }
+            m_phase = Phase.Armed;
+            if (next.video) m_initialised = false;   // re-setup pool/condition on the next tick
+            else SetHUD(AutoBlockHud(next, "Rest as needed — press X to launch"));
+        }
+
+        private void LaunchPassthroughBlock()
+        {
+            m_xCooldown = 0.5f;
+            if (SceneManager.GetActiveScene().name == m_blockASceneName)
+            {
+                ConfigurePassthroughBlock();   // already there — just switch arms
+                return;
+            }
+            GoToScene(m_blockASceneName);
+        }
+
+        private void CompletePassthroughBlock()
+        {
+            m_xCooldown = 0.5f;
+            AppendLedgerBlock(Current);
+            Debug.Log($"[AuthoredPresenter] Block A ({(Current.filter ? "HardDark" : "NoFilter")}) marked complete.");
+            AdvanceBlock();
+        }
+
+        private void ConfigurePassthroughBlock()
+        {
+            var mgr = FindObjectOfType<CameraSphereVignetteManager>();
+            if (mgr == null)
+            {
+                Debug.LogError("[AuthoredPresenter] no CameraSphereVignetteManager — Block A not configured.");
+                return;
+            }
+            ApplyPassthroughConfig(mgr, Current.filter);
+            m_phase = Phase.PassthroughRunning;
+            SetHUD(AutoBlockHud(Current,
+                "Hold RIGHT trigger to paint the window, release to lock\n"
+              + "Press X when the block is finished"));
+        }
+
+        private void GoToScene(string sceneName)
+        {
+            if (!Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                Debug.LogError($"[AuthoredPresenter] scene '{sceneName}' is not in Build Settings.");
+                SetHUD($"Scene '{sceneName}' missing from build!");
+                return;
+            }
+            m_sceneLoading = true;
+            transform.SetParent(null);            // DontDestroyOnLoad needs a root object
+            DontDestroyOnLoad(gameObject);
+            SetHUD("Loading…");
+            SceneManager.sceneLoaded += OnSessionSceneLoaded;
+            SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
+        }
+
+        private void OnSessionSceneLoaded(Scene scene, LoadSceneMode loadMode)
+        {
+            SceneManager.sceneLoaded -= OnSessionSceneLoaded;
+            StartCoroutine(AfterSessionSceneLoad());
+        }
+
+        private System.Collections.IEnumerator AfterSessionSceneLoad()
+        {
+            yield return null;   // let the scene's own Awake/Start settle first
+            m_sceneLoading = false;
+            m_xCooldown = 0.5f;
+            if (Current.video)
+            {
+                m_video = FindObjectOfType<VideoTestSceneManager>();
+                m_reticleL = m_reticleR = null;   // the old ones died with the previous scene
+                m_initialised = false;            // SetupVideoBlock + ArmHud on the next tick
+                m_phase = Phase.Armed;
+            }
+            else
+            {
+                ConfigurePassthroughBlock();
+            }
+        }
+
+        // ---- session ledger (persistentDataPath/session_ledger.csv) ----
+        // Survives study-console's awipe (which only deletes pulled authored_results_* files).
+        //   PLAN,t_ms,pid,pairing,order,,,,      one per participant, appended when their session starts
+        //   BLOCK,t_ms,pid,,,idx,env,cond,set    one per completed block (video pass end / Block A X)
+
+        private const string k_ledgerName = "session_ledger.csv";
+        private static readonly string[] k_orders = { "V-F", "V-N", "P-F", "P-N" };
+
+        private readonly List<string[]> m_ledger = new();
+        private string m_pairing = "";  // "AF" = set A gets the filter, "BF" = set B does
+        private string m_order = "";    // k_orders entry: which pair runs first + which condition starts
+
+        private string LedgerPath => Path.Combine(Application.persistentDataPath, k_ledgerName);
+
+        private void LoadLedger()
+        {
+            m_ledger.Clear();
+            if (!File.Exists(LedgerPath)) return;
+            foreach (string line in File.ReadAllLines(LedgerPath))
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var f = line.Split(',');
+                if (f.Length >= 9 && (f[0] == "PLAN" || f[0] == "BLOCK")) m_ledger.Add(f);
+            }
+        }
+
+        private int NextLedgerPid()
+        {
+            int max = -1;
+            foreach (var f in m_ledger)
+                if (f[0] == "PLAN" && int.TryParse(f[2], out int p)) max = Mathf.Max(max, p);
+            return max + 1;
+        }
+
+        private void EnsurePlanFromLedger()
+        {
+            string pidStr = m_participantId.ToString();
+            foreach (var f in m_ledger)
+                if (f[0] == "PLAN" && f[2] == pidStr) { m_pairing = f[3]; m_order = f[4]; }
+
+            if (string.IsNullOrEmpty(m_pairing))
+            {
+                // Greedy balance: emptiest pairing cell first, then the least-used order within
+                // it; pid rotation breaks ties so a balanced ledger degrades to plain rotation.
+                int af = 0, bf = 0;
+                foreach (var f in m_ledger)
+                {
+                    if (f[0] != "PLAN") continue;
+                    if (f[3] == "AF") af++; else if (f[3] == "BF") bf++;
+                }
+                m_pairing = af < bf ? "AF" : bf < af ? "BF" : m_participantId % 2 == 0 ? "AF" : "BF";
+
+                var counts = new Dictionary<string, int>();
+                foreach (var o in k_orders) counts[o] = 0;
+                foreach (var f in m_ledger)
+                    if (f[0] == "PLAN" && f[3] == m_pairing && counts.ContainsKey(f[4]))
+                        counts[f[4]]++;
+                m_order = k_orders[m_participantId % k_orders.Length];
+                foreach (var o in k_orders)
+                    if (counts[o] < counts[m_order]) m_order = o;
+
+                AppendLedger("PLAN", m_pairing, m_order, -1, "", "", "");
+            }
+
+            BuildSessionBlocks();
+
+            // Mark already-completed blocks so an app relaunch resumes mid-session.
+            foreach (var f in m_ledger)
+            {
+                if (f[0] != "BLOCK" || f[2] != pidStr) continue;
+                foreach (var b in m_plan)
+                    if ((b.video ? "video" : "passthrough") == f[6] && (b.filter ? "Filter" : "NoFilter") == f[7])
+                        b.done = true;
+            }
+        }
+
+        private void BuildSessionBlocks()
+        {
+            m_plan.Clear();
+            string filterSet = m_pairing == "AF" ? "A" : "B";
+            string otherSet  = m_pairing == "AF" ? "B" : "A";
+            bool videoFirst  = m_order[0] == 'V';
+            bool c1          = m_order[2] == 'F';   // condition of the FIRST block in the first pair
+
+            Block V(bool filt) => new() { video = true, filter = filt, set = filt ? filterSet : otherSet };
+            Block P(bool filt) => new() { video = false, filter = filt, set = "-" };
+
+            // First pair runs c1,c2; the second pair mirrors to c2,c1 (ABBA).
+            if (videoFirst) { m_plan.Add(V(c1)); m_plan.Add(V(!c1)); m_plan.Add(P(!c1)); m_plan.Add(P(c1)); }
+            else            { m_plan.Add(P(c1)); m_plan.Add(P(!c1)); m_plan.Add(V(!c1)); m_plan.Add(V(c1)); }
+        }
+
+        private int FirstIncompleteBlock()
+        {
+            for (int i = 0; i < m_plan.Count; i++) if (!m_plan[i].done) return i;
+            return m_plan.Count;
+        }
+
+        private void AppendLedger(string type, string pairing, string order, int idx,
+                                  string env, string cond, string set)
+        {
+            long ms = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            string row = string.Join(",", type, ms, m_participantId, pairing, order,
+                                     idx < 0 ? "" : idx.ToString(), env, cond, set);
+            File.AppendAllText(LedgerPath, row + "\n");
+            m_ledger.Add(row.Split(','));
+        }
+
+        private void AppendLedgerBlock(Block b) =>
+            AppendLedger("BLOCK", "", "", m_blockIdx, b.video ? "video" : "passthrough",
+                         b.filter ? "Filter" : "NoFilter", b.set);
 
         // ---- Block A launcher (m_environment = MetaPassthrough) ----
         // X performs a full scene load into the passthrough scene. The launcher survives the load
@@ -327,6 +659,17 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
 
             bool hardDark = IsFilterCondition;
+            ApplyPassthroughConfig(mgr, hardDark);
+            SetHUD((hardDark ? "BLOCK A — HARD DARK\n" : "BLOCK A — NO FILTER\n")
+                 + "Hold RIGHT trigger to paint the window, release to lock\n"
+                 + "Repaint any time to move it");
+            yield return new WaitForSeconds(6f);
+            Destroy(gameObject);
+        }
+
+        // Shared manager setup for both the manual launcher and auto-session passthrough blocks.
+        private void ApplyPassthroughConfig(CameraSphereVignetteManager mgr, bool hardDark)
+        {
             IStudyVignetteControl ctrl = mgr;
             ctrl.StudySetMode(VignetteMode.HardDark);   // both arms: identical mode/procedure
             ctrl.StudyEffectSuppressed = !hardDark;     // baseline arm = same run, invisible effect
@@ -340,11 +683,6 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                                + "window will NOT world-anchor (head-relative bearing fallback).");
 
             Debug.Log($"[AuthoredPresenter] Block A configured: {(hardDark ? "HardDark (world-anchored)" : "NoFilter baseline")}.");
-            SetHUD((hardDark ? "BLOCK A — HARD DARK\n" : "BLOCK A — NO FILTER\n")
-                 + "Hold RIGHT trigger to paint the window, release to lock\n"
-                 + "Repaint any time to move it");
-            yield return new WaitForSeconds(6f);
-            Destroy(gameObject);
         }
 
         private void TickRun()
@@ -411,10 +749,14 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_video.SetBlobProbes(0, m_data, m_flash);
             m_video.SetVideoPlaying(false);
             CloseLog();
+            AppendLedgerBlock(Current);   // marks the block complete (resume + balance record)
             m_phase = Phase.Done;
             int scored = m_passHits + m_passMisses;   // includes practice; close enough for the HUD
             SetHUD($"Pass {m_passNumber} complete — {m_passHits}/{scored} hit, "
-                 + $"{m_passFalseAlarms} false alarms\n\nPress X for another pass");
+                 + $"{m_passFalseAlarms} false alarms\n\n"
+                 + (m_sessionMode == SessionMode.AutoSession
+                        ? "Rest — press X for the next block"
+                        : "Press X for another pass"));
             Debug.Log($"[AuthoredPresenter] pass {m_passNumber} done: {m_passHits}/{scored} hit, "
                     + $"{m_passFalseAlarms} FA -> {m_logPath}");
         }
