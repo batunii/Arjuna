@@ -449,9 +449,29 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             ApplyPassthroughConfig(mgr, Current.filter);
             m_phase = Phase.PassthroughRunning;
-            SetHUD(AutoBlockHud(Current,
+            // Instructions only linger a few seconds — during the block itself the view must be
+            // clean (same rule as the manager's minimal-UI debug text). X still completes it.
+            SetHUDTimed(AutoBlockHud(Current,
                 "Hold RIGHT trigger to paint the window, release to lock\n"
-              + "Press X when the block is finished"));
+              + "Press X when the block is finished"), 6f);
+        }
+
+        private Coroutine m_hudFade;
+
+        private void SetHUDTimed(string text, float seconds)
+        {
+            SetHUD(text);
+            if (m_hudFade != null) StopCoroutine(m_hudFade);
+            m_hudFade = StartCoroutine(ClearHudAfter(seconds));
+        }
+
+        private System.Collections.IEnumerator ClearHudAfter(float seconds)
+        {
+            yield return new WaitForSeconds(seconds);
+            // Only clear if the block is still running — an X-press meanwhile has already
+            // replaced the HUD with the next state's text, which must stay.
+            if (m_phase == Phase.PassthroughRunning) SetHUD("");
+            m_hudFade = null;
         }
 
         private void GoToScene(string sceneName)
