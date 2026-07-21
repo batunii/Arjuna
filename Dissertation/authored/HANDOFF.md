@@ -70,14 +70,17 @@ runs yet.
   clip end → X replay / B finish. → `authored_points_*.csv`. (Remove it before running the presenter.)
 - **Merge:** `python Tools/analysis/merge_pool.py Dissertation/authored/raw --existing Dissertation/authored/pool_uniform_1s.csv --min-duration 1.0 --out Dissertation/authored/pool_uniform_1s.csv` (dedup + ≥1 s + stable ids)
 - **Split:** `python Tools/analysis/split_pool.py Dissertation/authored/pool_uniform_1s.csv --practice 0,58 --out Dissertation/authored/pool_split.csv` (`--practice` = warm-up ids → set P)
-- **Run (presenter, 2026-07-19 rework):** ONE dropdown `m_mode` selects everything —
-  `BaselineA/B` (screening, no filter), `FilterA/B`, `NoFilterA/B` (forced set, piloting),
-  `AutoFilter/AutoNoFilter` (set from pid parity), `BlockA_HardDark`/`BlockA_NoFilter` (added
-  2026-07-20: the passthrough test block's two arms — X loads `CameraSphereVignette`; the
-  presenter survives the load, sets the manager to HardDark with free right-trigger painting
-  (window world-anchors onto real geometry via the scene's `EnvironmentRaycastManager` — the
-  2026-07-16 depth-raycast backend) or the same setup with `StudyEffectSuppressed` for the
-  baseline, then self-destroys — the presenter is now the single launch point for all test blocks).
+- **Run (presenter; config homogenised 2026-07-20):** three orthogonal inspector dropdowns
+  replace the old 10-value `m_mode` — **Environment** (`DrivingVideo` = authored-pool test /
+  `MetaPassthrough` = Block A: X loads `CameraSphereVignette`, presenter survives the load and
+  configures world-anchored HardDark or suppressed baseline, then self-destroys), **Target Set**
+  (`Auto` from pid parity / forced `A`/`B`; video only — greyed out in passthrough, no data
+  there), **Filter** (`WithFilter`/`NoFilter`) + a `m_baselineScreening` toggle (video+NoFilter
+  only) that tags the pass BASELINE. A custom inspector
+  (`Assets/Editor/AuthoredTargetPresenterEditor.cs`) greys out inapplicable fields and shows a
+  "Will run: …" summary; `OnValidate` enforces the same rules. CSV naming/labels unchanged
+  (BASELINE/FILTER/NOFILTER-set tags). The presenter remains the single launch point for all
+  test blocks.
 - **QoL pass (branch `Test/StudyQoL`, 2026-07-20):** Block A modes run minimal-UI (no mode
   toast, A-cycle/B-clear disabled — controllers ONLY paint the window there / click targets in
   the video tests; debug text self-clears after 4 s). The Y-hold `SceneSwitcher`, the "SWITCHED"

@@ -1366,7 +1366,10 @@ MonoBehaviour:
   m_video: {fileID: 949970469}
   m_poolFileName: pool_split.csv
   m_participantId: -1
-  m_mode: 2
+  m_environment: 1
+  m_targetSet: 0
+  m_filter: 0
+  m_baselineScreening: 0
   m_filterMode: 10
   m_blockASceneName: CameraSphereVignette
   m_windowHalfWidthDeg: 4

@@ -80,8 +80,9 @@ public static class PointAuthoringMenu
         so.ApplyModifiedPropertiesWithoutUndo();
         Selection.activeGameObject = go;
         EditorSceneManager.MarkSceneDirty(go.scene);
-        Debug.Log("[PointAuthoringMenu] Added AuthoredTargetPresenter. Set m_participantId + m_mode, "
-                + "push pool_split.csv to the device persistentDataPath, then build the video scene.");
+        Debug.Log("[PointAuthoringMenu] Added AuthoredTargetPresenter. Set participant id + the "
+                + "environment/set/filter dropdowns, push pool_split.csv to the device "
+                + "persistentDataPath, then build the video scene.");
     }
 
     [MenuItem("Meta/Study/Authored Study/Remove Presenter From Open Scene")]

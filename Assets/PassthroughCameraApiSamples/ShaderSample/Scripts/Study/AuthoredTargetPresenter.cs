@@ -5,7 +5,7 @@
 // presents ONE set as SIMULTANEOUS ring probes over the driving video while the participant clicks
 // them with either controller. Hit/miss/RT per target is logged to authored_results_*.csv.
 //
-// RUN FLOW (one build = one mode; switch m_mode in the inspector and rebuild):
+// RUN FLOW (one build = one configuration; change the dropdowns in the inspector and rebuild):
 //   boot  -> video paused at 0, HUD shows the mode + "Press X to start".
 //   X     -> video restarts from 0. The practice targets (pool set P — the two temporally-first
 //            points) ramp in, then the video PAUSES and the HUD asks the participant to pull
@@ -14,19 +14,22 @@
 //   end   -> when the video ends (no looping) the pass is over: unresolved targets log as miss,
 //            the CSV is closed, HUD shows the tally. X starts a fresh pass (new CSV, same mode).
 //
-// Modes (single dropdown): BaselineA/B = screening (no filter, that set); FilterA/B, NoFilterA/B =
-// experiment with the set forced (piloting); AutoFilter/AutoNoFilter = experiment with the set
-// from participant-id parity (even pid: Filter->A, NoFilter->B; odd: swapped).
+// Run configuration (homogenised 2026-07-20 — three orthogonal dropdowns instead of the old
+// 10-value mode enum; a custom inspector greys out what doesn't apply, see
+// Assets/Editor/AuthoredTargetPresenterEditor.cs):
+//   Environment  DrivingVideo (authored-pool test in this scene) or MetaPassthrough (Block A —
+//                X scene-loads CameraSphereVignette and configures its vignette manager).
+//   TargetSet    video only — Auto (participant-id parity: even pid Filter->A/NoFilter->B,
+//                odd swapped) or forced A/B for piloting. No data exists in passthrough.
+//   Filter       WithFilter (video: m_filterMode over the locked window; passthrough:
+//                world-anchored Hard Dark) or NoFilter (identical procedure,
+//                StudyEffectSuppressed — the baseline pattern).
+//   + m_baselineScreening (video + NoFilter only): tag the pass BASELINE in the results CSV —
+//     the per-set clickability screening stage, distinct from experimental NoFilter passes.
 //
-// BlockA_HardDark / BlockA_NoFilter = the passthrough test block's two arms, launched from the
-// same dropdown so ALL test controls live in one place. X loads the CameraSphereVignette scene;
-// the presenter survives the load just long enough to configure the vignette manager there —
-// HardDark mode with the world-anchor depth-raycast backend (EnvironmentRaycastManager, wired in
-// that scene since 2026-07-16: painted windows lock onto real geometry), or the same setup with
-// the effect suppressed (No Hard Dark baseline — identical procedure, invisible filter). The
-// participant paints the window with the right trigger; minimal-UI mode disables everything
-// else (mode toast/cycling, B clear). Nothing of the authored harness runs in these modes.
-// Getting back to the video scene = relaunch the app (SceneSwitcher was retired).
+// In MetaPassthrough the participant paints the window with the right trigger (world-anchor
+// depth raycast, EnvironmentRaycastManager); minimal-UI mode disables everything else. Nothing
+// of the authored harness runs there. Back to the video scene = relaunch the app.
 //
 // Participant id -1 = experimenter pilot; results file is named authored_results_PILOT_<mode>_
 // <stamp>.csv. Real participants (pid >= 0) get authored_results_P<pid>_<mode>_<stamp>.csv.
@@ -54,19 +57,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 {
     public class AuthoredTargetPresenter : MonoBehaviour
     {
-        public enum StudyMode
-        {
-            BaselineA, BaselineB,
-            FilterA, FilterB,
-            NoFilterA, NoFilterB,
-            AutoFilter, AutoNoFilter,
-            // The passthrough test block's two arms — X loads the passthrough scene and the
-            // launcher configures its vignette manager: HardDark (world-anchored via the scene's
-            // EnvironmentRaycastManager) vs the suppressed-effect baseline. Appended last so
-            // existing serialized m_mode values keep their meaning.
-            BlockA_HardDark,
-            BlockA_NoFilter,
-        }
+        public enum StudyEnvironment { DrivingVideo, MetaPassthrough }
+        public enum TargetSet { Auto, A, B }
+        public enum FilterCondition { WithFilter, NoFilter }
 
         private enum Phase { Armed, Running, Done }
 
@@ -76,12 +69,20 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [Header("Run identity")]
         [Tooltip("-1 = experimenter pilot run (results named PILOT). >= 0 = real participant.")]
         [SerializeField] private int m_participantId = -1;
-        [Tooltip("The ONE thing to change between builds. Baseline = screening (no filter). Filter/NoFilter with a set = forced (piloting). Auto* = set from participant-id parity. BlockA_* = the passthrough test block (X switches scene): HardDark (world-anchored window via depth raycast) or NoFilter (same procedure, effect suppressed).")]
-        [SerializeField] private StudyMode m_mode = StudyMode.BaselineA;
+
+        [Header("Run configuration")]
+        [Tooltip("DrivingVideo = authored-pool test in this scene. MetaPassthrough = Block A: X loads the passthrough scene and configures Hard Dark / baseline there (no authored data applies).")]
+        [SerializeField] private StudyEnvironment m_environment = StudyEnvironment.DrivingVideo;
+        [Tooltip("Video only. Auto = set from participant-id parity (even pid: Filter->A, NoFilter->B; odd swapped). A/B = forced (piloting/screening).")]
+        [SerializeField] private TargetSet m_targetSet = TargetSet.Auto;
+        [Tooltip("WithFilter: video = m_filterMode over the locked window; passthrough = world-anchored Hard Dark. NoFilter: identical procedure, effect suppressed.")]
+        [SerializeField] private FilterCondition m_filter = FilterCondition.WithFilter;
+        [Tooltip("Video + NoFilter only: tag results BASELINE (per-set clickability screening pass, dropped from the experimental contrast).")]
+        [SerializeField] private bool m_baselineScreening;
         [SerializeField] private VignetteMode m_filterMode = VignetteMode.SignPop;
 
-        [Header("Block A launch (m_mode = BlockA only)")]
-        [Tooltip("Scene loaded when launching Block A. Its StudyRig (ConditionSequencer + CPTPanel + StudyLogger) runs the formal protocol, keyboard-driven over adb. Must match SceneSwitcher's name and be in Build Settings.")]
+        [Header("Block A launch (MetaPassthrough environment only)")]
+        [Tooltip("Scene loaded when launching Block A. Must be in Build Settings.")]
         [SerializeField] private string m_blockASceneName = "CameraSphereVignette";
 
         [Header("Locked focus window (constant geometry, both conditions)")]
@@ -161,13 +162,18 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             9 => "traffic_light", 11 => "stop_sign", 0 => "person", _ => "unknown",
         };
 
-        private bool IsBlockALaunch =>
-            m_mode == StudyMode.BlockA_HardDark || m_mode == StudyMode.BlockA_NoFilter;
+        private bool IsBlockALaunch => m_environment == StudyEnvironment.MetaPassthrough;
 
-        private bool IsBaseline => m_mode == StudyMode.BaselineA || m_mode == StudyMode.BaselineB;
+        private bool IsFilterCondition => m_filter == FilterCondition.WithFilter;
 
-        private bool IsFilterCondition =>
-            m_mode == StudyMode.FilterA || m_mode == StudyMode.FilterB || m_mode == StudyMode.AutoFilter;
+        private bool IsBaseline => !IsFilterCondition && m_baselineScreening;
+
+        // Keep illegal combos unrepresentable even if set through code/YAML — the custom
+        // inspector greys these out, this enforces the same rules at the data level.
+        private void OnValidate()
+        {
+            if (IsFilterCondition) m_baselineScreening = false;
+        }
 
         private string ConditionLabel => IsBaseline ? "BASELINE" : (IsFilterCondition ? "Filter" : "NoFilter");
 
@@ -181,8 +187,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             {
                 BuildHUD();
                 SetHUD(BlockAHudText());
-                Debug.Log($"[AuthoredPresenter] {m_mode} launcher armed. Press {m_startButton} to load "
-                        + $"'{m_blockASceneName}' and configure the vignette manager.");
+                Debug.Log($"[AuthoredPresenter] Block A ({m_filter}) launcher armed. Press {m_startButton} "
+                        + $"to load '{m_blockASceneName}' and configure the vignette manager.");
                 return;
             }
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
@@ -195,15 +201,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private string ResolveSet()
         {
-            switch (m_mode)
+            switch (m_targetSet)
             {
-                case StudyMode.BaselineA:
-                case StudyMode.FilterA:
-                case StudyMode.NoFilterA: return "A";
-                case StudyMode.BaselineB:
-                case StudyMode.FilterB:
-                case StudyMode.NoFilterB: return "B";
-                default: // Auto*: even pid: Filter->A, NoFilter->B ; odd pid: swapped.
+                case TargetSet.A: return "A";
+                case TargetSet.B: return "B";
+                default: // Auto: even pid: Filter->A, NoFilter->B ; odd pid: swapped.
                     bool even = (m_participantId % 2) == 0;
                     bool wantA = IsFilterCondition == even;
                     return wantA ? "A" : "B";
@@ -264,7 +266,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             Debug.Log($"[AuthoredPresenter] pass {m_passNumber} started ({ModeTag}).");
         }
 
-        // ---- Block A launcher (m_mode = BlockA_HardDark / BlockA_NoFilter) ----
+        // ---- Block A launcher (m_environment = MetaPassthrough) ----
         // X performs a full scene load into the passthrough scene. The launcher survives the load
         // (DontDestroyOnLoad) just long enough to configure the CameraSphereVignetteManager there:
         // both arms get mode HardDark and free painting (right trigger — with the scene's
@@ -276,7 +278,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private bool m_blockAInit;
 
         private string BlockAHudText() =>
-            (m_mode == StudyMode.BlockA_HardDark
+            (IsFilterCondition
                 ? "BLOCK A — HARD DARK (world-anchored)\n"
                 : "BLOCK A — NO FILTER (baseline)\n")
           + $"Press {m_startButton} to launch the passthrough scene";
@@ -300,7 +302,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             m_launchingBlockA = true;
             SetHUD("Loading Block A…");
-            Debug.Log($"[AuthoredPresenter] Block A launch ({m_mode}) -> {m_blockASceneName}");
+            Debug.Log($"[AuthoredPresenter] Block A launch ({m_filter}) -> {m_blockASceneName}");
             transform.SetParent(null);            // DontDestroyOnLoad needs a root object
             DontDestroyOnLoad(gameObject);
             SceneManager.sceneLoaded += OnBlockASceneLoaded;
@@ -324,7 +326,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 yield break;
             }
 
-            bool hardDark = m_mode == StudyMode.BlockA_HardDark;
+            bool hardDark = IsFilterCondition;
             IStudyVignetteControl ctrl = mgr;
             ctrl.StudySetMode(VignetteMode.HardDark);   // both arms: identical mode/procedure
             ctrl.StudyEffectSuppressed = !hardDark;     // baseline arm = same run, invisible effect

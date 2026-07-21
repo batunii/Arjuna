@@ -196,21 +196,23 @@ Operational detail lives in `Dissertation/authored-pool-pipeline.md` and
 | `PointAuthoringTool.cs` | Author click-targets: aim at the playing 360° video, trigger marks the nearest baked YOLO detection lifetime → `authored_points_*.csv`. **Never in the scene together with the presenter** (it forces `StudyEffectSuppressed` every frame). |
 | `AuthoredTargetPresenter.cs` | Runtime for the experiment: loads `pool_split.csv`, presents one counterbalanced set as simultaneous ring probes (shader `_BlobData[]`, cap 12), logs `authored_results_*.csv`. One dropdown `m_mode` selects everything; one build = one mode. |
 
-`AuthoredTargetPresenter.StudyMode` (added via `Meta/Study/Authored Study` menu,
-`Assets/Editor/PointAuthoringMenu.cs`):
+Presenter run configuration (homogenised 2026-07-20 — three orthogonal dropdowns replace the
+old 10-value `StudyMode`; custom inspector `Assets/Editor/AuthoredTargetPresenterEditor.cs`
+greys out inapplicable fields + shows a "Will run" summary; `OnValidate` enforces the rules):
 
-- `BaselineA/B` — per-set clickability screening (no filter).
-- `FilterA/B`, `NoFilterA/B` — experiment conditions with the set forced (piloting).
-- `AutoFilter/AutoNoFilter` — set chosen from participant-id parity (the real counterbalance).
-- `BlockA_HardDark`, `BlockA_NoFilter` — the **passthrough test block's two arms** (added
-  2026-07-20, making the presenter the single launch point for all test blocks): X does a full
-  scene load into `CameraSphereVignette`; the presenter survives the load (`DontDestroyOnLoad`)
-  and configures the `CameraSphereVignetteManager` — both arms get mode HardDark + free
-  right-trigger painting, so the painted window **world-anchors onto real geometry** via the
-  scene's wired `EnvironmentRaycastManager` (the depth-raycast backend from 2026-07-16, see
-  [focus-vignette.md § World anchor](<focus-vignette.md>)); the NoFilter arm additionally sets
-  `StudyEffectSuppressed` (identical procedure, invisible effect — the standard baseline
-  pattern). It then shows brief HUD instructions and destroys itself.
+- **Environment** — `DrivingVideo` (authored-pool test in this scene) or `MetaPassthrough`
+  (Block A: X scene-loads `CameraSphereVignette`; the presenter survives the load
+  (`DontDestroyOnLoad`), sets HardDark + free right-trigger painting — window **world-anchors
+  onto real geometry** via the scene's `EnvironmentRaycastManager`
+  ([focus-vignette.md § World anchor](<focus-vignette.md>)) — or the same with
+  `StudyEffectSuppressed` for the baseline arm, then destroys itself).
+- **Target Set** — `Auto` (pid parity: even Filter→A/NoFilter→B, odd swapped) or forced `A`/`B`.
+  Video only; disabled in passthrough (no authored data there).
+- **Filter** — `WithFilter` / `NoFilter`; plus `m_baselineScreening` (video+NoFilter only) which
+  tags the pass BASELINE for the per-set clickability screening stage.
+
+CSV naming/labels are unchanged (`BASELINE/FILTER/NOFILTER-<set>` tags), so results stay
+comparable across the enum migration.
 
 **QoL state (branch `Test/StudyQoL`, 2026-07-20):** both scenes' `StudyRig` GameObjects were
 **removed** (with them the scene instances of `ConditionSequencer`/`StudyLogger`/`CPTPanel`/
