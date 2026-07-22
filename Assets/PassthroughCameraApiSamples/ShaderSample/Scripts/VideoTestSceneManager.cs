@@ -161,6 +161,8 @@ namespace PassthroughCameraSamples.ShaderSample
                  "so the emphasis relaxes only when the person is actually in front of the user, and grows " +
                  "again as they drift toward the edge or leave.")]
         [SerializeField, Range(0f, 1f)] private float m_personInsideScale = 0.25f;
+        [Tooltip("Widen the person cone with closeness: extra acceptance degrees per degree of box height ABOVE the minimum (deg/deg). The same pedestrian slides OUTWARD in the view as you approach — eccentricity grows exactly as they get closest — so a fixed cone drops people at their nearest point. This widens both the accept limit and the full-strength band with apparent size, which is geometrically ~a constant lateral corridor in metres (x ≈ 1.7 m × angle_rad / boxHeight_rad). 0 = old fixed-cone behaviour. At 3 (default; 5 was visually noisy in city footage): 3° box (~32 m) → cone unchanged (25°); 6° (~16 m) → 34°; 10° (~10 m) → 46°.")]
+        [SerializeField, Range(0f, 15f)] private float m_personCloseWideningDegPerDeg = 2.5f;
 
         [Header("YOLO Detection")]
         [Tooltip("Drag the YoloRunner component here; it will read from the video RenderTexture instead of the passthrough camera.")]
@@ -273,6 +275,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_blobLensId       = Shader.PropertyToID("_BlobLens");
         private static readonly int s_blobRingColorId  = Shader.PropertyToID("_BlobRingColor");
         private static readonly int s_blobRingWidthId  = Shader.PropertyToID("_BlobRingWidth");
+        private static readonly int s_blobRingSegmentsId = Shader.PropertyToID("_BlobRingSegments");
+        private static readonly int s_blobRingOutlineId  = Shader.PropertyToID("_BlobRingOutline");
         private static readonly int s_blobFlashColorId = Shader.PropertyToID("_BlobFlashColor");
 
         // FlatClipToEquirect composite material (flat clip mode)
@@ -959,9 +963,16 @@ namespace PassthroughCameraSamples.ShaderSample
             if (dxOutside <= 0f && dyOutside <= 0f) return true; // inside the window: always shown
 
             // Outside the window: only near enough to the boundary to read as entering/exiting.
+            // The acceptance widens with closeness (box height) — see m_personCloseWideningDegPerDeg.
             float edgeDistRad = Mathf.Sqrt(dxOutside * dxOutside + dyOutside * dyOutside);
-            return edgeDistRad * Mathf.Rad2Deg <= m_personMaxEdgeDistDeg;
+            return edgeDistRad * Mathf.Rad2Deg <= m_personMaxEdgeDistDeg + PersonWidenDeg(heightDeg);
         }
+
+        // Extra cone width earned by closeness: proportional to apparent size above the minimum,
+        // so the highlight follows a pedestrian outward as the car approaches instead of dropping
+        // them at their nearest (widest-angle) moment.
+        private float PersonWidenDeg(float heightDeg) =>
+            Mathf.Max(0f, heightDeg - m_personMinBoxHeightDeg) * m_personCloseWideningDegPerDeg;
 
         // Graded person-effect strength by position relative to the focus window: floor at
         // the window CENTRE ramping to full at the edge (relax only when the person is
@@ -999,12 +1010,16 @@ namespace PassthroughCameraSamples.ShaderSample
                 return Mathf.Lerp(m_personInsideScale, 1f, Mathf.Clamp01(tEdge));
             }
             // Outside: full strength out to m_personFullStrengthDeg, then linear taper to
-            // zero at the gate's own acceptance limit (m_personMaxEdgeDistDeg).
+            // zero at the gate's own acceptance limit (m_personMaxEdgeDistDeg). Both bands
+            // widen with closeness (box height) in lockstep with PassesPersonGate, so a close
+            // pedestrian keeps full highlight at angles where a far one has faded out.
             float outDeg = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
                                     + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f)) * Mathf.Rad2Deg;
-            float taperStart = Mathf.Min(m_personFullStrengthDeg, m_personMaxEdgeDistDeg - 0.01f);
+            float widen = PersonWidenDeg((azElRect.w - azElRect.z) * Mathf.Rad2Deg);
+            float accept = m_personMaxEdgeDistDeg + widen;
+            float taperStart = Mathf.Min(m_personFullStrengthDeg + widen, accept - 0.01f);
             return 1f - Mathf.Clamp01((outDeg - taperStart)
-                                      / Mathf.Max(m_personMaxEdgeDistDeg - taperStart, 0.01f));
+                                      / Mathf.Max(accept - taperStart, 0.01f));
         }
 
         // Drive detection slots from the baked track, keyed by video time.
@@ -1255,7 +1270,7 @@ namespace PassthroughCameraSamples.ShaderSample
         /// + gentle dim), so a probe in a defocused area is filtered too (supervisor Point 3).</summary>
         public void SetBlobProbeStatics(int style, float sigmaFrac, float desat, float dim,
                                         float rim, float lens, Color ringColor, float ringWidth,
-                                        Color flashColor)
+                                        Color flashColor, int ringSegments = 0, float ringOutline = 0f)
         {
             if (m_material == null) return;
             m_material.SetFloat(s_blobStyleId, style);
@@ -1267,6 +1282,8 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetColor(s_blobRingColorId, ringColor);
             m_material.SetFloat(s_blobRingWidthId, ringWidth);
             m_material.SetColor(s_blobFlashColorId, flashColor);
+            m_material.SetFloat(s_blobRingSegmentsId, ringSegments);
+            m_material.SetFloat(s_blobRingOutlineId, ringOutline);
         }
 
         /// <summary>Single blob probe (slot 0), azEl in radians; radiusRad = angular radius;

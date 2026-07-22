@@ -103,20 +103,30 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField] private string m_videoSceneName = "VideoTestScene";
 
         [Header("Locked focus window (constant geometry, both conditions)")]
-        [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Raise toward 25/15 for a windscreen.")]
-        [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 25f;
-        [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 15f;
+        [Tooltip("Half-width/height of the fixed clear window in degrees (window = 2x these). Painting is locked off, so this IS the window. Deliberately SMALL — the window is the dose of the manipulation; the SignPop soft edge (24 deg) grades outward from here (50% at half-width+12, full at +24), so the effective clear region reads much bigger than nominal. 8x6 is researched (Dissertation/window-size-research.md): core = the 8-deg PRC road-centre gaze region, 50% dose at 20 deg (UFOV edge), full filter at 32 deg. A windscreen-sized window (25/15) leaves the whole usable view normal and guides nothing.")]
+        [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 8f;
+        [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 6f;
 
         [Header("Probe (ring) — matches the piloted style")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
+        // Yellow, but the shader attenuates the ring by the filter's local desat+dim (Point 3):
+        // full colour with the filter off / inside the window, faded like a real object in the
+        // filtered periphery. A plain black ring (filter-invariant) was tried 2026-07-22 and
+        // floored the no-filter baseline (48% hit, 3.55 s median RT) — peripheral onsets need chroma.
         [SerializeField] private Color m_ringColor = new(1f, 0.85f, 0.1f, 0.4f);
-        [SerializeField, Range(0.02f, 0.2f)] private float m_ringWidth = 0.05f;
+        [SerializeField, Range(0.02f, 0.2f)] private float m_ringWidth = 0.06f;
+        [Tooltip("0 = solid ring colour (default). >0 = 'rope' ring with this many alternating black/white arc PAIRS. Piloted 2026-07-22: at 0.4 alpha and thin width the rope FRAGMENTS (only one polarity contrasts on any background -> four faint flecks, no closure) and was harder to spot than solid yellow — the fiducial principle needs opaque, chunky markers. Kept for reference/experiments.")]
+        [SerializeField, Range(0, 8)] private int m_ringSegments = 0;
+        [Tooltip("Dark border flanking the ring — the yellow/black warning-sign pairing. Guarantees a luminance step on bright/yellowish backgrounds where the ring colour alone fades; multiplicative darkening, so it dims with the filter automatically (Point 3). 0 = off.")]
+        [SerializeField, Range(0f, 1f)] private float m_ringOutline = 0.6f;
         [SerializeField, Range(0f, 2f)] private float m_onsetRampSeconds = 0.5f;
         [SerializeField] private Color m_hitFlashColor = new(0.3f, 1f, 0.4f, 0.9f);
         [SerializeField, Range(0.05f, 1f)] private float m_hitFlashSeconds = 0.25f;
 
         [Header("Input")]
         [SerializeField] private OVRInput.RawButton m_startButton = OVRInput.RawButton.X;
+        [Tooltip("Fallback advance button on the RIGHT controller — a dead left-controller battery must never strand a session (X is left-hand only).")]
+        [SerializeField] private OVRInput.RawButton m_startButtonAlt = OVRInput.RawButton.B;
         [SerializeField] private OVRInput.RawButton m_markLeft = OVRInput.RawButton.LIndexTrigger;
         [SerializeField] private OVRInput.RawButton m_markRight = OVRInput.RawButton.RIndexTrigger;
 
@@ -218,9 +228,48 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             : m_participantId >= k_pilotPidFloor ? $"PILOT{m_participantId}"
             : $"P{m_participantId}";
 
+        // The presenter marks itself DontDestroyOnLoad to survive the Block A round-trip, so the
+        // reloaded video scene contains a SECOND presenter. Without this guard both instances ran
+        // every subsequent block in lockstep (PILOT1002, 2026-07-22: duplicate result CSVs 1 ms
+        // apart, doubled ledger BLOCK rows). The travelling instance owns the session state and
+        // wins; the scene's fresh copy destroys itself before its Start can run.
+        private static AuthoredTargetPresenter s_instance;
+
+        private void Awake()
+        {
+            if (s_instance != null && s_instance != this)
+            {
+                Debug.Log("[AuthoredPresenter] duplicate presenter in loaded scene — destroying the scene copy.");
+                enabled = false;
+                Destroy(gameObject);
+                return;
+            }
+            s_instance = this;
+        }
+
         private void Start()
         {
             BuildHUD();
+            // A silent Start() failure leaves a dark paused scene with no HUD, no input lock and
+            // no ledger row (seen 2026-07-21) — surface any boot exception in-headset and on
+            // disk, and park the presenter so Update doesn't throw every frame on an empty plan.
+            try { StartCore(); }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+                try
+                {
+                    File.WriteAllText(Path.Combine(Application.persistentDataPath, "presenter_boot_error.txt"),
+                                      System.DateTime.Now.ToString("s") + "\n" + e);
+                }
+                catch { /* HUD below still shows the error */ }
+                m_phase = Phase.Complete;   // parks Update; the HUD keeps following the head
+                SetHUD($"PRESENTER BOOT ERROR\n{e.GetType().Name}: {e.Message}\ndetails: presenter_boot_error.txt");
+            }
+        }
+
+        private void StartCore()
+        {
             if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
 
             if (m_sessionMode == SessionMode.AutoSession)
@@ -310,8 +359,15 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                         if (!m_blockAInit)
                         {
                             // Boot-time only: hold the video scene quiet behind the launch HUD.
+                            // Lock free-play input too — without this, A cycles the manager's
+                            // vignette modes while the participant waits for X (seen 2026-07-21).
                             m_blockAInit = true;
-                            if (m_video != null) { m_video.VideoLooping = false; m_video.SetVideoPlaying(false); }
+                            if (m_video != null)
+                            {
+                                m_video.VideoLooping = false;
+                                m_video.SetVideoPlaying(false);
+                                m_video.StudyInputLock = true;
+                            }
                         }
                         if (XPressed()) LaunchPassthroughBlock();
                         break;
@@ -322,7 +378,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
         }
 
-        private bool XPressed() => m_xCooldown <= 0f && OVRInput.GetDown(m_startButton);
+        private bool XPressed() => m_xCooldown <= 0f
+            && (OVRInput.GetDown(m_startButton) || OVRInput.GetDown(m_startButtonAlt));
 
         private void OnAdvancePressed()
         {
@@ -334,8 +391,18 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             else AdvanceBlock();
         }
 
+        // Pushed at block setup AND at every pass start, so ring tweaks made in the inspector
+        // during play mode take effect on the next X (live probe-tuning loop in the Editor).
+        private void PushProbeStatics()
+        {
+            m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
+                                        m_ringColor, m_ringWidth, m_hitFlashColor, m_ringSegments,
+                                        m_ringOutline);
+        }
+
         private void StartPass()
         {
+            PushProbeStatics();
             foreach (var t in m_targets) { t.resolved = false; t.flash = 0f; }
             m_passHits = m_passMisses = m_passFalseAlarms = 0;
             m_passNumber++;
@@ -366,8 +433,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             ApplyCondition();
             ResolveLifetimes();
             ComputePracticeGate();
-            m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
-                                        m_ringColor, m_ringWidth, m_hitFlashColor);
+            PushProbeStatics();
             m_video.VideoLooping = false;
             m_video.SetVideoPlaying(false);
             m_video.SetBlobProbes(0, m_data, m_flash);
@@ -623,7 +689,22 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             long ms = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             string row = string.Join(",", type, ms, m_participantId, pairing, order,
                                      idx < 0 ? "" : idx.ToString(), env, cond, set);
-            File.AppendAllText(LedgerPath, row + "\n");
+            try
+            {
+                File.AppendAllText(LedgerPath, row + "\n");
+            }
+            catch (System.UnauthorizedAccessException)
+            {
+                // An adb-pushed ledger is owned by `shell` and read-only to the app (bricked
+                // every boot on 2026-07-21). The app owns the DIRECTORY, so it may delete the
+                // file and rewrite it — content is already in m_ledger, nothing is lost.
+                Debug.LogWarning("[AuthoredPresenter] ledger not writable (adb-pushed?) — rewriting it app-owned.");
+                var lines = new List<string>();
+                foreach (var f in m_ledger) lines.Add(string.Join(",", f));
+                lines.Add(row);
+                File.Delete(LedgerPath);
+                File.WriteAllLines(LedgerPath, lines);
+            }
             m_ledger.Add(row.Split(','));
         }
 
@@ -964,7 +1045,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             canvas.renderMode = RenderMode.WorldSpace;
             m_uiRoot.GetComponent<RectTransform>().sizeDelta = new Vector2(700f, 200f);
             m_uiRoot.transform.localScale = Vector3.one * 0.0015f;
-            var mat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
+            // Above the vignette/blob overlay family (~4150) — instructions must stay readable
+            // even when a dark filter covers the sphere.
+            var mat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4600 };
 
             var textGO = new GameObject("Text");
             textGO.transform.SetParent(m_uiRoot.transform, false);
@@ -1026,6 +1109,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private void OnDestroy()
         {
+            if (s_instance == this) s_instance = null;
             CloseLog();
             if (m_reticleL != null) Destroy(m_reticleL);
             if (m_reticleR != null) Destroy(m_reticleR);

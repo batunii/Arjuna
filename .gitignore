@@ -36,3 +36,4 @@ __pycache__/
 
 # Distractor-video build scratch (intermediates, downloaded backgrounds/clips)
 /Assets/_Scratch/
+.tokensave/

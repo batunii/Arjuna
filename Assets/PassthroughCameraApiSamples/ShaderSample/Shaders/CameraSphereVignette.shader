@@ -278,6 +278,10 @@ Shader "Meta/PCA/CameraSphereVignette"
             float  _BlobLens;      // (style 2) refraction/magnification amount
             float4 _BlobRingColor; // (style 3) ring colour (rgb) + persistent alpha (a)
             float  _BlobRingWidth; // (style 3) ring thickness (Gaussian sigma in r01) — smaller = thinner
+            float  _BlobRingSegments; // (style 3) >0: that many alternating black/white arc PAIRS
+                                      // ("rope") replace the solid colour — see style 3 notes
+            float  _BlobRingOutline;  // (style 3) strength of the dark border flanking the ring
+                                      // (traffic-warning-sign pairing) — contrast on bright backgrounds
             float4 _BlobFlashColor;
 
             v2f vert(appdata v)
@@ -464,8 +468,48 @@ Shader "Meta/PCA/CameraSphereVignette"
                     // shimmered because it recomputed its colour from the moving scene under it each
                     // frame). The ring's colour content-dependence is handled at the design level by
                     // counterbalancing + screening, not per-pixel.
+                    //
+                    // The ring RESPECTS THE FILTER (supervisor Point 3): its colour is pushed
+                    // through the same desat+dim the SignPop grading applies to the scene at this
+                    // pixel, gated by the window falloff x effect strength. Filter off / inside
+                    // the window => full ring colour; deep periphery => it fades like a real
+                    // object would. (A plain black ring — filter-invariant by construction — was
+                    // tried on 2026-07-22 and floored the NO-FILTER baseline: 48% hit, 3.55 s
+                    // median RT vs ~60-70%, ~1.8 s with yellow. Chroma is what wins peripheral
+                    // onsets; approximating the filter transform beats deleting the colour.)
+                    float dAzW = max(_FocusRect.x - az, az - _FocusRect.y);
+                    float dElW = max(_FocusRect.z - el, el - _FocusRect.w);
+                    float tW   = smoothstep(0.0, _SoftEdge, max(dAzW, dElW)) * _VignetteStrength;
+                    float3 ringBase = _BlobRingColor.rgb;
+                    if (_BlobRingSegments > 0.5)
+                    {
+                        // "Rope" pattern: alternating black/white arcs. Rationale (2026-07-22):
+                        //  - achromatic => the filter's desaturation is a no-op on it;
+                        //  - contrast-polarity complete => some arc always contrasts with ANY
+                        //    background (the fiducial-marker principle) — fixes both the black
+                        //    ring's clutter camouflage and a solid colour's content-dependence;
+                        //  - the multiplicative dim preserves the pattern's INTERNAL Michelson
+                        //    contrast, so under the filter it dims honestly (Point 3) like a real
+                        //    high-contrast object, yet never vanishes into the flat grey periphery.
+                        // Keep pairs low (4 => 8 arcs ~= 0.8 cpd at a 1.6 deg probe): peripheral
+                        // acuity must resolve the alternation — finer stripes blur to uniform grey.
+                        float theta = atan2(dE, dA);
+                        ringBase = step(0.5, frac(theta / 6.2831853 * _BlobRingSegments)).xxx;
+                    }
+                    float ringLum  = dot(ringBase, float3(0.299, 0.587, 0.114));
+                    float3 ringCol = lerp(ringBase, (ringLum * _PopGreyDim).xxx, tW)
+                                   * lerp(1.0, 0.70, tW);
+                    // Dark border flanking the ring (the yellow/black warning-sign pairing):
+                    // guarantees a luminance step on bright or yellowish backgrounds where the
+                    // ring colour alone has no contrast. Multiplicative darkening => filter-
+                    // invariant (Point 3 safe) with no extra attenuation plumbing. Applied
+                    // BEFORE the colour ring so the ring sits crisp on top of its border.
+                    float bOut = exp(-((r01 - 1.06) * (r01 - 1.06)) / (2.0 * _BlobRingWidth * _BlobRingWidth));
+                    float bIn  = exp(-((r01 - 0.58) * (r01 - 0.58)) / (2.0 * _BlobRingWidth * _BlobRingWidth));
+                    float border = saturate(max(bOut, bIn)) * _BlobRingOutline * _BlobRingColor.a * s;
+                    c = c * (1.0 - border);
                     float ring = exp(-((r01 - 0.82) * (r01 - 0.82)) / (2.0 * _BlobRingWidth * _BlobRingWidth));
-                    c = lerp(c, _BlobRingColor.rgb, saturate(ring * _BlobRingColor.a * s));
+                    c = lerp(c, ringCol, saturate(ring * _BlobRingColor.a * s));
                 }
                 else
                 {
@@ -682,9 +726,12 @@ Shader "Meta/PCA/CameraSphereVignette"
 
                     // Selected window shows NATURAL colour (no popping); periphery is flattened
                     // (desaturated) and dimmed, with ROG kept partly visible so signals aren't
-                    // lost. The tuned constants below intentionally override the _Pop* uniforms.
+                    // lost. ROG constants below intentionally override the _Pop* uniforms; the
+                    // grey-track brightness is _PopGreyDim so the study can tune periphery
+                    // visibility from the inspector (the periphery must stay bright enough that
+                    // a black ring probe — and real objects — remain detectable there).
                     // "Other" (non-ROG) track: natural inside -> dim flat grey outside.
-                    float3 mutedTarget = grey * lerp(1.0, 0.15, t);   // dimmer periphery grey
+                    float3 mutedTarget = grey * lerp(1.0, _PopGreyDim, t); // periphery grey brightness
                     float3 muted = lerp(col, mutedTarget, t);         // natural inside -> flat grey outside
                     // ROG track: NO boost inside (natural); desaturated + dimmed outside, no sigmoid pop.
                     float satB   = lerp(1.0, 0.55, t);                // 1.0 inside = no saturation boost
@@ -693,7 +740,7 @@ Shader "Meta/PCA/CameraSphereVignette"
 
                     periColor = lerp(muted, vivid, colorKeep);
                     // Overall periphery dim so the natural window also wins on plain luminance.
-                    periColor *= lerp(1.0, 0.44, t);
+                    periColor *= lerp(1.0, 0.70, t);
                     // Video mode grades the whole sphere (window included); passthrough mode
                     // stays periphery-only — the window must remain transparent there.
                     periAlpha = lerp(1.0, t, _PassthroughMode) * _VignetteStrength;

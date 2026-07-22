@@ -1,4 +1,5 @@
 ﻿<Solution>
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="UnityEngine.UI.csproj" />
   <Project Path="UnityEditor.TestRunner.csproj" />
   <Project Path="UnityEngine.TestRunner.csproj" />
@@ -6,5 +7,4 @@
   <Project Path="Unity.TextMeshPro.Editor.csproj" />
   <Project Path="UnityEditor.UI.csproj" />
   <Project Path="Unity.TextMeshPro.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
 </Solution>
