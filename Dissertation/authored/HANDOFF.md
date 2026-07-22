@@ -21,6 +21,126 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   forcing `StudyEffectSuppressed=true` each frame (+ motion suppression). **Only ONE of
   {PointAuthoringTool, AuthoredTargetPresenter} may be in the scene at once.**
 
+## Probe + window revision (2026-07-21)
+
+- **Ring is BLACK now** (`m_ringColor` (0,0,0,0.4), width 0.05→0.06; presenter default + scene).
+  Rationale: black is the one colour the filter's desat+dim leaves unchanged, so an on-top black
+  ring is identical to a behind-filter ring — supervisor Point 3 satisfied with no shader change.
+  Known trade-off: may floor against dark scene content — check the no-filter baseline stays in
+  the ~60–85% band and look at which targets floor. Fallback: yellow ring attenuated by the
+  filter's local transform in `ApplyBlob`.
+- **Window stays 4×4° — DELIBERATE (user decision, 2026-07-21).** Earlier HANDOFF framing of
+  4×4 as "too small / the bug" was wrong. Rationale: the window size is the DOSE of the
+  manipulation. With a windscreen window (25/15) + falloff, the filter lives only beyond ~35°
+  where vision is weak anyway — the whole usable view is normal and nothing guides attention.
+  With 4×4 + the 24° SignPop soft edge (kept), the filter grades outward from 4°: ~50% strength
+  at 16°, full at 28° — a focus funnel that is actually present in the view. The falloff makes
+  the perceived clear region much bigger than nominal (by design). The v1 0%-filter runs are
+  attributed to the old near-black periphery (~7% luminance) + probe style, not the window per
+  se — with the lessened dim and the black ring, probes should be detectable through the filter.
+- **Analysis consequence (open, discuss with John):** `split_pool.py`'s centre/periphery tag
+  (boundary 25/15) no longer means unfiltered-vs-filtered — under 4×4+24° every target sits on
+  the gradient (a "centre" target at 20° az gets ~80% filter). Treat filter strength at the
+  target as a continuous dose: t = smoothstep((max(|az|,|el|)−4°)/24°), computable per target
+  from az/el at analysis time. A/B stay comparable (eccentricity was balanced as a covariate).
+  Point 2's bifurcation becomes clear-core (≲10°) / graded / full-filter (≥28°).
+- **Periphery dim lessened**: shader's dead `_PopGreyDim` uniform re-wired (grey track was
+  hard-coded 0.15, now uses the inspector knob = 0.4) and the overall periphery dim 0.44→0.70.
+  Non-ROG periphery ≈ 28% of original luminance (was ~7%). Brighter periphery also keeps the
+  black ring detectable there and softens the grey boundary (why the narrower soft edge is OK).
+- **Window-size research note (2026-07-21, web-verified): `../window-size-research.md`** — anchors
+  (PRC road-centre = 8° radius; PDT probe band 11–23°; UFOV ≈30° dia, shrinks under load) + per-
+  target dose tables for candidate configs. Recommendation on the table: **8×6° core + 24° edge**
+  (clear core = road-centre region, 50% dose at 20°, full at 32°; evenest dose spread; fixes the
+  5-clear-target A-set anchor + practice-id-0-at-0.74 issues). **ADOPTED 2026-07-21: scene +
+  presenter default now 8×6 + 24° edge.** Expected doses per set: A 9/8/7/3/13, B 14/8/3/1/14
+  (clear/light/mid/heavy/full), practice id 0 at 0.50.
+- **Boot incident 2026-07-21 ~21:35 (build 21:32, pid 1001, AutoSession):** user booted into a
+  dark scene, A cycled free-play modes, no HUD, X unusable (left controller battery dead — X is
+  left-hand only). Diagnosis: the on-device ledger has NO PILOT1001 PLAN row, i.e. the
+  presenter's Start() died before writing it (a healthy video-armed boot locks free-play input
+  via ApplyCondition and shows the armed HUD — none of that happened). Root cause NOT yet
+  identified (no live logcat: boot lines rotated; the code path for pid 1001 has no obvious
+  throw). Hardening added to `AuthoredTargetPresenter.cs` (compiles clean, needs rebuild):
+  (1) Start() wrapped — any boot exception now shows on the HUD + writes
+  `presenter_boot_error.txt` to persistentDataPath and parks the presenter;
+  (2) `m_startButtonAlt` = right-controller **B** as fallback advance (dead left battery can't
+  strand a session); (3) passthrough-armed hold now sets StudyInputLock (A can't cycle modes
+  while waiting for X); (4) HUD material renderQueue 4100→4600 (readable above dark filters).
+  **ROOT CAUSE FOUND (2026-07-22 00:57, via presenter_boot_error.txt):**
+  `UnauthorizedAccessException` appending to `session_ledger.csv`. The ledger was adb-PUSHED
+  back to the device at 2026-07-21 20:03 (the P0→PILOT999 reclassify) — **adb-pushed files are
+  owned by `shell` and READ-ONLY to the app**, so every boot that appended a PLAN/BLOCK row died.
+  Fixes: (1) delete the device ledger and let the app recreate it (history preserved in
+  `raw/session_ledger.csv`); (2) `AppendLedger` now self-heals — on UnauthorizedAccess it
+  deletes and rewrites the file app-owned from memory (app owns the directory, so delete is
+  permitted). **RULE: never adb-push `session_ledger.csv` (or any file the APP must write);
+  push is fine for read-only inputs like `pool_split.csv`.**
+- **Black ring REVERTED (2026-07-22, after PILOT1001 data).** The black ring floored performance
+  where the filter wasn't even running: NoFilter-A 19/40 (48%, median RT 3.55 s) vs ~60–70% /
+  ~1.8 s for yellow on set A; Filter-B 13/40 (32%). Five targets that were yellow-ring hits
+  flipped to miss; most other misses were far-peripheral (38–87° az) — without chroma the ring's
+  onset never captures attention out there, targets expire unseen. Replacement (implemented in
+  `CameraSphereVignette.shader` style 3): **yellow ring, attenuated in-shader by the filter's
+  local transform** (ring colour pushed through the SignPop desat+dim × window falloff ×
+  effect strength) — full yellow with filter off / inside the window, fades like a real object
+  in the filtered periphery. Point 3 still holds; NoFilter baselines stay comparable to the old
+  yellow data (alpha restored to the tested 0.4; the 0.78 was black-ring compensation).
+  Window is now **6×5°** (user's choice, between 4×4 and the researched 8×6; doses per set at
+  6×5+24: A 8/6/8/4/14, B 13/6/5/2/14, med 0.62/0.42). Needs rebuild; then re-run both video
+  blocks and compare.
+- **PILOT1002 (2026-07-22 ~02:36–03:09, black ring @0.78 alpha, 6×5 window, order P-F):**
+  Block A ×2 X'd through quickly, then video NoFilter-B **20/40 (50%)** RT med 2.46 s, video
+  Filter-A **27/40 (68%)** RT med 2.20 s. Two findings: (1) even at 0.78 alpha the black ring
+  fails the no-filter baseline band — its enemy is CLUTTER masking, and the filter's flat grey
+  periphery actually *helps* it (camouflage removal → Filter > NoFilter, backwards vs set
+  difficulty). Confirms the yellow-attenuated-ring decision. (2) **Duplicate-presenter bug
+  found & fixed**: the presenter is DontDestroyOnLoad for the Block A round-trip; returning to
+  the video scene spawns the scene's own copy alongside it → both ran blocks 2–3 in lockstep
+  (duplicate CSVs 1 ms apart, doubled ledger BLOCK rows for 1002). Fix: static singleton guard
+  in Awake (scene copy self-destructs; travelling instance keeps the session). Duplicate CSVs
+  moved to `raw/duplicates_20260722/` (kept the well-formed file of each pair). Ledger's doubled
+  BLOCK rows are harmless (resume just re-marks the same block done).
+  The ledger self-heal WORKED (file is app-owned again; 1001/1002 PLAN rows written normally).
+- **"Rope" ring added (2026-07-22, user proposal):** `m_ringSegments` on the presenter (default 4)
+  renders the ring as alternating black/white arc pairs instead of the solid colour. Achromatic
+  (desat-proof), contrast-polarity complete (visible on any background — fiducial principle), and
+  the multiplicative dim preserves its internal Michelson contrast (honest Point 3 without the
+  grey-on-grey floor). Full rationale + citations: `probe-target-design.md` §4e. `0` = solid
+  yellow-attenuated ring (the empirically anchored fallback). Arc pairs must stay low (3–5) or
+  peripheral acuity blurs the pattern to grey.
+- **Rope v1 (translucent) failed in-headset (2026-07-22) — concept NOT yet fairly tested.** At
+  0.4 alpha / thin width the alternation fragments (one polarity always invisible → ~4 faint
+  flecks, no closure). Fair test config (untested): segments 4 + alpha ~0.9–1.0 + width ~0.10 —
+  opaque chunky arcs, per the fiducial principle. See probe-target-design.md §4e. **Also in the
+  build: solid yellow ring + dark flanking border (`m_ringOutline` 0.6)** — warning-sign pairing:
+  yellow carries chroma/luminance + closure, the multiplicative dark border guarantees contrast
+  on bright backgrounds and is filter-invariant by construction. **Probe choice (opaque rope vs
+  bordered yellow) is the user's call — both are inspector-selectable in the same build.**
+  Scene state saved from the editor: ring yellow 0.4 / width 0.06 / segments 0 / outline 0.6,
+  window 6×4°, `m_popGreyDim` 0.3 (periphery ≈21%), pid 1002.
+- **Probe DECIDED by user after Editor eyeball (2026-07-22): near-opaque black/white rope.**
+  Scene config (saved): `m_ringSegments 4`, ring alpha **0.88** (the load-bearing value — RGB is
+  unused while segments>0), `m_ringWidth 0.05`, `m_ringOutline 0`, probe 1.6°, window 6×4°,
+  soft edge 24°, pid **1003**. Presenter now re-pushes ring
+  statics at every pass start (X), so inspector tweaks apply live in Editor play mode.
+  `m_popGreyDim` now **0.21** (2026-07-22; periphery ≈ 0.21×0.70 ≈ **15%** of original
+  luminance — anchored to ITU-R BT.500's reference surround ratio of 0.15 × peak luminance for
+  critical viewing; also above the classic ~10:1 task-to-remote-surround comfort limit, which is
+  IES/ergonomics lore — verify ISO 9241-6 before citing). Dim history: 7% (v1, floored the
+  probes) → 28% → 21% → 15%.
+- Next: rebuild → PILOT1003 NoFilter + Filter with the rope, check the 60–85% band and RTs vs
+  the yellow anchors (57–84%, ~1.8 s).
+- **Person engine: closeness-widened cone (2026-07-22, user design).** The fixed 12.5°/25°
+  person cone dropped pedestrians at their NEAREST moment (same person slides outward in the
+  view as the car approaches — ecc grows exactly as they get closest). New
+  `m_personCloseWideningDegPerDeg` (now **2.5** after two user tightenings — 5 and 3 were
+  visually noisy in city footage): both the accept limit and the full-strength band widen per
+  degree of box height above the 3° minimum — 3° box (~32 m) unchanged 25°, 6° (~16 m) → 32.5°,
+  10° (~10 m) → 42.5°. Geometrically ≈ a constant lateral corridor in metres
+  (x ≈ 1.7 m × angle/boxHeight). 0 = old fixed-cone behaviour. Affects SignPop highlighting
+  only — the probe pool is hand-authored, so A/B sets are untouched.
+
 ## Results so far
 
 ### No-filter clickability (BASELINE, per set, n=2 each)

@@ -325,6 +325,63 @@ scene contrast → higher variance, and only wins on ecological naturalness. **R
 the measured study.** Empirical decider (run in pilot): compare per-target baseline hit-rate *variance*
 of the two via `blob_probe.py` — lower variance = more content-independent = better probe.
 
+## 4e. Ring colour pilots (2026-07-22) and the black/white "rope" ring
+
+Two single-experimenter pilots (PILOT1001/1002) tested a **solid black ring** (theoretically elegant:
+black is a fixed point of the desat+dim transform, so an on-top black ring ≡ behind-filter, Point 3 by
+construction). It **failed the no-filter baseline band**: 48–50% hit (vs ~60–84% yellow), median RT
+doubled, misses concentrated at high eccentricity and on cluttered/dark content. Its failure mode is
+**clutter camouflage** — confirmed by the reversal under the filter (Filter 68% > NoFilter 50%): the
+filter's flat grey periphery *removes the camouflage*, i.e. the probe needed the filter to be visible —
+disqualifying for a fair probe. Also confirms SGD's chroma point in reverse: peripheral onsets are
+carried by luminance/colour salience, which pure black lacks over dark content.
+
+**Current design — "rope" ring (implemented in `CameraSphereVignette.shader` style 3,
+`m_ringSegments` > 0):** N alternating black/white arc pairs (default 4 → 8 arcs), composited after the
+filter with the ring colour pushed through the filter's local desat+dim. Rationale:
+
+1. **Achromatic** → the filter's desaturation is a no-op on the probe (no hue confound, no confusion
+   with SignPop's preserved ROG signal colours — a worry the solid yellow ring had).
+2. **Contrast-polarity complete** → any background is darker than white or brighter than black, so some
+   arc always carries contrast (the **fiducial/calibration-marker principle**; cf. Wallis, Dorr & Bex
+   2015 — detectability is local-contrast-limited, and internal black↔white edges cannot be masked by
+   the background). Directly attacks §4d's core fragility: per-target baseline-visibility variance.
+3. **Honest but never floored under the filter** → the dim is multiplicative, which preserves the
+   pattern's internal Michelson contrast (white scales, black stays) — the rope dims exactly like a
+   real high-contrast object (Point 3) yet remains structured on the flat grey periphery, where an
+   attenuated solid colour degrades to grey-on-grey.
+4. **Peripheral-acuity constraint**: arc pairs kept low (4 pairs ≈ 0.8 cpd at a 1.6° probe) so the
+   alternation is resolvable at 40–60° eccentricity (cortical magnification: Anstis 1974; Rovamo &
+   Virsu 1979). Finer stripes spatially integrate to uniform grey in the periphery — reintroducing
+   exactly the invisible-grey-ring failure. If the rope pilots at ceiling, reduce `m_ringColor.a`
+   (van Winsum 2018: alpha as the graded conspicuity knob), never the arc size.
+
+Fallback remains the solid yellow ring attenuated through the filter (`m_ringSegments = 0`), whose
+no-filter baselines are empirically anchored (57–84%). Decider between them: the §4d variance
+criterion on per-target baseline hit-rates.
+
+**Rope v1 outcome (in-headset check, 2026-07-22): the TRANSLUCENT implementation failed — the
+concept is NOT yet fairly tested.** The v1 rope inherited the solid ring's parameters (alpha 0.4,
+thin width 0.06): at that opacity the alternation *fragments* the probe — on any given background
+only one polarity carries contrast, leaving ~4 faint alpha-scaled flecks with no closure. That is
+an implementation failure, not a verdict on the design: the fiducial-marker principle it rests on
+assumes an *opaque, spatially substantial* marker. **A fair rope test = `m_ringSegments` 4 +
+`m_ringColor.a` ≈ 0.9–1.0 + `m_ringWidth` ≈ 0.10** (opaque, chunky arcs). Untested; decision
+owner: Shreyansh. Trade-off to weigh in that pilot: full opacity maximises the rope's contrast
+guarantee but makes the probe a solid foreign marker (Point 1 pop-out direction), where the
+translucent bordered-yellow ring stays scene-transmissive.
+
+**Alternative implemented in the same build — solid yellow ring + dark border
+(`m_ringOutline`, default 0.6):** the
+traffic-warning-sign colour pairing. The yellow annulus keeps the empirically anchored chroma +
+luminance signal and object closure; thin dark bands flanking it guarantee a luminance step on
+bright/yellowish backgrounds (the one case where yellow alone fades). The border is a
+*multiplicative* darkening, so it is filter-invariant by construction (black is a fixed point of
+desat+dim — the valid half of the black-ring idea, kept), while the yellow core attenuates
+through the filter transform (Point 3). Precedent: conspicuity engineering in traffic-sign
+standards (yellow/black warning panels); the light/dark-pair detectability finding already
+documented for the Bubble style above.
+
 ## 5. Dissertation-grade citations added by this note
 
 Primary / parameter-bearing (cite with confidence):
