@@ -129,6 +129,15 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   critical viewing; also above the classic ~10:1 task-to-remote-surround comfort limit, which is
   IES/ergonomics lore — verify ISO 9241-6 before citing). Dim history: 7% (v1, floored the
   probes) → 28% → 21% → 15%.
+- **Cross-system pid matching (Block A CPT ↔ Unity), 2026-07-22:** within Unity the AutoSession
+  pid is stamped everywhere (video CSV filename+rows, ledger PLAN/BLOCK) — guaranteed. The Block
+  A SCORES come from `PilotTools/block-a-cpt.html`, whose participant field is HAND-TYPED →
+  matching is convention. Safeguards: (1) the Block A instruction HUD now shows "CPT tool
+  participant id: N" at block start (copy, don't remember); (2) TODO analysis-side check: each
+  pid's CPT rows (`t_ms` epoch ms) must fall inside that pid's Block A window in the ledger
+  (BLOCK-row timestamps) — a typo shows up as time/pid inconsistency. Known hazard: pid −1
+  builds cannot RESUME a crashed session (relaunch auto-assigns the NEXT id, orphaning the
+  interrupted participant) — fix if needed: pid_override.txt read at boot (not built).
 - Next: rebuild → PILOT1003 NoFilter + Filter with the rope, check the 60–85% band and RTs vs
   the yellow anchors (57–84%, ~1.8 s).
 - **Person engine: closeness-widened cone (2026-07-22, user design).** The fixed 12.5°/25°

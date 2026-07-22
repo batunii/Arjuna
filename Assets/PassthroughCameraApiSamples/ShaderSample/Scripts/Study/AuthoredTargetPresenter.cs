@@ -517,8 +517,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_phase = Phase.PassthroughRunning;
             // Instructions only linger a few seconds — during the block itself the view must be
             // clean (same rule as the manager's minimal-UI debug text). X still completes it.
+            // The CPT tool's participant field is hand-typed — surface the id at exactly the
+            // moment the experimenter needs it, so Unity data and CPT data join on the same pid.
             SetHUDTimed(AutoBlockHud(Current,
-                "Hold RIGHT trigger to paint the window, release to lock\n"
+                $"CPT tool participant id:  {(m_participantId < 0 ? 0 : m_participantId)}\n"
+              + "Hold RIGHT trigger to paint the window, release to lock\n"
               + "Press X when the block is finished"), 6f);
         }
 
