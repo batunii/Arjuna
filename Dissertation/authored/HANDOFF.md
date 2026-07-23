@@ -196,6 +196,27 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   and no practice-effect concern for her real 17:06 NoFilter-A run. No PLAN row for 66
   existed → counterbalancing unaffected. Device files left untouched. P6's full dataset:
   Block A browser CSVs (P6) + passthrough BLOCK (pid 6) + the two relabeled video runs.
+- **Day-2 results + exclusions (2026-07-23, participants P6/P9/P10):**
+  - **P9 is EXCLUDED from Block B** (experimenter decision, same day): they were confused
+    about what to click during their first video run (Filter-B, their first-ever block —
+    V-F order). Their Block A data stays. Log this as a task-comprehension exclusion rule:
+    first-block confusion reported by the participant/experimenter → drop that
+    participant's Block B pair.
+  - **OPEN ITEM — define a false-alarm exclusion criterion.** P3's Filter-B run has 539
+    false alarms (near-constant trigger pulling; hits partly luck). Pooled results barely
+    move with/without P3, but the dissertation needs a pre-stated rule (e.g. FAs > k×
+    target count → exclude run). Decide k with John before the freeze.
+  - **First real Block B signal (n=7, P1–P4/P33/P6/P10, P9 excluded):** in the 10–30°
+    band the filter arm beats no-filter in 6 of 7 participants; pooled 56% vs 45%
+    (+11 pp; overall 62% vs 57%). Holds in both filter-first and filter-second subgroups
+    (so not a warm-up artifact) and survives dropping P3. Caveat: pilot instrument
+    changed between days; directional evidence, not a testable claim yet.
+  - **P9 Block A hygiene note:** both their main runs were entered as slot A3 → same seed
+    → identical shape sequence twice; treat the second (FILTER, 100%) with suspicion.
+    Use distinct slots per participant (tool could enforce — not built).
+  - Block A v3 (140×1.8 s) still at ceiling for P9/P10 (95–100%, RT ~500–690 ms, no
+    drift): pace is not the lever; discuss harder discrimination (confusable shapes /
+    2-back) with John.
 - Next: rebuild → PILOT1003 NoFilter + Filter with the rope, check the 60–85% band and RTs vs
   the yellow anchors (57–84%, ~1.8 s).
 - **Person engine: closeness-widened cone (2026-07-22, user design).** The fixed 12.5°/25°
