@@ -1,0 +1,736 @@
+<title>Only the Eye — Diminished-Reality Attention Guidance on Quest 3</title>
+<style>
+  :root{
+    --ink:#EDF1F7;          /* focus text */
+    --dim:#8A94A6;          /* periphery text */
+    --faint:#5A6373;        /* footnotes */
+    --bg:#0B0E13;           /* ground */
+    --panel:#131822;        /* card */
+    --panel2:#0F131B;       /* deeper card */
+    --line:#232B38;         /* hairline */
+    --amber:#F2A93B;        /* human / focus accent */
+    --cyan:#62B6C9;         /* technical accent */
+    --green:#63C67A;        /* semantic good */
+    --red:#E4695F;          /* semantic risk */
+    --serif:"Charter","Cambria",Georgia,"Times New Roman",serif;
+    --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  /* This deck deliberately commits to a single dark theme: the design IS the system's
+     metaphor — a bright focus window on a dimmed ground. */
+  .deck{position:relative;width:100%;height:100vh;overflow:hidden;}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:4.5vh 6vw 8vh 6vw;box-sizing:border-box;
+    background:radial-gradient(ellipse 120% 90% at 50% 42%, rgba(21,27,38,.55) 0%, rgba(11,14,19,0) 62%), var(--bg);
+  }
+  .slide.active{display:flex;}
+  .eyebrow{font-family:var(--sans);font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:1.1rem;}
+  .eyebrow b{color:var(--amber);font-weight:600;}
+  .eyebrow.tech b{color:var(--cyan);}
+  h1{font-family:var(--serif);font-weight:700;font-size:2.35rem;line-height:1.14;margin:0 0 1.2rem 0;text-wrap:balance;max-width:24ch;}
+  h1 .hl{color:var(--amber);}
+  h1 .hlt{color:var(--cyan);}
+  h2{font-family:var(--sans);font-weight:600;font-size:1.02rem;margin:0 0 .5rem 0;color:var(--ink);}
+  p{font-size:1.0rem;line-height:1.55;color:var(--dim);margin:.25rem 0;max-width:68ch;}
+  p.lead{font-size:1.12rem;color:var(--ink);max-width:62ch;}
+  .body{flex:1;display:flex;flex-direction:column;justify-content:flex-start;gap:1.1rem;min-height:0;}
+  .cols{display:grid;gap:1.1rem;}
+  .cols.c2{grid-template-columns:1fr 1fr;}
+  .cols.c3{grid-template-columns:1fr 1fr 1fr;}
+  .cols.c4{grid-template-columns:repeat(4,1fr);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.35rem;}
+  .card h3{margin:0;font-size:.95rem;font-weight:600;color:var(--ink);}
+  .card p{font-size:.88rem;line-height:1.5;margin:0;}
+  .card .tag{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);font-weight:600;}
+  .card.tech .tag{color:var(--cyan);}
+  .card.bad .tag{color:var(--red);}
+  .card.good .tag{color:var(--green);}
+  .stat{font-family:var(--serif);font-size:4.2rem;font-weight:700;color:var(--amber);line-height:1;font-variant-numeric:tabular-nums;}
+  .stat small{font-size:1.3rem;color:var(--dim);font-family:var(--sans);font-weight:400;}
+  .foot{position:absolute;left:6vw;right:6vw;bottom:2.6vh;display:flex;justify-content:space-between;align-items:baseline;gap:2rem;border-top:1px solid var(--line);padding-top:.55rem;}
+  .foot .src{font-size:.72rem;color:var(--faint);line-height:1.45;max-width:78%;}
+  .foot .src b{color:var(--dim);font-weight:600;}
+  .pageno{font-size:.72rem;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  code,.code{font-family:var(--mono);font-size:.86em;color:var(--cyan);}
+  .codeblock{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;font-family:var(--mono);font-size:.85rem;line-height:1.65;color:var(--ink);overflow-x:auto;white-space:pre;}
+  .codeblock .cm{color:var(--faint);}
+  .codeblock .k{color:var(--amber);}
+  table{border-collapse:collapse;width:100%;font-size:.85rem;}
+  th{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;font-weight:600;padding:.45rem .7rem;border-bottom:1px solid var(--line);}
+  td{padding:.5rem .7rem;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;line-height:1.45;}
+  td b{color:var(--ink);font-weight:600;}
+  td.num{font-variant-numeric:tabular-nums;}
+  .pill{display:inline-block;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;border-radius:999px;padding:.14rem .6rem;border:1px solid var(--line);}
+  .pill.amber{color:var(--amber);border-color:rgba(242,169,59,.4);}
+  .pill.cyan{color:var(--cyan);border-color:rgba(98,182,201,.4);}
+  .pill.green{color:var(--green);border-color:rgba(99,198,122,.4);}
+  .pill.red{color:var(--red);border-color:rgba(228,105,95,.4);}
+  .pill.grey{color:var(--dim);}
+  .quote{font-family:var(--serif);font-size:1.45rem;line-height:1.4;color:var(--ink);max-width:30ch;text-wrap:balance;}
+  .quote .att{display:block;font-family:var(--sans);font-size:.85rem;color:var(--dim);margin-top:.8rem;}
+  .progress{position:fixed;left:0;bottom:0;height:3px;background:var(--amber);width:0%;transition:width .25s ease;z-index:10;}
+  .kv{display:flex;gap:.6rem;align-items:baseline;}
+  .kv .k{min-width:9.5ch;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:600;}
+  .kv .v{font-size:.92rem;color:var(--dim);}
+  .kv .v b{color:var(--ink);}
+  ul.tight{margin:.2rem 0;padding-left:1.1rem;color:var(--dim);font-size:.92rem;line-height:1.6;}
+  ul.tight li{margin:.15rem 0;}
+  ul.tight b{color:var(--ink);font-weight:600;}
+  .winDemo{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);min-height:200px;
+    background:
+      radial-gradient(ellipse 34% 38% at 50% 46%, rgba(240,244,250,.95) 0%, rgba(240,244,250,.9) 55%, rgba(20,25,34,.0) 76%),
+      repeating-linear-gradient(115deg, #1A2130 0 26px, #151B27 26px 52px);
+  }
+  .winDemo .lbl{position:absolute;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;}
+  .winDemo .lbl.in{color:#10141B;top:44%;left:50%;transform:translate(-50%,-50%);text-align:center;line-height:1.5;}
+  .winDemo .lbl.out{color:var(--dim);bottom:8%;left:5%;}
+  @media (prefers-reduced-motion: reduce){ .progress{transition:none;} }
+</style>
+
+<div class="progress" id="bar"></div>
+<div class="deck" id="deck">
+
+<!-- ============ 1 · TITLE ============ -->
+<section class="slide active">
+  <div class="eyebrow"><b>MSc Dissertation</b> · Trinity College Dublin · August 2026</div>
+  <div class="body" style="justify-content:center;">
+    <h1 style="font-size:3.3rem;max-width:22ch;">Guiding attention by <span class="hl">taking things away</span></h1>
+    <p class="lead" style="max-width:56ch;">A multi-mode Diminished-Reality attention-guidance system, built and evaluated on a consumer video-see-through headset (Meta Quest 3).</p>
+    <div style="display:flex;gap:2.5rem;margin-top:1.4rem;">
+      <div class="kv"><span class="k">Author</span><span class="v"><b>Shreyansh Soni</b></span></div>
+      <div class="kv"><span class="k">Supervisor</span><span class="v"><b>Dr. John Dingliana</b></span></div>
+      <div class="kv"><span class="k">Status</span><span class="v">System built · study designed &amp; piloted · main run pending</span></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">School of Computer Science and Statistics, Trinity College Dublin.</div><div class="pageno">1</div></div>
+</section>
+
+<!-- ============ 2 · ICEBREAKER ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The idea</b> · in things we already do</div>
+  <h1>We already remove distraction — for <span class="hl">space</span> and for <span class="hl">sound</span>. Just not for sight.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card"><span class="tag">Space</span><h3>The library carrel</h3><p>When I really needed to focus, I sat in a library carrel: wooden walls on three sides. A physical barrier that simply removes everything that isn't the book.</p></div>
+      <div class="card"><span class="tag">Sound</span><h3>Noise-cancelling headphones</h3><p>ANC doesn't make the lecture louder. It makes everything else quieter. We accept — and pay for — subtraction as the way to hear better.</p></div>
+      <div class="card"><span class="tag">Sight</span><h3>Arjuna and the sparrow's eye</h3><p>In the Mahābhārata, Drona asks his students what they see before they shoot. Only Arjuna answers: <b>"only the eye of the bird."</b> The oldest description of perfect visual focus — everything else gone.</p></div>
+    </div>
+    <p class="lead">This project builds the third column: <b>visual</b> noise cancellation, in software, on a headset anyone can buy.</p>
+  </div>
+  <div class="foot"><div class="src">Framing follows the "visual noise cancellation" reading of Diminished Reality (ACM 2024); Mori, Ikeda &amp; Saito 2017 survey diminishment as a first-class operation.</div><div class="pageno">2</div></div>
+</section>
+
+<!-- ============ 3 · THE PROBLEM ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The problem</b> · distraction has a measurable price</div>
+  <h1>Peripheral distractors more than <span class="hl">double</span> your errors</h1>
+  <div class="body">
+    <div class="cols c2" style="align-items:center;">
+      <div>
+        <div class="stat">1.33 → 3.15 <small>commission errors</small></div>
+        <p style="margin-top:.9rem;">In a 2025 virtual-classroom study (N = 66), adding peripheral distractors to a sustained-attention task raised error counts ~2.4×, p &lt; .001. Attention capture is <b>involuntary</b>: you don't choose to look — motion and luminance in the periphery pull the eye before you can veto it.</p>
+      </div>
+      <div>
+        <ul class="tight">
+          <li>Modern environments are <b>engineered against focus</b>: open-plan offices, screens beside workspaces, advertising built to capture the gaze.</li>
+          <li>Every capture carries a switching cost on the task you actually wanted to do.</li>
+          <li>Willpower doesn't scale. Barriers do — that's why the carrel and the headphones exist.</li>
+        </ul>
+        <p style="margin-top:.8rem;"><b style="color:var(--ink);">The question:</b> can a headset play the role of the carrel walls — for vision?</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Frontiers in Human Neuroscience 2025 (N=66, Go/No-go, p&lt;.001) — the effect H1 is built on. Itti, Koch &amp; Niebur 1998 (involuntary capture by peripheral motion/luminance).</div><div class="pageno">3</div></div>
+</section>
+
+<!-- ============ 4 · ADDITIVE VS SUBTRACTIVE ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The gap</b> · two ways to guide the eye</div>
+  <h1>The field <span class="hlt">adds</span> arrows. This work <span class="hl">subtracts</span> the pull.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div class="card tech"><span class="tag">Additive guidance (well studied)</span><h3>Draw attention TO the target</h3><p>Arrows, halos, attention funnels (Biocca 2006). Works, but adds clutter of its own, and does nothing about the thing that's distracting you — it just shouts louder.</p></div>
+      <div class="card"><span class="tag">Subtractive guidance (this work)</span><h3>Remove attention FROM everything else</h3><p>Dim, mute or re-grade the periphery so it stops pulling. This is Diminished Reality (DR) — like ANC, it cancels the noise instead of amplifying the signal.</p></div>
+    </div>
+    <ul class="tight">
+      <li>Users <b>want</b> diminishment: Cheng et al. (CHI 2022) found people ask for clutter to be hidden when focusing.</li>
+      <li>DR can cut workload but risks <b>situational-awareness loss</b> (McLaughlin 2025; Murphy 2021) — so the evaluation must measure both sides. That trade-off becomes hypothesis H2b.</li>
+      <li>Both closest prior studies ran in <b>VR simulations</b>. Nobody had run subtractive guidance on real passthrough, on consumer hardware. That's the delta.</li>
+    </ul>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Biocca et al. 2006 (attention funnel); Cheng et al. CHI 2022; McLaughlin et al., Human Factors 2025; Murphy et al. 2021; Mori et al. 2017 (DR survey).</div><div class="pageno">4</div></div>
+</section>
+
+<!-- ============ 5 · WHY NOW ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The instrument</b> · why this is possible now</div>
+  <h1>A video-see-through headset makes every visible pixel <span class="hlt">software</span></h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card tech"><span class="tag">Optical see-through</span><h3>Can't subtract</h3><p>HoloLens-style optics only ADD light to the real world. You cannot darken a lamp you see through glass. Subtractive guidance is physically impossible there.</p></div>
+      <div class="card tech"><span class="tag">Video see-through</span><h3>Can, in principle</h3><p>Quest 3 shows you the world as video on an opaque screen. Every pixel you see was rendered — so in principle, every pixel can be modified.</p></div>
+      <div class="card tech"><span class="tag">Consumer scale</span><h3>Deployable</h3><p>This isn't a lab rig. Quest 3 costs ~€500 and is in millions of homes. If subtraction works here, it works on hardware people already own.</p></div>
+    </div>
+    <p class="lead">In principle, the perfect instrument. In practice, there's a wall →</p>
+  </div>
+  <div class="foot"><div class="src"><b>Context:</b> no current VST headset reaches normal visual acuity through passthrough, and Quest 3 degrades further in low light (arXiv 2601.02805, 2026) — this shapes the architecture on the next slides.</div><div class="pageno">5</div></div>
+</section>
+
+<!-- ============ 6 · THE WALL ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The wall</b> · the compositing constraint</div>
+  <h1>The OS owns the passthrough. An app <span class="hlt">cannot touch it</span>.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li>On Quest 3, passthrough is composited by the operating system. An app can't <b>read</b> it, can't <b>shade</b> it, can't <b>spatially mask</b> it.</li>
+          <li>All an app may do: <b>draw on top</b> (with transparency), or apply a <b>global colour transform</b> to the whole feed.</li>
+          <li>The 2025 Passthrough Camera Access (PCA) API finally grants the raw camera image — but it is <b>one mono camera, 1280×960, ~85–90° field of view</b>, versus the native <b>stereo ~110°</b> view the user actually sees.</li>
+        </ul>
+        <p style="margin-top:.8rem;"><b style="color:var(--ink);">So: full pixel control exists only where image quality is worst.</b></p>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center;">
+        <div class="quote">"Dim everything except what matters, without degrading what matters" — and you're not allowed to edit the image.<span class="att">The problem, stated as a compositing-rights problem</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Meta Passthrough &amp; PCA documentation; on-device PCA processing throttles within 5–10 min at 720p30 (arXiv 2509.18929) — the thermal ceiling for camera-fed modes.</div><div class="pageno">6</div></div>
+</section>
+
+<!-- ============ 7 · THREE TIERS ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Contribution C1</b> · mapping what CAN be touched</div>
+  <h1>Three tiers of access — and what each can diminish</h1>
+  <div class="body">
+    <table>
+      <tr><th></th><th>What you get</th><th>What it can do</th><th>Hard ceiling</th><th>Modes that live here</th></tr>
+      <tr><td><b>Tier 1</b><br>OS styling API</td><td>Brightness / contrast / saturation, colour LUTs, edge tint on the whole feed</td><td>Global colour remapping</td><td><b>No spatial control at all</b> — but attention guidance is definitionally spatial. The absence is the finding.</td><td>None (alone)</td></tr>
+      <tr><td><b>Tier 2</b><br>Overlay compositing</td><td>Draw transparent geometry over the native feed</td><td>Dim, black out, occlude regions; a shaped <b>hole</b> passes native quality through</td><td>Can only darken/cover — can never re-colour what's behind</td><td><b>Soft Dark, Hard Dark</b>, the focus window</td></tr>
+      <tr><td><b>Tier 3</b><br>PCA camera re-render</td><td>The raw camera image, as a texture</td><td>Arbitrary per-pixel work: blur, desaturate, re-grade salience, compress glare</td><td>Mono 1280×960, ~85–90° FOV, latency, thermal ceiling, binocular-fusion burden</td><td><b>ColorPop</b> (and the camera-fed periphery)</td></tr>
+    </table>
+    <p>Every mode in this project is a deliberate placement in this table — the design space fell out of the constraint, not the other way around.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> framing.md §3.1; deck taxonomy validated against Meta SDK capabilities across versions (surface-projected passthrough was deprecated at SDK v83 mid-project — slide 17).</div><div class="pageno">7</div></div>
+</section>
+
+<!-- ============ 8 · FIRST SYSTEM (OLD BRANCHES) ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Building it</b> · the first working system (June 2026)</div>
+  <h1>Version 1: a filter overlay on <span class="hlt">real passthrough</span> — and it worked, live</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li>A translucent sphere composited <b>over the real OS passthrough</b>. Inside the chosen window: alpha = 0 — untouched, full-quality real world. Outside: the filter.</li>
+          <li>For the blur filter, the periphery's pixels were synthesized <b>from the PCA camera feed</b> — so an overlap: native passthrough where you look, filterable camera video where you don't.</li>
+          <li><b>Three modes, walking around a real room:</b> <b>Dynamic</b> (gaze-following window, grey-dimmed periphery), <b>Perceptual</b> (eccentricity-adaptive blur + desaturation — two power-law curves, contrast boost at the boundary), and <b>Static</b> (controller-drawn rectangle, hard tunnel).</li>
+          <li>Comfort ideas started here too: light/deep presets, effects easing off while the head scans and returning when it settles.</li>
+        </ul>
+        <p style="margin-top:.6rem;">It proved the hybrid was possible on real passthrough — but its camera sampling was <b>screen-space</b>, and its filter vocabulary topped out at dim + blur. Both limits broke next →</p>
+      </div>
+      <div class="winDemo"><span class="lbl in">native passthrough<br>(untouched)</span><span class="lbl out">camera feed + shader filter</span></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Provenance:</b> FocusVignette.shader + FocusVignetteManager.cs, commits 5ace81b1 → d84db29a (2026-06-13 to 06-15); perceptual mode grounded in Hansen 2009, Krajancich SIGGRAPH 2023. Rewritten to the camera-sphere in commit 3325cd36 (2026-06-15).</div><div class="pageno">8</div></div>
+</section>
+
+<!-- ============ 9 · DOUBLE VISION ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The hardest bug</b> · one camera, two eyes</div>
+  <h1>Mono camera + stereo display = <span class="hlt">double vision</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li>The PCA feed comes from <b>one physical camera</b>. The display shows <b>two eyes</b>.</li>
+          <li>First attempt — sample the camera image in <b>screen space</b> — gave each eye a <b>different pixel</b> for the same world point: frank double vision, immediately sickening.</li>
+          <li><b>The fix — fuse by world direction, not screen position:</b> every fragment computes its direction from the head, then projects that direction through the camera's real pose + intrinsics (a pinhole model, evaluated per-pixel in the shader). Both eyes ask "what does the camera see <b>in this world direction</b>" — and get the same answer.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="codeblock"><span class="cm">// pinhole projection, per fragment (CameraSphereVignette.shader)</span>
+dz  = max(dot(dir, camFwd), 0.001)
+ndc = ( dot(dir, camRight), dot(dir, camUp) ) / dz
+uv  = ndc / tanHalfFov * 0.5 + 0.5   <span class="cm">// real intrinsics, not nominal FOV</span></div>
+        <p style="margin-top:.7rem;">Intrinsics (focal length, sensor resolution) are read live from the device — with a graceful fade where a direction leaves the camera's frustum, so the narrow feed degrades softly instead of smearing at its edge.</p>
+      </div>
+    </div>
+    <p><b style="color:var(--ink);">Lesson:</b> on a stereo display, eye-independence is a <b>correctness criterion</b>, not a nice-to-have.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Implementation:</b> CameraSphereVignetteManager.cs (pose + intrinsics feed); CamUV(), InFovWeight() in CameraSphereVignette.shader.</div><div class="pageno">9</div></div>
+</section>
+
+<!-- ============ 10 · WINDOW AS ABSENCE ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The insight</b> · the window is an absence</div>
+  <h1>Don't render the focus window. <span class="hlt">Render nothing there.</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li>The naive design re-renders the camera feed everywhere and "keeps the window sharp" — but then the window is mono, low-res, narrow, and laggy. The best part of the view would be the <b>worst</b> image.</li>
+          <li>Inverting it: inside the window the shader outputs <b>alpha = 0</b>. Nothing is drawn. The OS passthrough — full stereo, full ~110°, zero added latency — simply shows through the hole.</li>
+          <li>The manipulation lives <b>only in the periphery</b>, exactly where the filters need to act.</li>
+        </ul>
+        <p style="margin-top:.7rem;">One line of shader arithmetic solves the FOV problem and the fidelity problem at once:</p>
+        <div class="codeblock">t = smoothstep(0, softEdge, max(dAz, dEl))   <span class="cm">// 0 inside window → 1 in periphery</span>
+alpha = t × strength × maxAlpha              <span class="cm">// window = hole, periphery = effect</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem;justify-content:center;">
+        <div class="quote">You cannot degrade what you never drew.<span class="att">The window-as-absence principle</span></div>
+        <p>The window is defined in <b>world angles</b> (azimuth/elevation from the head), so it is a stable region of the world — not a spot glued to your face.</p>
+        <p>This is the one idea that survived every rewrite: it was born in Version 1's overlay (June 13) and carried through the camera-sphere migration two days later.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Implementation:</b> CameraSphereVignette.shader frag(): the focus rect in az/el radians; smoothstep soft edge per mode (2° for Hard Dark, up to 32° for ColorPop).</div><div class="pageno">10</div></div>
+</section>
+
+<!-- ============ 11 · HYBRID COMPOSITE / NOVELTY ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The novelty claim</b> · two renderings of one reality, fused</div>
+  <h1>The hybrid composite — <span class="hlt">no prior art found</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <p class="lead">The user sees <b>one seamless world</b>, assembled from two renderings of the same reality:</p>
+        <ul class="tight">
+          <li><b>Layer 1 (native):</b> the OS passthrough — untouchable, but perfect — visible through the window.</li>
+          <li><b>Layer 2 (ours):</b> a live shader re-render of the PCA camera feed — imperfect, but fully controllable — covering the periphery.</li>
+          <li>The seam between them is the smoothstep soft edge; alignment holds because both layers are indexed by the same world directions.</li>
+        </ul>
+      </div>
+      <div>
+        <ul class="tight">
+          <li>Prior-art search (2026-07-05): <b>26 scholarly + 4 code-search queries, 136 public forks of the PCA samples checked, 5 years of venue proceedings</b>.</li>
+          <li>Result: overlay-only systems exist; camera-re-render demos exist; <b>the fused composite — native quality through a window in a live filtered camera sphere — was not found, for any purpose.</b></li>
+          <li>Claimed carefully: "not found" ≠ "provably first", and the claim is scoped to consumer VST passthrough.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> prior-art search log (framing.md); the architecture this enables is on the next slide.</div><div class="pageno">11</div></div>
+</section>
+
+<!-- ============ 12 · ARCHITECTURE ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Architecture</b> · deliberately small</div>
+  <h1>One sphere. One shader. One manager.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card tech"><span class="tag">Geometry</span><h3>One inverted sphere</h3><p>A 10 m sphere pinned to the head each frame, rendered from the inside. Every fragment converts its world direction to (azimuth, elevation) — the coordinate system for everything: window, filters, probes, detections.</p></div>
+      <div class="card tech"><span class="tag">Rendering</span><h3>One shader, 11 modes</h3><p>All filters are branches of a single fragment shader sharing one mask <code>t</code>. In passthrough it composites as a transparent overlay; on the test bench it shades a 360° video sphere — same code, both worlds.</p></div>
+      <div class="card tech"><span class="tag">Control</span><h3>One manager per scene</h3><p>Feeds camera pose, intrinsics and mode uniforms; handles window painting (hold trigger, sweep, release to lock) and world-anchoring. The study harness drives it through one interface — experiment logic never touches rendering.</p></div>
+    </div>
+    <ul class="tight">
+      <li><b>World-locked by construction:</b> because the window is in world angles, it stays on the desk when you turn your head. For Hard Dark it goes further — the window's corners are raycast against real geometry (environment depth), pinning the window to the physical object even as you walk.</li>
+      <li>The same shader runs the real-passthrough scene (Block A) and the driving-video scene (Block B) — <b>one manipulation, two test environments.</b></li>
+    </ul>
+  </div>
+  <div class="foot"><div class="src"><b>Implementation:</b> CameraSphereVignette.shader; CameraSphereVignetteManager.cs (passthrough); VideoTestSceneManager.cs (video bench); Meta.XR.EnvironmentRaycastManager for world anchoring.</div><div class="pageno">12</div></div>
+</section>
+
+<!-- ============ 13 · MODE FAMILY ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The modes</b> · 10 designed, 3 evaluated</div>
+  <h1>A ladder of subtraction — from a veil to a blackout</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card"><span class="tag">Tier 2 · evaluated</span><h3>Soft Dark</h3><p>A 75%-opacity dark veil over the periphery. Events remain visible through it. The <b>minimal, unconfounded manipulation</b> — pure luminance attenuation, no camera needed, so it could run for hours.</p></div>
+      <div class="card"><span class="tag">Tier 2 · evaluated</span><h3>Hard Dark</h3><p>Full blackout (alpha 1.0) outside the window, with a near-binary 2° edge. The <b>strongest manipulation</b> — chosen for the confirmatory test (Block A). World-anchored to real geometry.</p></div>
+      <div class="card"><span class="tag">Tier 3 · evaluated</span><h3>ColorPop</h3><p>Doesn't darken — <b>re-grades salience</b>. Signal colours (red / orange / green) stay vivid; everything else drops to dim grey outside the window. Used in the driving block (Block B).</p></div>
+    </div>
+    <ul class="tight">
+      <li>7 further modes were designed and built (Blur, TintedDark, ChromaticCool, SpotLift, ConspicuitySqueeze, GranulatedPeriphery, OutlinedDark) — trimmed to 3 on-device after piloting, so every evaluated mode gets real statistical power. Nothing was deleted: all 11 remain in the shader.</li>
+      <li>Effects <b>form gradually</b> (~3 s smooth ramp) rather than snapping on — abrupt onsets are exactly what captures attention (Yantis &amp; Jonides 1984), and the system must not become its own distractor.</li>
+    </ul>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> IEEE 2021 (area darkening guides attention in 360° video; desaturation nearly ineffective — why dark modes are the workhorse); Yantis &amp; Jonides 1984 (onset capture).</div><div class="pageno">13</div></div>
+</section>
+
+<!-- ============ 14 · COLORPOP ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>ColorPop</b> · salience re-grading, not darkness</div>
+  <h1>Keep the colours that <span class="hl">mean something</span>. Mute the rest.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <p class="lead">A four-level salience hierarchy, applied per pixel:</p>
+        <ul class="tight">
+          <li><b>Inside window + signal colour</b> (red/orange/green): saturation ×1.7, brightness ×1.15, sigmoid contrast boost — pops.</li>
+          <li><b>Inside window, other colours:</b> untouched.</li>
+          <li><b>Outside + signal colour:</b> kept recognisable, but not boosted.</li>
+          <li><b>Outside, everything else:</b> desaturated toward dim grey (~15% periphery luminance).</li>
+        </ul>
+        <p style="margin-top:.6rem;">The contrast boost implements Sutton et al.'s published recipe verbatim (sigmoid, α=10, β=0.5, strength 0.6) — a peer-reviewed knob, not a hand-tuned one.</p>
+      </div>
+      <div>
+        <ul class="tight">
+          <li><b>Detector-free by design.</b> Hue + saturation gates decide what's a signal colour — no ML in the loop, so it cannot miss a traffic light the way a detector can, and it costs nothing thermally.</li>
+          <li><b>Glare compression:</b> headlight bloom is compressed toward a knee, with a "blown-core guard" so clipped lamp centres aren't dimmed to grey.</li>
+          <li><b>Night-robust:</b> noise and contrast restoration are clamped so hard light/dark boundaries don't marble.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Sutton et al., UIST 2022 ("Look over there!" — saliency modulation, the sigmoid recipe); Patney 2016 (contrast restoration); Tariq 2022 (perceptual noise).</div><div class="pageno">14</div></div>
+</section>
+
+<!-- ============ 15 · KNOWING WHAT TO KEEP ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Safety carve-outs</b> · subtraction must know what to keep</div>
+  <h1>People and signals <span class="hl">punch through</span> the filter</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li>Detected objects (traffic lights, stop signs, people) <b>carve their own window</b> in the effect: the filter is cleared over the object, a gentle highlight breathes at ~1 Hz, and a soft dark ring around it adds contrast.</li>
+          <li><b>Traffic lights and signs: always shown.</b> They are never filtered away, anywhere in the view.</li>
+          <li><b>People are gated by relevance:</b> shown when close (apparent size as a distance proxy) or near the window's edge ("about to enter"). The acceptance cone <b>widens as a person approaches</b> — geometrically, a constant corridor in metres — so the same pedestrian isn't dropped at their nearest point.</li>
+        </ul>
+      </div>
+      <div>
+        <ul class="tight">
+          <li>Detections come from a <b>pre-baked YOLO pass over the study video</b> (9,170 detections, 97% frame coverage) — an oracle, so the study measures the <i>manipulation</i>, not detector luck. Live YOLO exists for free play, debounced against single-frame ghosts.</li>
+          <li>Strength is <b>graded, never binary</b>: highlights taper smoothly with distance from the window, so nothing pops in and out at a hard boundary.</li>
+          <li>This is where DR earns the right to exist: the McLaughlin/Murphy awareness risk is addressed in the <i>design</i>, then measured in the <i>study</i> (H2b).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Waldner 2014 (low-frequency pulsing: attention at low annoyance); Veas 2011 (center-surround salience); McLaughlin 2025 / Murphy 2021 (awareness risk → H2b).</div><div class="pageno">15</div></div>
+</section>
+
+<!-- ============ 16 · COMFORT ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Comfort engineering</b> · the system must not become the distraction</div>
+  <h1>Three rules that keep the effect <span class="hl">wearable</span></h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card"><span class="tag">Rule 1</span><h3>Yield when the head moves</h3><p>Above a per-mode head-speed threshold (ColorPop 35°/s · Soft Dark 50°/s · Hard Dark 70°/s) the effect fades out, and fades back once you settle. An inversion of Norouzi 2018: instead of appearing on motion, the effect <b>gets out of the way</b> on motion. (Disabled during study conditions so the dose stays constant.)</p></div>
+      <div class="card"><span class="tag">Rule 2</span><h3>Form slowly, never snap</h3><p>Effects ramp in over ~3 s (smoothstep). Onset transients are the strongest attention magnets in the literature — the one thing a focus tool must never emit.</p></div>
+      <div class="card"><span class="tag">Rule 3</span><h3>Lock texture to the world</h3><p>Noise, grain and film effects are indexed by world direction, not screen position — the pattern sits still in the room instead of swimming on your eyes when you move.</p></div>
+    </div>
+    <p>Interaction follows the same philosophy: you <b>paint</b> the window (hold trigger, sweep, release) rather than aiming a cursor, and the window is world-locked — it belongs to the desk, not to your face.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Norouzi 2018 (motion-contingent overlays, inverted); Yantis &amp; Jonides 1984 (onset transients); world-locked "rest frame" reasoning for texture stability.</div><div class="pageno">16</div></div>
+</section>
+
+<!-- ============ 17 · FAILURE MUSEUM ============ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The failure museum</b> · dead ends, kept as findings</div>
+  <h1>Eight walls we hit — <span class="hlt">documented, not hidden</span></h1>
+  <div class="body">
+    <div class="cols c4">
+      <div class="card bad"><span class="tag">Rendering</span><p><b>Screen-space sampling</b> → frank double vision. Fix: world-direction fusion (slide 9).</p></div>
+      <div class="card bad"><span class="tag">Platform</span><p><b>Surface-projected passthrough deprecated at SDK v83</b> — mid-project. Fix: window-as-absence on stable primitives.</p></div>
+      <div class="card bad"><span class="tag">Android</span><p><b>Shader.Find() returns null on device</b> (Android strips unreferenced shaders). Fix: serialized material reference.</p></div>
+      <div class="card bad"><span class="tag">Detection</span><p><b>640×360 bake silently missed small traffic lights.</b> Fix: full-res tiled baking → 97% coverage.</p></div>
+      <div class="card bad"><span class="tag">Tooling</span><p><b>Building into a OneDrive folder</b> — sync locks corrupted Android builds. Fix: non-synced build dir.</p></div>
+      <div class="card bad"><span class="tag">Capture</span><p><b>Camera-service screenshots return black frames.</b> Fix: framebuffer capture / scrcpy.</p></div>
+      <div class="card bad"><span class="tag">Hardware</span><p><b>Controllers asleep at boot</b> — indistinguishable from a broken build. Fix: boot into the experiment scene + a liveness checklist.</p></div>
+      <div class="card bad"><span class="tag">Ops</span><p><b>adb-pushed ledger became read-only to the app</b> (owned by shell) → boot crash mid-pilot. Rule: never push files the app must write.</p></div>
+    </div>
+    <p>Each entry has a log, commit, or date behind it. Presented deliberately: on this platform, <b>the walls are part of the map</b> — and per the supervisor's guidance, known-but-unfixed issues are discussed, not hidden.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> commit history; HANDOFF.md incident log (boot incident 2026-07-21, root cause 2026-07-22).</div><div class="pageno">17</div></div>
+</section>
+
+<!-- ============ 18 · HYPOTHESES ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Evaluation</b> · from demo to evidence</div>
+  <h1>Hypotheses committed <span class="hl">before</span> the data — each one refutable</h1>
+  <div class="body">
+    <table>
+      <tr><th></th><th>Claim (plain words)</th><th>What would refute it</th></tr>
+      <tr><td><b>H1</b> <span class="pill amber">primary</span></td><td>With the blackout on, peripheral distractors hurt the focal task <b>less</b> — the vignette recovers at least <b>half</b> of the distraction cost.</td><td>The interaction is absent/reversed, or its 90% CI excludes that minimum effect.</td></tr>
+      <tr><td><b>H2a</b> <span class="pill grey">secondary</span></td><td>With ColorPop on, you react <b>faster</b> to events in the focus region, with no drop in hit rate there.</td><td>Central reaction time isn't reduced (95% CI includes zero or favours Off).</td></tr>
+      <tr><td><b>H2b</b> <span class="pill red">safety</span></td><td>Peripheral event detection is <b>equivalent</b> to no-filter, within 10 percentage points (TOST equivalence test).</td><td>Equivalence fails AND the drop exceeds 10 pp → the mode harms situational awareness. Conclusive either way.</td></tr>
+      <tr><td><b>H3</b> <span class="pill grey">secondary</span></td><td>Perceived workload (NASA-TLX) is lower with the vignette on, under distraction.</td><td>No TLX difference, or higher with the vignette.</td></tr>
+      <tr><td><b>MC1</b> <span class="pill cyan">gate</span></td><td>Manipulation check: with everything off, distractors do raise errors (replicating the N=66 effect). If not, the setup failed — no H1 claim is made.</td><td>—</td></tr>
+    </table>
+    <p>H1 is the single primary endpoint; H2a/H2b/H3 are Holm-corrected as a family. A pre-committed decision table covers every outcome — <b>no configuration of results yields "inconclusive."</b></p>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> testing-strategy-v2.md §2, §8.3; Lakens 2017 (TOST); SESOI rationale: "a vignette that removes less than half the distraction cost doesn't justify wearing a headset."</div><div class="pageno">18</div></div>
+</section>
+
+<!-- ============ 19 · WHY DRIVING SIM ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Design decision</b> · why a driving simulation</div>
+  <h1>Driving footage is the <span class="hl">stimulus</span> — not the claim</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <h2>Why simulated driving for Block B</h2>
+        <ul class="tight">
+          <li><b>Event density a real street never provides:</b> the study clip carries 9,170 baked detections — lights, signs, pedestrians — arriving on a schedule that is <b>identical for every participant</b>.</li>
+          <li><b>Controlled &amp; repeatable:</b> same events, same timing, same lighting for all 20 participants — the Cheng (CHI 2022) simulation tradition.</li>
+          <li><b>The right eccentricities:</b> probes sit exactly where the driving literature says awareness is safety-critical (peripheral detection band 11–23°, inside the ~30° useful field of view that shrinks under load).</li>
+        </ul>
+      </div>
+      <div>
+        <h2>And the honest boundary</h2>
+        <ul class="tight">
+          <li>Strict claim-scoping: the write-up <b>never claims "driving performance" or "road safety."</b> Driving footage is a rich, motivating stimulus context — nothing more.</li>
+          <li><b>Block A runs on real passthrough; Block B in simulation.</b> Together they bracket the feasibility spectrum: if they agree in direction, the simulation methodology gains credibility; if they diverge, the divergence is itself a finding.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Cheng et al. CHI 2022 (simulation-based DR evaluation); ISO 17488 / Jahn et al. 2005 (PDT band 11–23°); framing.md §2 (claim-scoping rules).</div><div class="pageno">19</div></div>
+</section>
+
+<!-- ============ 20 · STUDY DESIGN ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Study design</b> · one session, three blocks</div>
+  <h1>Within-subjects, N = 20, every comparison <span class="hl">paired</span></h1>
+  <div class="body">
+    <div class="cols c4">
+      <div class="card"><span class="tag">Sample</span><h3>N = 20 analysed</h3><p>24 recruited (4 spares). Within-subjects: every participant sees every condition — each person is their own control. Modal CHI sample is 12 (Caine 2016); power comes from pairing + many trials.</p></div>
+      <div class="card"><span class="tag">Power</span><h3>80% for dz ≈ 0.65</h3><p>On the primary paired difference-of-differences. The source distractor effect is large (&gt;2× at N=66), so this is a realistic target.</p></div>
+      <div class="card"><span class="tag">Session</span><h3>~53 minutes</h3><p>Fixed block order A → B → C. A must be freshest (primary); C absorbs fatigue — an acknowledged limitation, not an accident.</p></div>
+      <div class="card"><span class="tag">Balance</span><h3>Latin squares</h3><p>Block A: 4×4 Williams square. Block B: order alternated by parity. Block C: 3×3 square. All derived automatically from the participant ID — no experimenter arithmetic.</p></div>
+    </div>
+    <div class="cols c3">
+      <div class="card"><span class="tag">Block A · primary</span><h3>Workstation focus</h3><p>Real passthrough + Hard Dark. Does blacking out the periphery reduce the cost of real distractors? → H1, H3</p></div>
+      <div class="card"><span class="tag">Block B · secondary</span><h3>Driving probes</h3><p>Video sphere + ColorPop. Faster central detection without losing the periphery? → H2a, H2b</p></div>
+      <div class="card"><span class="tag">Block C · exploratory</span><h3>Mode sampler</h3><p>All three modes, 75 s each, free viewing + ratings. Soft Dark's only data. Skippable by pre-registered rule.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> testing-strategy-v2.md §3; Caine 2016 (CHI sample norms); Cheng 2022, McLaughlin 2025 (within-subjects precedent). Instruments: VRSQ pre+post, NASA-TLX ×6, SUS, ESQ.</div><div class="pageno">20</div></div>
+</section>
+
+<!-- ============ 21 · BLOCK A ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Block A</b> · the primary test, on real passthrough</div>
+  <h1>A focal task, two fake phones, and a <span class="hl">blackout</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <h2>The setup</h2>
+        <ul class="tight">
+          <li>Task surface directly ahead; two tablets at <b>±35° azimuth</b> — the near-periphery zone of maximal involuntary capture — playing clickbait-style distractor reels with scheduled salient bursts.</li>
+          <li><b>2×2 within:</b> {vignette Off / Hard Dark On} × {distractors absent / present}, ~3.5 min each, Latin-square ordered.</li>
+          <li>Focus window locked by the experimenter (window size is a controlled dose, not a participant choice — supervisor Point 4).</li>
+        </ul>
+        <h2 style="margin-top:.8rem;">The task: forced-choice 1-back</h2>
+        <ul class="tight">
+          <li>One shape at a time; every trial answer YES/NO: "same as the previous shape?" 105 trials at 2.0 s pace (3:30).</li>
+          <li>Chosen over a simple Go/No-go because reacting to shapes is bottom-up; the 1-back adds <b>working memory + goal maintenance</b> — the thing distraction actually disrupts (supervisor Point 6).</li>
+        </ul>
+      </div>
+      <div>
+        <h2>What is measured</h2>
+        <ul class="tight">
+          <li><b>Error rate</b> per condition; RT; timeouts.</li>
+          <li><b>Distractor cost</b> = errors(distractors) − errors(quiet), computed separately with vignette Off and On.</li>
+          <li><b>H1 statistic</b> = cost(Off) − cost(On). Positive = the vignette buys back errors.</li>
+          <li><b>Head turns toward the tablets</b> (&gt;30° yaw): count + dwell, logged at 60 Hz — an independent behavioural measure of looking away (supervisor Point 5b).</li>
+          <li><b>NASA-TLX</b> after each condition (→ H3), plus a "did you notice the reels?" open check.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Frontiers 2025 (±peripheral distractor paradigm, errors as the sensitive DV); Hart 2006 (raw TLX); supervisor feedback 2026-07-17 Points 4, 5, 6.</div><div class="pageno">21</div></div>
+</section>
+
+<!-- ============ 22 · BLOCK B ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Block B</b> · the driving block, in simulation</div>
+  <h1>Can you gain the centre <span class="hl">without losing the edges?</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <h2>The setup</h2>
+        <ul class="tight">
+          <li>Driving footage on the 360° sphere; focus window pre-set to the windscreen region — identical for everyone.</li>
+          <li><b>Two conditions:</b> raw video vs ColorPop on. Order alternated by participant parity (10/10).</li>
+          <li>The probe task follows the standardised <b>Detection Response Task lineage (ISO 17488)</b>: brief peripheral stimuli, press the trigger when you see one, hit window 100–2500 ms.</li>
+        </ul>
+        <h2 style="margin-top:.8rem;">The probes</h2>
+        <ul class="tight">
+          <li><b>24 per condition:</b> 12 central (&lt;10°, inside the window), 12 peripheral (25–40°, outside), ~300 ms onsets, 6–12 s apart.</li>
+          <li>Placed on <b>real objects from the baked detection track</b>, so a probe rides a real pedestrian or light, moving with it.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>What is measured</h2>
+        <ul class="tight">
+          <li><b>Central:</b> median RT + hit rate → H2a (should improve).</li>
+          <li><b>Peripheral:</b> hit rate → H2b (must stay within 10 pp — the safety margin: "losing more than one peripheral event in ten to the overlay is an unacceptable awareness cost").</li>
+          <li>False alarms; head yaw/pitch at 60 Hz (head pose as validated gaze proxy — Quest 3 has no eye tracker).</li>
+          <li>Analysis is banded by eccentricity (0–10°, 10–20°, 20–30°, …) — a <b>dose-response curve</b>, not one number (supervisor Point 2).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> ISO 17488:2016; Jahn et al. 2005; van Winsum 2018 (probe conspicuity); Higgins 2022 / Sitzmann 2018 (head pose ≈ gaze); Lakens 2017 (TOST margin).</div><div class="pageno">22</div></div>
+</section>
+
+<!-- ============ 23 · PROBE SAGA ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The hardest design problem</b> · what should a probe look like?</div>
+  <h1>A fair probe must be <span class="hl">filtered like the world it sits in</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <ul class="tight">
+          <li><b>The trap:</b> an opaque marker "pops out" through four separate pre-attentive cues (hard silhouette, flat fill, abrupt onset, background-independent contrast). It would be visible through any filter — measuring nothing (supervisor Point 1: ceiling risk).</li>
+          <li><b>The fix that matters:</b> the probe is composited <b>inside the shader, after the filter</b> — so a probe in a blacked-out periphery is blacked out too, exactly like a real object there (supervisor Point 3, delivered by construction).</li>
+          <li>Onset is <b>ramped</b>, size ~1.6°, contrast calibrated for an informative 60–85% no-filter hit rate — hard enough to miss, easy enough to measure.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Iterated like an experiment</h2>
+        <ul class="tight">
+          <li><b>Soft billboard:</b> rejected — a tint, not a modulation; fought the dark modes.</li>
+          <li><b>Refractive "bubble":</b> rejected — borrows scene contrast; Monte-Carlo showed variance could flip the measured sign.</li>
+          <li><b>Solid black ring:</b> elegant on paper (black survives dimming unchanged) — <b>failed in pilot</b>: camouflaged by clutter, and disqualifyingly <i>more</i> visible with the filter ON (the flat grey periphery removed its camouflage).</li>
+          <li><b>Final: black/white "rope" ring</b> — achromatic, contains both contrast polarities, the fiducial-marker principle. Near-opaque (alpha 0.88).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Backed by:</b> Bailey et al. 2009 (subtle gaze direction envelope); Wallis, Dorr &amp; Bex 2015 (local contrast limits detection; clutter masks probes); Franconeri &amp; Simons 2003 (gradual onsets don't capture); probe-target-design.md.</div><div class="pageno">23</div></div>
+</section>
+
+<!-- ============ 24 · PILOT: HOW ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Pilot · Day 1</b> · 2026-07-22, five naive participants</div>
+  <h1>The harness survived <span class="hl">contact with reality</span></h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card good"><span class="tag">It runs</span><h3>5 participants, one evening</h3><p>Full sessions end-to-end: window setup, Block A 1-back in the browser tool, Block B target passes on-device, ESQ after. Zero data loss; every trial logged to CSV with a shared participant ID across systems.</p></div>
+      <div class="card good"><span class="tag">Gates work</span><h3>Exclusion rules fired</h3><p>P1 was excluded by the pre-registered &gt;30% false-alarm rule — traced to an instruction failure, since fixed. The rules protect the data, and they were allowed to.</p></div>
+      <div class="card good"><span class="tag">Pilot's job</span><h3>It found the flaws</h3><p>A ceiling, a probe-visibility artifact, and a set-difficulty confound — found now, at pilot scale, instead of at N=20. That is exactly what pilots are for.</p></div>
+    </div>
+    <p class="lead">Everything on the next two slides is <b>pilot signal</b> — small N, iterating builds — shown for direction, not for inference. Pilot versions are never aggregated with the main study.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> analysis-2026-07-22.md; session CSVs (P1–P4, P33); supervisor directive 2026-07-23: responses from different test versions are not aggregated.</div><div class="pageno">24</div></div>
+</section>
+
+<!-- ============ 25 · PILOT SIGNAL ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Pilot · Day 1</b> · early signal, honestly labelled</div>
+  <h1>The direction is right — and the flaws were <span class="hl">fixable</span></h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <h2>Block A (focus task)</h2>
+        <ul class="tight">
+          <li>First version was <b>at ceiling</b> (92–100% accuracy) — the supervisor's predicted failure mode, observed. Direction still favoured the filter: filter rounds made <b>zero commission errors</b>.</li>
+          <li><b>Hardened v2</b> (105 trials, 2.0 s pace): ceiling broken (84.6–92.3%). First participant: <b>+7.7 pp accuracy, +16 pp go-accuracy, −133 ms median RT, timeouts halved</b> under the filter — with condition order working <i>against</i> it. (n = 1 — a direction, not a result.)</li>
+        </ul>
+        <h2 style="margin-top:.7rem;">Block B (driving probes)</h2>
+        <ul class="tight">
+          <li>Clearest gains exactly where the mechanism predicts — the near periphery: <b>10–20°: 44% → 60%; 20–30°: 33% → 67%</b> hit rate. Other bands within ~10 pp; RT equal or faster under the filter.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>And the honest part</h2>
+        <ul class="tight">
+          <li><b>A confound was caught:</b> in the clean group, every filter run used target set A and every baseline set B — so mid-band "gains" partly reflect set difficulty. Fix: fill the missing cells + model at target level with duration covariates.</li>
+          <li><b>Duration dominates:</b> targets visible ≤1.5 s were hit 18% of the time regardless of condition — unmeasurable. Pool re-screened at ≥2 s.</li>
+          <li><b>A probe artifact found:</b> the yellow ring lost contrast on ColorPop's warm boost — a visibility issue, not attention. Fixed by the rope probe.</li>
+          <li><b>De-facto decoys:</b> targets the system does nothing for were hit at the same rate on and off (50% vs 48%) — no differential suppression of the irrelevant.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> analysis-2026-07-22.md §3–6 (set confound §3; duration §4; decoys §5b; v2 ceiling-break §6c). All numbers are pilot-only.</div><div class="pageno">25</div></div>
+</section>
+
+<!-- ============ 26 · ESQ ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Pilot · Day 1</b> · what participants said</div>
+  <h1>"It helped me focus" — <span class="hl">19 of 20</span> agreements</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card good"><span class="tag">Focus benefit</span><div class="stat" style="font-size:2.6rem;">19/20</div><p>Near-unanimous perceived focus benefit across participants. The one dissent came from the strongest performer ("no real difference") — who still endorsed the other items.</p></div>
+      <div class="card good"><span class="tag">Comfort</span><div class="stat" style="font-size:2.6rem;">14/16</div><p>Boundary not distracting, no eye strain, effect faded from awareness. The comfort engineering (slide 16) appears to be doing its job.</p></div>
+      <div class="card"><span class="tag">Awareness</span><div class="stat" style="font-size:2.6rem;">9/20</div><p>All four participants said they "noticed side events later." Two readings: a cost — or the intended mechanism (peripheral onsets no longer capture attention immediately; deferred, not denied). Behaviour favours the mechanism for task-relevant events.</p></div>
+    </div>
+    <p class="lead">Key insight: <b>the perceived cost exceeds the measured cost.</b> People <i>feel</i> they lose more periphery than they measurably do — which makes trust in the periphery a design target, not just a statistic.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> esq-day1-analysis.md (P2, P3, P33, P4; sections A–C, binary agree/disagree). H2b is the behavioural version of this question.</div><div class="pageno">26</div></div>
+</section>
+
+<!-- ============ 27 · ROAD AHEAD ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>The road ahead</b> · commit, freeze, run</div>
+  <h1>One more iteration. Then <span class="hl">freeze</span>, run N = 20, and report — good or bad</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <h2>The freeze plan (agreed with supervisor)</h2>
+        <ul class="tight">
+          <li><b>One final iteration bundle:</b> rope probe, pool re-screened at ≥2 s, hardened Block A task, protocol fixes. Window and dose frozen: 6°×4° + 24° soft edge, periphery ~15% luminance.</li>
+          <li><b>Then the build is tagged and frozen.</b> Every formal participant runs one configuration — versions are never aggregated.</li>
+          <li>Analysis depth is committed: mixed models at target level, TOST for equivalence, distributions and CIs, paired per-participant plots.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Why every outcome is publishable</h2>
+        <ul class="tight">
+          <li>H1 holds + H2b holds → the system works as claimed.</li>
+          <li>H1 holds, H2b fails → it works, at a <b>quantified</b> awareness cost.</li>
+          <li>H1 refuted → a conclusive, bounded negative ("recovers at most X% of the cost").</li>
+          <li>Manipulation check fails → a finding about the paradigm itself.</li>
+        </ul>
+        <p style="margin-top:.6rem;">The decision table was written before the data. <b>No row says "inconclusive."</b></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Sources:</b> supervisor feedback 2026-07-23 (commit-or-iterate directive; "even a 'bad' result with decent analysis depth is a valuable outcome"); testing-strategy-v2.md §8.3 decision table.</div><div class="pageno">27</div></div>
+</section>
+
+<!-- ============ 28 · CONTRIBUTIONS / CLOSE ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>Close</b> · what this work contributes</div>
+  <h1>Software-defined <span class="hl">visual noise cancellation</span> — on hardware anyone can buy</h1>
+  <div class="body">
+    <div class="cols c4">
+      <div class="card tech"><span class="tag">C1</span><h3>The taxonomy</h3><p>Three tiers of passthrough access, mapped to what each can diminish — a design space for anyone building DR on consumer VST.</p></div>
+      <div class="card tech"><span class="tag">C2</span><h3>The technique</h3><p>The hybrid composite: native passthrough revealed through a window in a live filtered camera sphere. No prior art found.</p></div>
+      <div class="card tech"><span class="tag">C3</span><h3>The system</h3><p>A working multi-mode DR family (blackout → veil → salience re-grading) with safety carve-outs and comfort rules, running on-device.</p></div>
+      <div class="card"><span class="tag">C4</span><h3>The evidence</h3><p>A pre-registered, falsifiable, within-subjects study — piloted, hardened by contact with real participants, and designed so no outcome is inconclusive.</p></div>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:1.4rem;">
+      <div class="quote" style="text-align:center;max-width:40ch;">"What do you see?"<br>— "Only the eye."<span class="att">Where the field adds arrows, this work quiets everything else — so what matters is simply what remains.</span></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Shreyansh Soni · MSc Dissertation · Trinity College Dublin · Supervisor: Dr. John Dingliana · August 2026</div><div class="pageno">28</div></div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var bar = document.getElementById('bar');
+  var i = 0;
+  function show(n){
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].classList.remove('active');
+    i = n;
+    slides[i].classList.add('active');
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    if (history.replaceState) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { show(i + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(i - 1); e.preventDefault(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+  document.addEventListener('click', function(e){
+    if (e.clientX > window.innerWidth * 0.66) show(i + 1);
+    else if (e.clientX < window.innerWidth * 0.15) show(i - 1);
+  });
+  var h = parseInt((location.hash || '').slice(1), 10);
+  if (h >= 1 && h <= slides.length) show(h - 1); else show(0);
+})();
+</script>

@@ -1,0 +1,2 @@
+t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
+1784745922310,4,Filter,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,1.487

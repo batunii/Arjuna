@@ -282,6 +282,9 @@ Shader "Meta/PCA/CameraSphereVignette"
                                       // ("rope") replace the solid colour — see style 3 notes
             float  _BlobRingOutline;  // (style 3) strength of the dark border flanking the ring
                                       // (traffic-warning-sign pairing) — contrast on bright backgrounds
+            float  _BlobRingBehindFilter; // (style 3) 1 = ring attenuated by the filter's local
+                                          // transform (supervisor Point 3); 0 = drawn on top at
+                                          // full colour (always-visible attention marker)
             float4 _BlobFlashColor;
 
             v2f vert(appdata v)
@@ -469,17 +472,21 @@ Shader "Meta/PCA/CameraSphereVignette"
                     // frame). The ring's colour content-dependence is handled at the design level by
                     // counterbalancing + screening, not per-pixel.
                     //
-                    // The ring RESPECTS THE FILTER (supervisor Point 3): its colour is pushed
-                    // through the same desat+dim the SignPop grading applies to the scene at this
-                    // pixel, gated by the window falloff x effect strength. Filter off / inside
-                    // the window => full ring colour; deep periphery => it fades like a real
-                    // object would. (A plain black ring — filter-invariant by construction — was
-                    // tried on 2026-07-22 and floored the NO-FILTER baseline: 48% hit, 3.55 s
-                    // median RT vs ~60-70%, ~1.8 s with yellow. Chroma is what wins peripheral
-                    // onsets; approximating the filter transform beats deleting the colour.)
+                    // _BlobRingBehindFilter = 1: the ring RESPECTS THE FILTER (supervisor
+                    // Point 3) — its colour is pushed through the same desat+dim the SignPop
+                    // grading applies to the scene at this pixel, gated by the window falloff x
+                    // effect strength. Filter off / inside the window => full ring colour; deep
+                    // periphery => it fades like a real object would.
+                    // _BlobRingBehindFilter = 0: tW is zeroed, so the ring draws ON TOP at full
+                    // colour everywhere — an always-visible attention marker, measuring where
+                    // attention goes independent of what the filter hides.
+                    // (A plain black ring — filter-invariant by construction — was tried on
+                    // 2026-07-22 and floored the NO-FILTER baseline: 48% hit, 3.55 s median RT
+                    // vs ~60-70%, ~1.8 s with yellow. Chroma is what wins peripheral onsets.)
                     float dAzW = max(_FocusRect.x - az, az - _FocusRect.y);
                     float dElW = max(_FocusRect.z - el, el - _FocusRect.w);
-                    float tW   = smoothstep(0.0, _SoftEdge, max(dAzW, dElW)) * _VignetteStrength;
+                    float tW   = smoothstep(0.0, _SoftEdge, max(dAzW, dElW)) * _VignetteStrength
+                               * _BlobRingBehindFilter;
                     float3 ringBase = _BlobRingColor.rgb;
                     if (_BlobRingSegments > 0.5)
                     {

@@ -1,76 +1,82 @@
 # Block A Pilot Tools
 
-Standalone, self-contained web pages for piloting Block A's workstation task without the
-headset or a Unity build. Same idea as `TabletApp/distractor-reel.html`: no install, no
-build step, runs identically in any browser (desktop, phone, or tablet). Two tools here,
-for two different task designs:
+Standalone, self-contained web pages for Block A's workstation task — no headset, no Unity
+build. Same idea as `TabletApp/distractor-reel.html`: no install, no build step, runs
+identically in any browser (desktop, phone, or tablet).
+
+**The Block A study task (decided 2026-07-22) is `block-a-cpt.html`: forced-choice 1-back
+with real-footage video clips as the side-margin distractors.** The tool used to also offer
+a Go/No-Go CPT mode (the original spec), a respond-with selector (CPT-only), and a
+procedural-reel distractor option — all removed the same day so the tool runs exactly one
+configuration: the study task. The filename keeps the historical `cpt` name so existing
+references (HANDOFF, the Unity Block A HUD, git history) stay valid.
 
 | File | Task design | Status |
 |---|---|---|
-| `block-a-cpt.html` | Sequential Go/No-Go CPT: one shape at a time, respond to circles, withhold on squares. | **Matches the current dissertation spec** (`testing-strategy-v2.md` §4.1) and the real `Study/CPTPanel.cs`. |
-| `block-a-multitarget.html` | Multi-target visual search: 3-5 shapes on screen at once, click the circle among square decoys, all shapes respawn on any click, runs for a fixed 3.5 min session. | **Exploratory only** — not in the current spec, no Unity implementation exists. Built to pilot-test the idea before deciding whether to adopt it. |
-
-If you're not sure which one reflects what's actually planned for the study right now:
-it's `block-a-cpt.html` — that's the one the dissertation doc and the real Unity code
-both describe. `block-a-multitarget.html` is a "what if we did it this other way instead"
-exploration; nothing else in the codebase depends on it or expects it.
+| `block-a-cpt.html` | Forced-choice 1-back: one shape at a time, answer YES/NO on every shape — same as the previous one? Video-clip distractors in the side margins. | **The Block A study task.** (`testing-strategy-v2.md` §4.1 still describes the old Go/No-Go CPT and needs updating.) |
+| `block-a-multitarget.html` | Multi-target visual search: 3-5 shapes on screen at once, click the circle among square decoys, all shapes respawn on any click, runs for a fixed 3.5 min session. | **Exploratory only** — not in the spec, no Unity implementation exists. Built to pilot-test the idea before deciding whether to adopt it. |
 
 ## Running `block-a-cpt.html`
 
-Open it in any browser. No server needed.
+Open it in any browser (serve via a local static server if `file://` iframes are blocked —
+see the bottom of this doc). No other setup.
 
 1. Enter a participant ID and pick **Practice** (40 trials) or a condition slot **A1-A4**
-   (140 trials each, matching `k_practiceTrials`/`k_cptTrials` in `ConditionSequencer.cs`).
-2. Circle = go (respond), square = no-go (withhold). Respond with Space, click, or either
-   (your choice in the setup screen).
-3. After the run: on-screen stats (go-accuracy, false-alarm rate, mean/median hit RT,
-   d-prime, and — for Practice — the ≥ 90% criterion pass/fail), plus a **Save CSV** button.
+   (**v3, 2026-07-23: 140 trials at 1.8 s SOA** = 4:12. History: v1 = 84 × 2.5 s, v2 =
+   105 × 2.0 s — v2 was the ceiling fix after all Day-1 naive runs scored 96–100%; v3
+   restores the original spec's 140-trial count (42 repeats → tighter d′, ~46-trial
+   thirds for the time-course stats) and trims the SOA to 1.8 s — the 1.5 s answer
+   window still spans 1.9–2.6× the Day-1 naive median RTs (567–776 ms), and stays above
+   validated fast every-trial-response tasks (SART's 1.15 s SOA, Robertson et al. 1997).
+   **v1/v2/v3 runs must never be aggregated** (supervisor directive 2026-07-23); the
+   run-start payload's `trials`/`soa_s` fields distinguish them).
+2. Every shape asks "same as the previous one?" — YES (`Y` / `←` / `1` or the left button),
+   NO (`N` / `→` / `2` or the right button). The first shape is memorize-only.
+3. After the run: on-screen stats (repeat-hit rate, false alarms, no-responses, overall
+   accuracy, mean/median hit RT, d-prime, and — for Practice — the ≥ 90% criterion
+   pass/fail), plus **time-course rows** (2026-07-23): accuracy / median correct RT /
+   RT-consistency (CV) split into run thirds, and an RT-drift slope in ms per minute —
+   the at-a-glance "were they slowing down / getting erratic late in the run" view.
+   A **Save CSV** button re-exports the log. For the cross-run FILTER-vs-NOFILTER
+   comparison of the same metrics, run
+   `python Tools/analysis/blocka_timecourse.py` (defaults to
+   `Dissertation/authored/raw/blocka/`; groups by version, never pools them).
 
-## What matches CPTPanel.cs exactly
+## What matches the Unity study config
 
-- SOA 1.5 s, stimulus visible 700 ms, response window = full SOA from onset.
-- 80% go / 20% no-go.
-- Trial sequence constraints: no two consecutive no-gos, go-runs capped at 8 (with the
-  same retry-then-even-spacing-fallback structure as `CPTPanel.BuildSequence`).
-- Trial/run counts: 40 practice (seed 999), 140 main (seed = `pid*10 + slot`, slot 0-3 for
-  A1-A4) — the same seed formula `ConditionSequencer.cs` uses.
+- Seed formula: practice seed 999, main seed = `pid*10 + slot` (slot 0-3 for A1-A4) — the
+  same formula `ConditionSequencer.cs` uses. (Main trial count is 84 here vs
+  `ConditionSequencer.cs`'s `k_cptTrials` = 140 — that constant belongs to the old CPT's
+  1.5 s SOA and is not used by this task.)
 - Outcome categories and event names (`CPT_ONSET`, `CPT_RESULT` with `hit`/`miss`/
   `commission`/`correct_reject`, `CPT_RUN_START`/`END`, `PRACTICE_START`/`END`) match
   `StudyLogger`'s payload conventions.
 - Exported CSV uses the exact same header as `StudyLogger.cs`
   (`t_ms,pid,block,condition,yaw_deg,pitch_deg,roll_deg,head_speed_dps,dr_intensity,mode,event,payload`).
-  Head-pose columns are blank (no VR headset here); `mode` is stamped `CPT_PILOT` so this
-  can never be mistaken for a real study session if it ever ends up near real data.
+  Head-pose columns are blank (no VR headset here); `mode` is stamped `NBACK1_PILOT` so this
+  can never be mistaken for a Unity-logged session if it ever ends up near that data.
 
-## Found while building this: CPTPanel.cs likely always falls back for main runs
+## Historical: CPTPanel.cs likely always falls back for main runs
 
-`CPTPanel.BuildSequence` retries up to 2000 times to find a sequence satisfying BOTH
-"no two consecutive no-gos" AND "go-runs ≤ 8" before giving up and using a fixed,
-seed-independent evenly-spaced fallback. I measured this empirically (same constraints,
-independent of PRNG family — see below): for 140 trials / 28 no-go (the main-run size),
-satisfying both constraints together takes on the order of **~75,000 random attempts on
-average** (highly variable — sampled range was ~700 to ~275,000 across 20 seeds). 2000
-attempts finds a real match only **roughly 2-3% of the time**.
+(The Go/No-Go CPT mode was removed from this tool 2026-07-22, but `Study/CPTPanel.cs`
+still exists in Unity, so this finding stays recorded.) `CPTPanel.BuildSequence` retries
+up to 2000 times to find a sequence satisfying BOTH "no two consecutive no-gos" AND
+"go-runs ≤ 8" before giving up and using a fixed, seed-independent evenly-spaced fallback.
+Measured empirically: for 140 trials / 28 no-go (the main-run size), satisfying both
+constraints together takes on the order of **~75,000 random attempts on average** (highly
+variable — sampled range was ~700 to ~275,000 across 20 seeds). 2000 attempts finds a real
+match only **roughly 2-3% of the time** — so as shipped it most likely falls back to its
+fixed pattern for nearly every 140-trial run, silently defeating the intended per-session
+randomization. If `CPTPanel.cs` is ever used, raise the cap (`attempt < 2000` → e.g.
+`attempt < 1_000_000`; ~100ms, runs once per `BeginRun`).
 
-That means the real Unity task, as shipped, most likely falls back to its fixed pattern
-for **nearly every real 140-trial main run** — every participant/condition would get the
-*identical* trial order regardless of seed, silently defeating the intended per-session
-randomization. The 40-trial practice run is fine (its equivalent constraint succeeds
-~18% of the time per attempt, trivially satisfied within 2000 tries).
+## The 1-back task (added 2026-07-20; adopted as the study task 2026-07-22)
 
-This pilot tool uses a 1,000,000-attempt cap instead (still only ~100ms, 0 fallbacks in
-30 test seeds) so it actually generates varied sequences. **Recommend raising the same
-cap in `CPTPanel.cs`** (`attempt < 2000` → e.g. `attempt < 1_000_000`) — it's a one-line,
-zero-risk change; this runs once per `BeginRun` call, nowhere near a per-frame budget.
-
-## 1-back mode in `block-a-cpt.html` (added 2026-07-20, exploratory)
-
-The setup screen has a **Task** selector: `Go/No-Go CPT` (default — the study spec, everything
-above applies) or `1-back` — answer **YES ("same as the previous shape") or NO ("different")
-on every shape**, via on-screen buttons or the Y/N keys. Built after supervisor feedback
-(2026-07-17, point 6) that the CPT is bottom-up/reactive; the 1-back adds a
-working-memory/goal-maintenance component while keeping the trial engine unchanged (same
-SOA/stimulus timing, trial counts, seed formula, CSV schema, stats). Details:
+Answer **YES ("same as the previous shape") or NO ("different") on every shape**, via
+on-screen buttons or the Y/N keys. Built after supervisor feedback (2026-07-17, point 6)
+that the Go/No-Go CPT is bottom-up/reactive; the 1-back adds a working-memory/
+goal-maintenance component while keeping the trial engine (trial counts, seed formula,
+CSV schema, stats). Details:
 
 - **Forced choice, not go/no-go** (changed same day after first hands-on feel: watch-and-mostly-
   do-nothing felt wrong): an answer is expected on every scored trial. Outcomes: `hit` (YES on
@@ -88,57 +94,72 @@ SOA/stimulus timing, trial counts, seed formula, CSV schema, stats). Details:
   runs only is a small conditional.
 - **1-back timing differs from the CPT** (fixed 2026-07-20 after hands-on feel — with the CPT's
   1.5s SOA and full-SOA response window, a late answer landed on the *next* shape and was scored
-  against a stimulus the participant hadn't processed): SOA 2.5s — started at 2.0s, raised to
-  the literature-standard 2.5s the same day ("still a little hard") — so 140 trials ≈ 5:50 per
-  run vs the CPT's 3:30. Answers accepted 0.25–2.2s after onset. The shape stays visible for
-  the whole 2.2s window (hiding it at the CPT's 700ms while the timer kept running read as a
+  against a stimulus the participant hadn't processed): SOA 1.8s, answer window 1.5s (v3,
+  2026-07-23 — timing history: 2.0 → 2.5 ("still a little hard", 2026-07-20) → back to 2.0
+  as the v2 ceiling fix once Day-1 naive medians came in at 567–776ms → 1.8 in v3, keeping
+  the same ≥~2×-median-RT headroom rule: the 1.5s window spans 1.9–2.6× those medians, and
+  the pace stays above SART's validated 1.15s SOA for every-trial-response attention tasks
+  (Robertson et al. 1997; Conners' CPT blocks run down to a 1s ISI)). Main runs are 140
+  trials = 4:12. Answers accepted 0.25–1.5s after onset. The shape stays visible for
+  the whole 1.5s window (hiding it at the CPT's 700ms while the timer kept running read as a
   glitch); the last 300ms of each trial is a closed-window gap so late answers can't spill onto
   the next shape. Clicks before 0.25s are ignored as spillover from the previous trial.
 - 4 shapes (circle, square, triangle, diamond), ~30% repeat rate (12 targets / 40 practice,
-  42 / 140 main). Trial 1 is never a target; no two consecutive targets (no triple-repeats);
+  42 / 140 main in v3 — more go trials per run than v1's 25/84 or v2's 32/105, so per-run
+  hit rates get LESS noisy while the pace pressure rises; d′'s sampling variance scales with
+  the inverse of the signal/noise trial counts (Macmillan & Creelman 2005), which is the
+  quantitative case for 140 over 105; pilot should confirm the stats now discriminate). Trial 1 is never a target; no two consecutive targets (no triple-repeats);
   max 8 trials between targets. Non-adjacency is guaranteed by gap-sampling construction, so
   unlike the CPT builder this doesn't depend on a huge rejection-sampling attempt cap.
-- CSV `mode` column is stamped `NBACK1_PILOT` (vs `CPT_PILOT`), the run-start payload carries
-  `task=nback1` (vs `task=cpt`), onset payloads add `;shape=...`, and the exported filename says
-  `nback1` — exports from the two tasks can't be confused.
+- CSV `mode` column is stamped `NBACK1_PILOT` (kept from when the tool had two tasks, so
+  existing analysis keyed on it keeps working), the run-start payload carries `task=nback1`,
+  onset payloads add `;shape=...`, and the exported filename says `nback1`.
 - **The screen narrates itself** (2026-07-20, after "even knowing the rules I can't tell what
   to do"): a large status line above the panel always states the current ask or state —
   "MEMORIZE this first shape", "Same as the previous shape?", "Answer recorded", "⏱ Too slow" —
   a time bar under the panel drains over the answer window, and a neutral running tally
-  (answered / too slow) sits under the trial counter. All of this is 1-back-only; the CPT
-  screen is unchanged.
+  (answered / too slow) sits under the trial counter.
 - **Controls:** YES = `Y` / `←` / `1` or the left button; NO = `N` / `→` / `2` or the right
-  button. `Esc` ends the run at any time (both tasks — the on-screen button says "End run
-  (Esc)"); an ended run still shows its stats and offers the CSV, flagged `CPT_RUN_ABORTED`
-  in the log.
+  button. `Esc` ends the run at any time (the on-screen button says "End run (Esc)"); an
+  ended run still shows its stats and offers the CSV, flagged `CPT_RUN_ABORTED` in the log.
 - Results add `No response (timed out)` and `Overall accuracy` rows — overall accuracy is the
   number to watch against the ~75–90% no-distractor band.
-- The practice criterion is still the CPT's ≥ 90% — provisional for 1-back; if this mode
-  graduates, the pilot should set its own band (target ~75–90% no-distractor accuracy).
-- **No Unity implementation exists.** Same status as `block-a-multitarget.html`: adopting this
-  for the real study means updating `testing-strategy-v2.md`, `CPTPanel.cs`, and re-checking the
-  stats plan (the DV stays signal-detection, so `h1_lmm.py` needs less rework than multitarget
-  would).
+- The practice criterion is still the old CPT's ≥ 90% (on repeat-hit rate) — provisional;
+  piloting should confirm or set its own band (target ~75–90% no-distractor accuracy).
+- **No Unity implementation exists — and none is needed:** Block A's task runs in the browser
+  at the workstation (the Unity Block A HUD surfaces the pid AND the arm's filter state to
+  type into this tool). Adopting the 1-back as the study task still means updating
+  `testing-strategy-v2.md` (§4.1 describes the old Go/No-Go CPT) and re-checking the stats
+  plan (the DV stays signal-detection, so `h1_lmm.py` needs little rework).
+- **Mode tie-in (2026-07-23):** setup requires a **headset filter state** selection for main
+  runs (copy it from the Unity HUD, which shows it at block start). It is stamped into the
+  CSV's `dr_intensity` column (`1` = filter on, `0` = off, empty = not recorded), the
+  run-start payload (`;filter=FILTER|NOFILTER`), the results table, and the filename
+  (`blockA_nback1_P4_A3_FILTER_<stamp>.csv`) — each run is self-describing like the Block B
+  CSVs; the ledger time-window cross-check remains the independent verification.
+- **Autosave + recovery (2026-07-23):** every trial rewrites the full CSV into
+  `localStorage` (`blockA_savedRuns_v1`, last 24 runs), the CSV **auto-downloads at run
+  end** (the Save button is a re-export), and the setup screen lists all saved runs with
+  Download/Delete — a crash or missed export costs at most the in-flight trial. Re-exports
+  keep the run's original filename (stamp fixed at run start), so duplicate files are
+  byte-identical, never mistaken for extra runs.
+- **Window-setup stage (2026-07-23):** Start no longer launches trials. The task screen
+  first shows the 540×540 panel as a dashed-outline dummy ("set your focus window around
+  this frame") so the participant paints the headset window against the real task geometry;
+  trials begin on the Begin button / Enter. `CPT_PANEL_PLACED` is logged at Begin, so
+  window-painting time never contaminates trial timing.
 
-## What does NOT match (read before drawing conclusions from pilot data)
+## Caveats (read before drawing conclusions from the data)
 
-- **PRNG family differs.** The trial sequence uses a JS `mulberry32` seeded PRNG, not
-  .NET's `System.Random`. Same seed will NOT reproduce the exact bit-for-bit trial order
-  a real Unity session would generate for that seed — the generation *algorithm* and
-  *constraints* are replicated exactly, but not the literal sequence. Use this for piloting
-  task feel, timing, and the stats/export pipeline — not for regenerating a specific real
-  participant's exact stimulus order outside Unity.
-- **No visual-angle sizing.** `CPTPanel.cs` sizes the shape by visual angle at a fixed
-  placement distance in the headset; this tool uses a fixed on-screen pixel size. Shape
-  size/eccentricity on a flat monitor is not equivalent to the VR condition.
-- **Response device differs.** The real task responds to a right-controller trigger pull;
-  this tool uses spacebar/mouse click. Motor response time distributions will differ from
-  the VR task — don't compare absolute RTs between this tool and real sessions, only
-  relative patterns (e.g. did accuracy/RT trend sensibly across your own pilot runs).
-- **This is not the full Block A protocol.** It's only the workstation CPT task (Option V's
-  cognitive component) — no vignette conditions, no tablet distractors (use
-  `TabletApp/distractor-reel.html` for those, loaded separately on a phone/tablet), no
-  Latin-square sequencing across the 4 A-conditions, no TLX prompts.
+- **PRNG note.** The trial sequence uses a JS `mulberry32` seeded PRNG, not .NET's
+  `System.Random` — irrelevant now that the task has no Unity counterpart, but recorded in
+  case one is ever written: the same seed would not reproduce this tool's literal sequence.
+- **Fixed pixel sizing.** The shape is a fixed on-screen pixel size; achieved visual angle
+  depends on monitor size and viewing distance.
+- **This is only the task, not the full Block A protocol.** The vignette conditions come from
+  the headset (configured by the Unity Block A launcher); this page contributes the central
+  task plus the embedded side-margin video-clip distractors. The embedded margins are NOT a
+  controlled ±35° placement — see the eccentricity caveat below.
 
 ## `block-a-multitarget.html` — the exploratory multi-target design
 
@@ -165,7 +186,7 @@ currently expects a signal-detection DV) and `Tools/validate_session.py`'s trial
 check. None of that has happened — this tool exists purely to let the task be *tried* before
 committing to any of it.
 
-Same CSV schema as `block-a-cpt.html`, stamped `mode=MULTITARGET_PILOT` (vs. `CPT_PILOT`)
+Same CSV schema as `block-a-cpt.html`, stamped `mode=MULTITARGET_PILOT` (vs. `NBACK1_PILOT`)
 so the two are never confused if their exports end up side by side. Same PRNG/visual-angle/
 response-device caveats above apply here too — plus there's no Unity implementation at all
 to compare against, so "matches the real task" doesn't apply; there is no real task yet.
@@ -180,33 +201,38 @@ you click Start — hides the browser chrome so the task fills the screen. Press
 
 In fullscreen, the task itself occupies a fixed-ish central column (`#centerCol`,
 same `.screen` max-width as before) — on any screen bigger than that, there's real unused
-space either side. `block-a-cpt.html` embeds the **actual** `TabletApp/distractor-reel.html`
-(not a fake simplified stand-in — this project has a "no improvised stimuli" principle,
-§10.1, and it's easy to just reuse the real, tested, schedule-driven asset instead of
-inventing something new) in `<iframe>`s filling those margins. Each side is independently
-controlled — tap **Distractors-present** + **START** inside it — mirroring how the real
-protocol's tablets are manually started by the experimenter anyway, just both sides live
-in one browser window instead of two physical tablets. (`block-a-multitarget.html` does
-**not** currently have this margin wiring, despite an earlier version of this doc implying
-both tools did — only `block-a-cpt.html` embeds it as of 2026-07-16.)
+space either side. `block-a-cpt.html` fills those margins with `<iframe>`s playing the
+study's video-clip distractors (`block-a-multitarget.html` does **not** have this margin
+wiring).
 
-### Video clips as an alternative to the procedural reel (added 2026-07-16)
+### Video clips ARE the distractor content (selector removed 2026-07-22)
 
-`block-a-cpt.html`'s setup screen has a **Distractor content** selector: `Video clips`
-(default) or `Procedural reel`. Switching it swaps both side-margin iframes' `src` between:
+Each side-margin iframe loads
+`video-reel.html?src=../Assets/_Scratch/tiktok_5min_{1,2}.mp4&embedded=1` — a real
+pre-rendered fast-cut clip with animated captions, generated by
+`Tools/tiktok_captions.py` from footage in `RawFootage/`. See
+[Distractor Content Pipeline](<../.agent-docs/systems/distractor-content-pipeline.md>) for
+how those clips are built.
 
-- `../TabletApp/distractor-reel.html?embedded=1` (the real, deterministic study asset), or
-- `video-reel.html?src=../Assets/_Scratch/tiktok_5min_{1,2}.mp4&embedded=1` — a real
-  pre-rendered fast-cut clip with animated captions, generated by
-  `Tools/tiktok_captions.py` from footage in `RawFootage/`. See
-  [Distractor Content Pipeline](<../.agent-docs/systems/distractor-content-pipeline.md>) for
-  how those clips are built.
+**Two reel pairs + a set selector (2026-07-23):** five Bollywood music-video clips were
+added alongside the original four sources (with their cuts held ~2× longer via the
+generator's new `--long-sources` flag — those reels run ~8 min before looping), and the
+setup screen gained a **Distractor videos** selector: *New videos* (`tiktok_5min_1/2.mp4`,
+the 9-source pool) vs *Original videos* (`tiktok_5min_3/4.mp4`, rebuilt from the original
+4 sources only). The side screens stay **dark until the run starts** and go dark again
+when it ends (the empty phone frames remain, so no layout jump); the choice is stamped
+into the run-start payload (`distractors=NEW|ORIGINAL`), so every run records what it played.
+This is NOT the removed 2026-07-22 content-type selector coming back — both options here
+are the study's video-clip distractors, it only picks which reel pair. The side frames
+were also bumped a size class (500px/73vh caps, was 440px/66vh) the same day. `video-reel.html` is a minimal sibling to
+`TabletApp/distractor-reel.html` — same wake-lock/fullscreen/`?embedded=1` conventions,
+just a muted looping `<video>` instead of the procedural canvas.
 
-`video-reel.html` is a minimal sibling to `distractor-reel.html` — same wake-lock/fullscreen/
-`?embedded=1` conventions, just a muted looping `<video>` instead of the procedural canvas.
-This is purely exploratory (trying how real high-motion video *feels* as peripheral
-distraction, side by side with the procedural option) — it doesn't change what the real
-study tablets show.
+The setup screen used to offer a **Distractor content** selector (video clips vs the
+procedural `TabletApp/distractor-reel.html`, added 2026-07-16 as an exploratory
+comparison); with the 2026-07-22 decision the clips are the study's distractor content and
+the selector is gone. The procedural reel still exists untouched in `TabletApp/` for
+standalone tablet use.
 
 ### Layout fix: phones no longer vanish on laptop-width windows (2026-07-20)
 

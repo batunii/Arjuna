@@ -1366,10 +1366,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_video: {fileID: 949970469}
   m_poolFileName: pool_split.csv
-  m_participantId: 1003
+  m_participantId: 66
   m_sessionMode: 0
   m_environment: 0
-  m_targetSet: 0
+  m_targetSet: 2
   m_filter: 0
   m_baselineScreening: 0
   m_filterMode: 10
@@ -1378,10 +1378,11 @@ MonoBehaviour:
   m_windowHalfWidthDeg: 6
   m_windowHalfHeightDeg: 4
   m_probeSizeDeg: 1.6
-  m_ringColor: {r: 1, g: 0.9767212, b: 0.6094339, a: 0.88235295}
-  m_ringWidth: 0.05
+  m_ringColor: {r: 1, g: 0.85, b: 0.1, a: 0.5882353}
+  m_ringWidth: 0.06
   m_ringSegments: 4
   m_ringOutline: 0
+  m_ringBehindFilter: 1
   m_onsetRampSeconds: 0.5
   m_hitFlashColor: {r: 0.3, g: 1, b: 0.4, a: 0.9}
   m_hitFlashSeconds: 0.25

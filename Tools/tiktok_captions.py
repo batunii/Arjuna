@@ -203,8 +203,12 @@ def fit_word_durations(natural_durs: list[float], budget: float) -> tuple[list[f
     return final, max(0.0, budget - sum(final)), False
 
 
-def build_sentence_timeline(text: str, explicit_duration, pace: float):
-    """Returns (words, word_durs, hold, total_duration, overflowed)."""
+def build_sentence_timeline(text: str, explicit_duration, pace: float, long_mult: float = 1.0):
+    """Returns (words, word_durs, hold, total_duration, overflowed).
+
+    long_mult > 1 stretches the CUT, not the caption: word-reveal pacing is
+    unchanged, the fully-built card just holds longer before floating away,
+    so the background clip stays on screen ~long_mult x its normal time."""
     words = text.split()
     natural_durs = [word_duration(w, pace) for w in words]
     overhead = LEAD_IN_SEC + FLOAT_SEC
@@ -217,11 +221,17 @@ def build_sentence_timeline(text: str, explicit_duration, pace: float):
         final_durs, hold, overflowed = natural_durs, HOLD_SEC * pace, False
         total = overhead + sum(final_durs) + hold
 
+    if long_mult > 1.0:
+        extra = (long_mult - 1.0) * total
+        hold += extra
+        total += extra
+
     return words, final_durs, hold, total, overflowed
 
 
 def render_sentence_captions(text: str, explicit_duration, video_w: int, video_h: int,
-                              pace: float, work_dir: Path, idx: int) -> tuple[Path, float]:
+                              pace: float, work_dir: Path, idx: int,
+                              long_mult: float = 1.0) -> tuple[Path, float]:
     base_color, hilite_color = COLOR_PALETTES[idx % len(COLOR_PALETTES)]
     scale = video_w / REF_W
     base_font_size = max(10, round(BASE_FONT_SIZE * scale))
@@ -237,7 +247,7 @@ def render_sentence_captions(text: str, explicit_duration, video_w: int, video_h
     font_base = ImageFont.truetype(str(FONT_PATH), base_font_size)
     font_hilite = ImageFont.truetype(str(FONT_PATH), hilite_font_size)
 
-    words, word_durs, hold, total, overflowed = build_sentence_timeline(text, explicit_duration, pace)
+    words, word_durs, hold, total, overflowed = build_sentence_timeline(text, explicit_duration, pace, long_mult)
     if overflowed:
         print(f"  [sentence {idx}] WARNING: too many words for the requested duration "
               f"even at minimum pace -- running {total:.2f}s instead.", file=sys.stderr)
@@ -464,6 +474,11 @@ def main() -> int:
     ap.add_argument("--lines", type=Path, required=True, help=".txt (one sentence per line, optional 'seconds | text') or .json")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--pace", type=float, default=1.0, help="multiplier on auto-timed word/hold durations; >1 = slower reveal")
+    ap.add_argument("--long-sources", nargs="+", default=[],
+                     help="case-insensitive filename substrings; cuts backed by a matching source "
+                          "video hold ~--long-mult x longer on screen (word pacing unchanged)")
+    ap.add_argument("--long-mult", type=float, default=2.0,
+                     help="cut-duration multiplier applied when the picked source matches --long-sources (default 2.0)")
     ap.add_argument("--width", type=int, default=None, help="canonical output width (default: first source video's width)")
     ap.add_argument("--height", type=int, default=None, help="canonical output height (default: first source video's height)")
     ap.add_argument("--seed", type=int, default=None, help="random seed, for reproducible video picks")
@@ -508,17 +523,20 @@ def main() -> int:
     segment_paths = []
     last_video = None
     total_runtime = 0.0
+    long_subs = [s.lower() for s in args.long_sources]
     for idx, (text, explicit_duration) in enumerate(sentences):
         video_path = pick_video(pool, last_video)
         last_video = video_path
         _, _, video_duration = info[video_path]
+        is_long = any(s in video_path.name.lower() for s in long_subs)
+        long_mult = args.long_mult if is_long else 1.0
 
         captions_path, seg_duration = render_sentence_captions(
-            text, explicit_duration, target_w, target_h, args.pace, work_dir, idx)
+            text, explicit_duration, target_w, target_h, args.pace, work_dir, idx, long_mult)
 
         bg_path, start = extract_segment(video_path, video_duration, seg_duration, target_w, target_h, work_dir, idx)
         print(f"  [{idx}] \"{text[:40]}{'...' if len(text) > 40 else ''}\" "
-              f"<- {video_path.name} @{start:.1f}s, {seg_duration:.2f}s")
+              f"<- {video_path.name} @{start:.1f}s, {seg_duration:.2f}s{' (long cut)' if is_long else ''}")
 
         segment_path = composite_segment(bg_path, captions_path, seg_duration, work_dir, idx)
         segment_paths.append(segment_path)

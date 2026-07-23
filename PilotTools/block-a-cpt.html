@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block A — CPT Pilot Tool</title>
+<title>Block A — 1-back Task</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -12,12 +12,11 @@
     background: #0b0b0d; color: #eee; font-family: -apple-system, Segoe UI, Roboto, sans-serif;
     user-select: none;
   }
-  /* Side margins: leftover fullscreen space either side of the task, occupied by the real
-     distractor-reel content (embedded, not a fake stand-in) so solo piloting can feel the
-     central-task + peripheral-distraction interaction on one screen. See PilotTools/README.md
+  /* Side margins: leftover fullscreen space either side of the task, occupied by the study's
+     video-clip distractors (embedded, not a fake stand-in) so the central-task + peripheral-
+     distraction interaction lives on one screen. See PilotTools/README.md
      — this is NOT equivalent to the real study's controlled ±35° tablet placement; achieved
-     eccentricity depends on your monitor size and how close you sit. Fine for piloting feel,
-     not for anything you'd draw study conclusions from.
+     eccentricity depends on your monitor size and how close you sit.
      The frame itself is sized like a real phone/tablet propped on the desk (not stretched to
      fill the whole margin edge-to-edge) so it reads as a side prop, not a wall of video. */
   /* The side columns get a real flex-basis (not 0) so the phones survive on ordinary
@@ -27,14 +26,14 @@
      the task column shrinks from 1100px down to its 600px floor before the phones give
      up meaningful width. */
   #distractorLeft, #distractorRight {
-    flex: 1 1 220px; min-width: 0; display: flex; align-items: center;
+    flex: 1 1 260px; min-width: 0; display: flex; align-items: center;
   }
   /* Pulled inward to hug the task column (was pushed to the screen edges until 2026-07-21)
      so the phones sit close to the activity area, with a small fixed gap off the task frame. */
   #distractorLeft   { justify-content: flex-end; padding-right: 120px; }
   #distractorRight   { justify-content: flex-start; padding-left: 120px; }
   #distractorLeft iframe, #distractorRight iframe {
-    width: min(100%, 440px); height: min(66vh, 800px); border: 0; display: block;
+    width: min(100%, 500px); height: min(73vh, 880px); border: 0; display: block;
     border-radius: 26px; background: #000;
     box-shadow: 0 0 0 8px #1c1c1f, 0 0 0 9px #333, 0 12px 40px rgba(0,0,0,0.55);
   }
@@ -70,9 +69,9 @@
   #task { display: none; flex-direction: column; align-items: center; text-align: center; }
   #hint { color: #888; font-size: 0.85rem; margin-bottom: 8px; }
   #trialCount { color: #666; font-size: 0.8rem; margin-bottom: 6px; }
-  /* Running tally (1-back only): correct / wrong / too-slow at a glance. */
+  /* Running tally: answered / too-slow at a glance. */
   #tally { color: #999; font-size: 0.9rem; margin-bottom: 10px; min-height: 1.2em; }
-  /* The one line that always says what to do or how the last answer went (1-back only).
+  /* The one line that always says what to do or how the last answer went.
      Large and colored — the participant should never have to infer state from a subtle
      color wash (feedback 2026-07-20: "am I doing it right or wrong?"). */
   #question { font-size: 1.5rem; font-weight: 700; margin: 2px 0 14px; min-height: 1.6em; color: #eee; }
@@ -90,16 +89,37 @@
     width: 540px; height: 540px; background: #17171a; border-radius: 18px;
     display: flex; align-items: center; justify-content: center; position: relative;
   }
+  /* Window-setup stage (2026-07-23): the panel doubles as a sizing dummy before the run —
+     the participant paints the headset focus window around this exact frame, THEN trials
+     start. Dashed outline marks "this is the target area", not a running trial. */
+  #panel.windowSetup { outline: 4px dashed #3b82f6; outline-offset: 6px; }
+  #windowMsg {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; padding: 30px;
+    font-size: 1.15rem; line-height: 1.5; color: #cbd5e1; text-align: center;
+  }
+  #panel.windowSetup #windowMsg { display: flex; }
+  #beginBtn { display: none; min-width: 260px; }
+  /* Saved-runs recovery list (2026-07-23): every run autosaves to localStorage per trial,
+     so a forgotten export / crashed tab is recoverable from the setup screen. */
+  #savedRuns { margin-top: 24px; border-top: 1px solid #26262a; padding-top: 14px; }
+  #savedRuns h2 { font-size: 0.95rem; margin: 0 0 8px; color: #ccc; }
+  .savedRow {
+    display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    font-size: 0.82rem; color: #aaa; border-bottom: 1px solid #1c1c1f;
+  }
+  .savedRow .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .savedRow .badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
+  .savedRow .badge.complete { background: #14351f; color: #4ade80; }
+  .savedRow .badge.partial  { background: #3a2a12; color: #fbbf24; }
+  .savedRow button { margin-top: 0; padding: 6px 12px; font-size: 0.8rem; }
+  /* 4 shapes: square is the default (no class), the others carve it via clip-path/radius. */
   #shape { width: 212px; height: 212px; background: #fff; visibility: hidden; }
   #shape.circle { border-radius: 50%; }
-  /* Extra shapes for the 1-back mode (CPT mode uses only circle + default square). */
   #shape.triangle { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
   #shape.diamond  { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
-  #flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; }
-  #flash.hit { background: rgba(59,130,246,0.35); }
-  #flash.miss, #flash.commission { background: rgba(220,38,38,0.35); }
-  /* Yes/No forced-choice buttons (1-back mode only; hidden for the CPT). */
-  #choiceRow { display: none; gap: 18px; margin-top: 18px; justify-content: center; }
+  /* Yes/No forced-choice buttons. */
+  #choiceRow { display: flex; gap: 18px; margin-top: 18px; justify-content: center; }
   #choiceRow button { margin-top: 0; min-width: 220px; padding: 16px 26px; font-size: 1.15rem; line-height: 1.5; }
   #choiceRow button .keys { font-size: 0.8rem; font-weight: 400; opacity: 0.75; }
   #choiceRow button:active { transform: scale(0.96); }
@@ -120,68 +140,72 @@
 </head>
 <body>
 
-<!-- Real distractor-reel content (TabletApp/), embedded so it can't fight this page's own
-     fullscreen. Each side is independently controlled (tap Distractors-present + START inside
-     it) — mirrors the real protocol's manually-started, independent tablets. Not present at
-     all if TabletApp/ isn't a sibling of PilotTools/ or the browser blocks local file iframes
-     (rare; if so, serve both from a local static server instead of opening via file://). -->
-<div id="distractorLeft"><iframe src="../TabletApp/distractor-reel.html?embedded=1" allow="fullscreen"></iframe></div>
+<!-- The study's video-clip distractors (video-reel.html playing Tools/tiktok_captions.py
+     output), embedded so they can't fight this page's own fullscreen. srcs are assigned by
+     script when a run STARTS (screens stay dark until then — setDistractorsPlaying). Not
+     present at all if the clips are missing or the browser blocks local file iframes (rare;
+     if so, serve the repo root from a local static server instead of opening via file://). -->
+<div id="distractorLeft"><iframe allow="fullscreen"></iframe></div>
 
 <div id="centerCol">
 
 <!-- ============ SETUP ============ -->
 <div class="screen" id="setup">
-  <h1>Block A — CPT Pilot Tool</h1>
+  <h1>Block A — 1-back Task</h1>
   <div class="sub">
-    Standalone Go/No-Go sustained-attention task, mirroring
-    <code>Study/CPTPanel.cs</code> (Option V) — for piloting task feel, timing, and the
-    stats pipeline outside Unity/Quest. See PilotTools/README.md for caveats.
+    The Block A workstation task: forced-choice 1-back — answer YES/NO on every shape,
+    "same as the previous one?" — with real-footage video clips as the side-margin
+    distractors. See PilotTools/README.md for caveats.
   </div>
 
   <label for="pid">Participant ID</label>
   <input id="pid" type="number" min="0" value="0" inputmode="numeric">
 
-  <label for="taskMode">Task</label>
-  <select id="taskMode">
-    <option value="cpt">Go/No-Go CPT — circle = respond, square = withhold (current study spec)</option>
-    <option value="nback1">1-back (exploratory) — answer YES/NO on every shape: same as the previous one?</option>
-  </select>
-
   <label for="runType">Run</label>
   <select id="runType">
-    <option value="practice">Practice (40 trials, seed 999, criterion ≥ 90% go-accuracy)</option>
-    <option value="A1">A1 (140 trials)</option>
-    <option value="A2">A2 (140 trials)</option>
-    <option value="A3">A3 (140 trials)</option>
-    <option value="A4">A4 (140 trials)</option>
+    <option value="practice">Practice (40 trials, seed 999, criterion ≥ 90% hit rate on repeats)</option>
+    <option value="A1">A1 (140 trials · 1.8 s, ~4:12)</option>
+    <option value="A2">A2 (140 trials · 1.8 s, ~4:12)</option>
+    <option value="A3">A3 (140 trials · 1.8 s, ~4:12)</option>
+    <option value="A4">A4 (140 trials · 1.8 s, ~4:12)</option>
   </select>
 
-  <label for="respondMode">Respond with</label>
-  <select id="respondMode">
-    <option value="either">Space bar or mouse click (either)</option>
-    <option value="space">Space bar only</option>
-    <option value="click">Mouse click only</option>
+  <label for="filterState">Headset filter state — copy from the Unity HUD (required for A1–A4)</label>
+  <select id="filterState">
+    <option value="">— select —</option>
+    <option value="FILTER">Filter ON</option>
+    <option value="NOFILTER">Filter OFF (no filter)</option>
   </select>
 
-  <label for="distractorContent">Distractor content (side margins)</label>
-  <select id="distractorContent">
-    <option value="video" selected>Video clips (exploratory — real footage, not the study's stimulus)</option>
-    <option value="reel">Procedural reel (real study asset — TabletApp/distractor-reel.html)</option>
+  <label for="distractorSet">Distractor videos (side screens stay dark until the run starts)</label>
+  <select id="distractorSet">
+    <option value="NEW">New videos</option>
+    <option value="ORIGINAL">Original videos</option>
   </select>
 
   <button id="startBtn">Start</button>
+
+  <div id="savedRuns">
+    <h2>Saved runs on this device (autosaved every trial — nothing is lost if the export is missed)</h2>
+    <div id="savedRunsList"></div>
+  </div>
 </div>
 
 <!-- ============ TASK ============ -->
 <div class="screen" id="task">
-  <div id="hint">Circle = respond (go). Square = withhold (no-go).</div>
+  <div id="hint">YES (Y / ← / 1) = same as previous · NO (N / → / 2) = different · Esc ends the run</div>
   <div id="trialCount">Trial 0 / 0</div>
   <div id="tally"></div>
   <div id="question"></div>
   <div id="panel">
-    <div id="flash"></div>
     <div id="shape"></div>
+    <div id="windowMsg">
+      <div><b>Set your focus window around this frame.</b></div>
+      <div style="font-size:0.9rem; color:#8b96a5;">Participant: paint the headset window so this whole panel sits inside it.<br>
+      Experimenter: press Begin (or Enter) when the window is set.</div>
+    </div>
   </div>
+  <button id="beginBtn">Begin run (Enter)</button>
   <div id="timebar"><div id="timebarFill"></div></div>
   <div id="choiceRow">
     <button id="yesBtn">YES — same<br><span class="keys">Y · ← · 1</span></button>
@@ -202,23 +226,32 @@
 
 </div><!-- /centerCol -->
 
-<div id="distractorRight"><iframe src="../TabletApp/distractor-reel.html?embedded=1" allow="fullscreen"></iframe></div>
+<div id="distractorRight"><iframe allow="fullscreen"></iframe></div>
 
 <script>
 'use strict';
 
-// ---- constants, matching CPTPanel.cs exactly ----
-const SOA_S = 1.5;
-const STIMULUS_S = 0.7;
-const NO_GO_PROPORTION = 0.2;
+// ---- constants: seed formula matches ConditionSequencer.cs ----
 const PRACTICE_TRIALS = 40;
+// VERSION 3 (2026-07-23, same day as v2): 140 × 1.8s SOA = 4:12 per run, ~42 repeats at
+// the 30% rate. Why 140 (back to the original Block A spec count): (a) d′ precision —
+// the sampling variance of d′ scales with the inverse of the signal/noise trial counts
+// (Macmillan & Creelman 2005, ch.13; Miller 1996), so 42 targets vs v2's 32 tightens the
+// per-run estimate; (b) the new time-course stats bin the run into thirds — 140 gives
+// ~46 scored trials per bin instead of ~35, so per-bin accuracy/CV are stable enough to
+// read; (c) a longer time-on-task window (4:12 vs 3:30) helps the vigilance-decrement
+// contrast — decrement is measurable within the first minutes of abbreviated vigils
+// (Temple et al. 2000; Nuechterlein, Parasuraman & Jiang 1983 within 8 min).
+// Versions NEVER pool (supervisor directive 2026-07-23): v1 = 84 × 2.5s, v2 = 105 × 2.0s
+// (all Day-1 runs), v3 = this. The run-start payload's trials/soa_s distinguish them.
+// History: 140 × 1.5s Go/No-Go CPT → 84 × 2.5s 1-back → 105 × 2.0s → this.
 const MAIN_TRIALS = 140;
 const PRACTICE_SEED = 999;
 const PRACTICE_CRITERION = 0.90;
 
-// ---- 1-back mode (exploratory — no Unity counterpart yet; see PilotTools/README.md) ----
-// Same trial engine (SOA, stimulus duration, trial counts, seeds, outcome categories); only
-// the target definition changes: respond when the current shape matches the PREVIOUS one.
+// ---- 1-back task (THE Block A study task as of 2026-07-22; the earlier Go/No-Go CPT and
+// procedural-reel distractor options were removed — see PilotTools/README.md) ----
+// Respond when the current shape matches the PREVIOUS one.
 // ~30% repeat rate is the conventional 1-back target density; 4 shapes keep repeats
 // non-guessable while staying trivially discriminable at a glance.
 const NBACK_TARGET_PROPORTION = 0.3;
@@ -226,19 +259,20 @@ const NBACK_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
 // Forced-choice timing (the CPT's 1.5s SOA with a full-SOA response window is too tight for a
 // yes/no decision on every trial, and back-to-back trials let a late answer land on the NEXT
 // shape — scored against a stimulus the participant hadn't processed, i.e. seemingly random
-// red flashes; reported 2026-07-20). Started at 2.0s; raised to the literature-standard 2.5s
-// the same day ("still a little hard" even when focused).
-const NBACK_SOA_S = 2.5;     // onset-to-onset for 1-back trials (140 trials ≈ 5:50 per run)
-const NBACK_WINDOW_S = 2.2;  // answers accepted until here; the last 300ms is a closed gap
+// red flashes; reported 2026-07-20). Started at 2.0s; raised to 2.5s the same day; RETURNED
+// to 2.0s 2026-07-23 as the deliberate ceiling fix: all Day-1 naive runs sat at 96–100%
+// accuracy with 567–776ms median RTs, so the 2.2s window had >2x slack. v3 (same day)
+// trims further to 1.8s: the 1.5s answer window still spans 1.9–2.6× the Day-1 naive
+// median RTs (567–776ms) — the same ≥~2×-median headroom rule the v2 ceiling fix used,
+// i.e. slow-but-correct answers aren't clipped, only dawdling is — and the pace stays
+// well above validated every-trial-response attention tasks (SART: 1.15s SOA over 225
+// trials, Robertson et al. 1997; Conners' CPT runs blocks at a 1s ISI with responses
+// expected inside it). The 300ms closed gap between window and next onset is unchanged.
+const NBACK_SOA_S = 1.8;     // onset-to-onset for 1-back trials (140 trials = 4:12 per run)
+const NBACK_WINDOW_S = 1.5;  // answers accepted until here; the last 300ms is a closed gap
 const NBACK_MIN_RT_S = 0.25; // faster than any real choice — treat as spillover and ignore
 
 // ---- seeded PRNG (mulberry32) ----
-// NOTE: this is NOT the same PRNG family as .NET's System.Random used by CPTPanel.cs, so a
-// given seed will NOT reproduce the exact bit-for-bit trial order Unity would generate for
-// that seed. The generation ALGORITHM and constraints (80/20 go/no-go, no two consecutive
-// no-gos, go-runs capped at 8) are replicated exactly — this tool is for piloting task feel,
-// timing, and the stats/export pipeline, not for regenerating a specific real session's exact
-// stimulus order outside Unity.
 function mulberry32(seed) {
   let s = seed >>> 0;
   return function () {
@@ -249,55 +283,16 @@ function mulberry32(seed) {
   };
 }
 
-// Port of CPTPanel.BuildSequence — same constraints, same retry-then-fallback structure,
-// but a MUCH higher attempt cap than CPTPanel.cs's 2000. Measured empirically (see
-// PilotTools/README.md): for 140 trials/28 no-go, satisfying "no two consecutive no-gos"
-// AND "go-runs <= 8" together takes ~75,000 random attempts on average (highly variable,
-// roughly geometric) — CPTPanel.cs's 2000-attempt cap succeeds only ~2-3% of the time,
-// meaning the real Unity task most likely falls back to its fixed, seed-independent
-// evenly-spaced sequence for nearly every main run. 1,000,000 attempts (~100ms here,
-// 0/30 fallbacks in testing) reliably finds a real randomized sequence instead.
-function buildSequence(trials, seed) {
-  const rand = mulberry32(seed);
-  const noGo = Math.round(trials * NO_GO_PROPORTION);
-
-  for (let attempt = 0; attempt < 1000000; attempt++) {
-    const positions = new Set();
-    while (positions.size < noGo) positions.add(Math.floor(rand() * trials));
-
-    let ok = true;
-    for (const p of positions) { if (positions.has(p + 1)) { ok = false; break; } }
-    if (!ok) continue;
-
-    const seq = [];
-    for (let i = 0; i < trials; i++) seq.push(!positions.has(i));
-
-    let run = 0;
-    for (const go of seq) {
-      run = go ? run + 1 : 0;
-      if (run > 8) { ok = false; break; }
-    }
-    if (ok) return seq;
-  }
-
-  // Deterministic fallback: evenly spaced no-gos (same as CPTPanel.cs).
-  console.warn('[BlockA-CPT] Sequence constraints not met by sampling; using even spacing.');
-  const seq = new Array(trials).fill(true);
-  const step = trials / noGo;
-  for (let k = 0; k < noGo; k++) {
-    seq[Math.min(trials - 1, Math.floor(k * step + step * 0.5))] = false;
-  }
-  return seq;
-}
-
 // 1-back sequence: returns { flags, shapes } where flags[i] = "trial i is a repeat of i-1"
 // (the go/target trials) and shapes[i] is the shape class to display.
-// Constraints, mirroring the CPT builder's spirit:
+// Constraints:
 //   - trial 0 is never a target (there is nothing before it to repeat);
 //   - no two consecutive targets (three identical shapes in a row reads as a glitch);
-//   - no more than 8 consecutive non-targets (same max-drought cap as the CPT's go-run cap).
-// Adjacency is guaranteed by construction (gap sampling) rather than rejection, so unlike the
-// CPT builder this converges in a handful of attempts; only the drought cap can trigger a retry.
+//   - no more than 8 consecutive non-targets (max-drought cap).
+// Adjacency is guaranteed by construction (gap sampling) rather than rejection, so this
+// converges in a handful of attempts; only the drought cap can trigger a retry.
+// NOTE: mulberry32 is NOT the same PRNG family as .NET's System.Random, so a given seed will
+// NOT reproduce the bit-for-bit trial order a Unity implementation would generate.
 function buildNBackSequence(trials, seed) {
   const rand = mulberry32(seed);
   const targets = Math.round(trials * NBACK_TARGET_PROPORTION);
@@ -349,31 +344,114 @@ function buildNBackSequence(trials, seed) {
 const CSV_HEADER =
   't_ms,pid,block,condition,yaw_deg,pitch_deg,roll_deg,head_speed_dps,dr_intensity,mode,event,payload';
 let csvRows = [];
-// Mode stamp for the CSV `mode` column: CPT_PILOT for the spec task, NBACK1_PILOT for the
-// exploratory 1-back — so exports from the two tasks can never be mistaken for each other.
-let modeStamp = 'CPT_PILOT';
+// Mode stamp for the CSV `mode` column. Kept as NBACK1_PILOT (the stamp this task has always
+// exported) so existing analysis/validation keyed on it keeps working.
+const modeStamp = 'NBACK1_PILOT';
 
 function sanitize(s) {
   return String(s).replace(/,/g, ';').replace(/\n/g, ' ').replace(/\r/g, ' ');
 }
 
 function logEvent(pid, condition, label, payload) {
+  // dr_intensity column carries the headset filter state (1 = filter on, 0 = off, '' = NA) —
+  // the mode tie-in that makes each CPT run self-describing like the Block B CSVs.
+  const drIntensity = state ? (state.filter === 'FILTER' ? '1' : state.filter === 'NOFILTER' ? '0' : '') : '';
   const row = [
-    Date.now(), pid, 'A', condition, '', '', '', '', '', modeStamp,
+    Date.now(), pid, 'A', condition, '', '', '', '', drIntensity, modeStamp,
     label, sanitize(payload || ''),
   ].join(',');
   csvRows.push(row);
+  persistRun(false); // autosave after every event: a crash loses at most the current trial
+}
+
+// ---- localStorage autosave/recovery (2026-07-23): a missed "Save CSV" no longer loses the run ----
+const SAVED_RUNS_KEY = 'blockA_savedRuns_v1';
+const SAVED_RUNS_MAX = 24;
+let storageWarned = false;
+
+function loadSavedRuns() {
+  try { return JSON.parse(localStorage.getItem(SAVED_RUNS_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function persistRun(complete) {
+  if (!state || !state.saveId) return;
+  try {
+    const runs = loadSavedRuns();
+    const entry = {
+      id: state.saveId,
+      name: csvFileName(),
+      csv: CSV_HEADER + '\n' + csvRows.join('\n') + '\n',
+      complete: !!complete,
+      events: csvRows.length,
+      t: Date.now(),
+    };
+    const i = runs.findIndex(r => r.id === state.saveId);
+    if (i >= 0) runs[i] = entry; else runs.push(entry);
+    while (runs.length > SAVED_RUNS_MAX) runs.shift();
+    localStorage.setItem(SAVED_RUNS_KEY, JSON.stringify(runs));
+  } catch (e) {
+    if (!storageWarned) {
+      storageWarned = true;
+      console.warn('[BlockA] localStorage autosave unavailable:', e);
+    }
+  }
+}
+
+function downloadCsvText(name, text) {
+  const blob = new Blob([text], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function renderSavedRuns() {
+  const list = document.getElementById('savedRunsList');
+  const runs = loadSavedRuns().slice().reverse(); // newest first
+  if (!runs.length) {
+    list.innerHTML = '<div class="savedRow"><span class="name" style="color:#666;">No saved runs yet.</span></div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const r of runs) {
+    const row = document.createElement('div');
+    row.className = 'savedRow';
+    const badge = r.complete ? '<span class="badge complete">complete</span>'
+                             : '<span class="badge partial">partial</span>';
+    row.innerHTML = `<span class="name" title="${r.name}">${r.name}</span>` +
+      `<span>${r.events} ev</span>` + badge;
+    const dl = document.createElement('button');
+    dl.className = 'secondary';
+    dl.textContent = 'Download';
+    dl.addEventListener('click', () => downloadCsvText(r.name, r.csv));
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => {
+      if (!confirm(`Delete saved run?\n${r.name}`)) return;
+      try {
+        const runs2 = loadSavedRuns().filter(x => x.id !== r.id);
+        localStorage.setItem(SAVED_RUNS_KEY, JSON.stringify(runs2));
+      } catch (e) { /* best-effort */ }
+      renderSavedRuns();
+    });
+    row.appendChild(dl);
+    row.appendChild(del);
+    list.appendChild(row);
+  }
 }
 
 // ---- DOM refs ----
 const setupEl = document.getElementById('setup');
 const taskEl = document.getElementById('task');
 const resultsEl = document.getElementById('results');
-const panelEl = document.getElementById('panel');
 const shapeEl = document.getElementById('shape');
-const flashEl = document.getElementById('flash');
 const trialCountEl = document.getElementById('trialCount');
-const choiceRowEl = document.getElementById('choiceRow');
 const yesBtn = document.getElementById('yesBtn');
 const noBtn = document.getElementById('noBtn');
 const questionEl = document.getElementById('question');
@@ -381,7 +459,7 @@ const tallyEl = document.getElementById('tally');
 const timebarEl = document.getElementById('timebar');
 const timebarFillEl = document.getElementById('timebarFill');
 
-// ---- 1-back status helpers: the screen must always SAY what to do / how it went ----
+// ---- status helpers: the screen must always SAY what to do / how it went ----
 function setQuestion(text, cls) {
   questionEl.textContent = text;
   questionEl.className = cls || '';
@@ -405,7 +483,6 @@ function startBar(ms) {
 function stopBar() {
   timebarEl.style.visibility = 'hidden';
 }
-const distractorContentEl = document.getElementById('distractorContent');
 const distractorLeftIframe = document.querySelector('#distractorLeft iframe');
 const distractorRightIframe = document.querySelector('#distractorRight iframe');
 
@@ -417,23 +494,33 @@ let state = null; // set when a run starts
 // (observed 2026-07-20: an aborted run's surviving 1.5s timer re-entered the next run).
 let runToken = 0;
 
-// Swaps the side-margin iframes between the real study asset (TabletApp/distractor-reel.html)
-// and the exploratory real-footage player (video-reel.html, Tools/tiktok_captions.py output).
-// Only (re)loads the video iframe src when actually selected, so the ~80MB clips aren't
-// fetched unless you ask for them.
-function applyDistractorContent() {
-  if (distractorContentEl.value === 'video') {
-    distractorLeftIframe.src = 'video-reel.html?src=' + encodeURIComponent('../Assets/_Scratch/tiktok_5min_1.mp4') + '&embedded=1';
-    distractorRightIframe.src = 'video-reel.html?src=' + encodeURIComponent('../Assets/_Scratch/tiktok_5min_2.mp4') + '&embedded=1';
-  } else {
-    distractorLeftIframe.src = '../TabletApp/distractor-reel.html?embedded=1';
-    distractorRightIframe.src = '../TabletApp/distractor-reel.html?embedded=1';
+// The side-margin distractors are the study's video clips (video-reel.html playing
+// Tools/tiktok_captions.py output) — a different clip per side. Two reel pairs exist
+// (2026-07-23): NEW = _1/_2 (incl. Bollywood song clips, long cuts), ORIGINAL = _3/_4
+// (the pre-2026-07-23 4-source pool). The setup selector picks the pair; the choice is
+// stamped into the run-start payload (distractors=NEW|ORIGINAL).
+// The screens stay DARK until a run actually starts and go dark again when it ends
+// (user request 2026-07-23): the distraction must not be running while ids are typed
+// or stats are read. The empty frames still sit there like switched-off phones, so
+// there's no layout jump when they light up.
+const DISTRACTOR_SETS = {
+  NEW:      ['../Assets/_Scratch/tiktok_5min_1.mp4', '../Assets/_Scratch/tiktok_5min_2.mp4'],
+  ORIGINAL: ['../Assets/_Scratch/tiktok_5min_3.mp4', '../Assets/_Scratch/tiktok_5min_4.mp4'],
+};
+const distractorSetEl = document.getElementById('distractorSet');
+function setDistractorsPlaying(on) {
+  if (!on) {
+    distractorLeftIframe.src = 'about:blank';
+    distractorRightIframe.src = 'about:blank';
+    return;
   }
+  const [left, right] = DISTRACTOR_SETS[distractorSetEl.value] || DISTRACTOR_SETS.NEW;
+  distractorLeftIframe.src = 'video-reel.html?src=' + encodeURIComponent(left) + '&embedded=1';
+  distractorRightIframe.src = 'video-reel.html?src=' + encodeURIComponent(right) + '&embedded=1';
 }
-distractorContentEl.addEventListener('change', applyDistractorContent);
-applyDistractorContent(); // apply the default selection (video) on page load, not just on change
 
 document.getElementById('startBtn').addEventListener('click', startRun);
+document.getElementById('beginBtn').addEventListener('click', beginRun);
 document.getElementById('abortBtn').addEventListener('click', () => endRun(true));
 // blur() so a focused button can't be re-triggered by a later Space/Enter keypress.
 yesBtn.addEventListener('click', (e) => { e.currentTarget.blur(); handleChoice(true); });
@@ -441,8 +528,10 @@ noBtn.addEventListener('click', (e) => { e.currentTarget.blur(); handleChoice(fa
 document.getElementById('againBtn').addEventListener('click', () => {
   resultsEl.style.display = 'none';
   setupEl.style.display = 'block';
+  renderSavedRuns();
 });
 document.getElementById('saveCsvBtn').addEventListener('click', saveCsv);
+renderSavedRuns(); // recovery list is visible from the first screen
 
 // Best-effort, same pattern as TabletApp/distractor-reel.html: hides browser chrome so the
 // task fills the screen. Must be called synchronously from the click handler (a user gesture)
@@ -461,58 +550,76 @@ function startRun() {
   requestFullscreenBestEffort();
   const pid = document.getElementById('pid').value.trim() || '0';
   const runType = document.getElementById('runType').value;
-  const respondMode = document.getElementById('respondMode').value;
-  const taskMode = document.getElementById('taskMode').value;
+  const filter = document.getElementById('filterState').value; // '' | FILTER | NOFILTER
 
   const isPractice = runType === 'practice';
+  // Main runs MUST declare the headset filter state — this is the mode tie-in; a run
+  // that can't be assigned to an arm later is a lost run (see analysis-2026-07-22.md §6).
+  if (!isPractice && !filter) {
+    alert('Select the headset filter state first (copy it from the Unity HUD).');
+    return;
+  }
   const trials = isPractice ? PRACTICE_TRIALS : MAIN_TRIALS;
   // Mirrors ConditionSequencer's seed = pid*10 + slot for main runs (slot 0-3 for A1-A4);
-  // fixed seed 999 for practice, exactly as CPTPanel/ConditionSequencer use.
+  // fixed seed 999 for practice.
   const slot = isPractice ? 0 : (parseInt(runType.slice(1), 10) - 1);
   const seed = isPractice ? PRACTICE_SEED : (parseInt(pid, 10) * 10 + slot);
   const condition = isPractice ? 'PRACTICE' : runType;
 
-  const isNBack = taskMode === 'nback1';
-  let sequence, shapes = null;
-  if (isNBack) {
-    const built = buildNBackSequence(trials, seed);
-    sequence = built.flags;
-    shapes = built.shapes;
-  } else {
-    sequence = buildSequence(trials, seed);
-  }
+  const { flags: sequence, shapes } = buildNBackSequence(trials, seed);
 
   state = {
-    pid, condition, isPractice, respondMode, sequence,
-    taskMode, shapes,
+    pid, condition, isPractice, sequence, shapes, seed,
+    distractors: distractorSetEl.value,
+    filter: filter || 'NA',
+    saveId: `${pid}_${condition}_${Date.now()}`,
+    stamp: new Date().toISOString().replace(/[:.]/g, '-'),
     token: ++runToken, startedIdx: -1, finishedIdx: -1,
     idx: 0, goCount: 0, goHits: 0, noGoCount: 0, commissions: 0,
     correctRejects: 0, omissions: 0, choice: null,
     nCorrect: 0, nWrong: 0, nTimeout: 0,
     hitRTs: [], onsetTime: 0, responded: false, awaitingResponse: false,
+    trialRecords: [], // per scored trial: {idx, correct, answered, rt} — feeds the time-course stats
     trialTimer: null, hideTimer: null, windowTimer: null,
   };
   csvRows = [];
-  modeStamp = isNBack ? 'NBACK1_PILOT' : 'CPT_PILOT';
-  choiceRowEl.style.display = isNBack ? 'flex' : 'none';
-  questionEl.style.display = isNBack ? 'block' : 'none';
-  tallyEl.style.display = isNBack ? 'block' : 'none';
-  setQuestion('', '');
-  if (isNBack) updateTally(); else tallyEl.textContent = '';
+  updateTally();
   stopBar();
-  document.getElementById('hint').textContent = isNBack
-    ? 'YES (Y / ← / 1) = same as previous · NO (N / → / 2) = different · Esc ends the run'
-    : 'Circle = respond (go). Square = withhold (no-go). Esc ends the run.';
-  logEvent(pid, condition, 'CPT_PANEL_PLACED', 'dist_m=n/a;tool=block-a-cpt.html');
-  logEvent(pid, condition, isPractice ? 'PRACTICE_START' : 'CPT_RUN_START',
-    `trials=${trials};seed=${seed};soa_s=${isNBack ? NBACK_SOA_S : SOA_S};task=${isNBack ? 'nback1' : 'cpt'}`);
+
+  setDistractorsPlaying(true); // screens light up only now — dark on setup/results
 
   setupEl.style.display = 'none';
   resultsEl.style.display = 'none';
   taskEl.style.display = 'flex';
 
+  // Window-setup stage: the panel doubles as a sizing dummy — the participant paints the
+  // headset focus window around this exact frame BEFORE any trial runs. Trials start on
+  // an explicit Begin, so window-painting time never eats into the trial clock.
+  const panel = document.getElementById('panel');
+  const beginBtn = document.getElementById('beginBtn');
+  panel.classList.add('windowSetup');
+  shapeEl.style.visibility = 'hidden';
+  beginBtn.style.display = 'inline-block';
+  yesBtn.disabled = noBtn.disabled = true;
+  trialCountEl.textContent = `Ready — ${trials} trials, ${condition}` +
+    (state.filter !== 'NA' ? ` · ${state.filter === 'FILTER' ? 'Filter ON' : 'Filter OFF'}` : '');
+  setQuestion('Window setup — trials have not started', 'warn');
+
   document.addEventListener('keydown', onKeyDown);
-  panelEl.addEventListener('click', onClick);
+}
+
+function beginRun() {
+  if (!state || state.startedIdx >= 0) return; // already running
+  const panel = document.getElementById('panel');
+  const beginBtn = document.getElementById('beginBtn');
+  panel.classList.remove('windowSetup');
+  beginBtn.style.display = 'none';
+  setQuestion('', '');
+
+  logEvent(state.pid, state.condition, 'CPT_PANEL_PLACED',
+    'dist_m=n/a;tool=block-a-cpt.html;window_stage=done');
+  logEvent(state.pid, state.condition, state.isPractice ? 'PRACTICE_START' : 'CPT_RUN_START',
+    `trials=${state.sequence.length};seed=${state.seed};soa_s=${NBACK_SOA_S};task=nback1;filter=${state.filter};distractors=${state.distractors}`);
 
   runTrial(state.token);
 }
@@ -529,25 +636,21 @@ function runTrial(tok) {
   const isGo = state.sequence[state.idx];
   trialCountEl.textContent = `Trial ${state.idx + 1} / ${state.sequence.length}`;
 
-  const isNBack = state.taskMode === 'nback1';
-  shapeEl.className = isNBack ? state.shapes[state.idx] : (isGo ? 'circle' : '');
+  shapeEl.className = state.shapes[state.idx];
   shapeEl.style.visibility = 'visible';
-  flashEl.className = '';
 
-  // The very first 1-back trial has no predecessor, so "same as previous?" is unanswerable —
+  // The very first trial has no predecessor, so "same as previous?" is unanswerable —
   // it is shown to memorize, not scored, and the choice buttons are disabled for it.
-  const scorable = !(isNBack && state.idx === 0);
+  const scorable = state.idx > 0;
   yesBtn.disabled = noBtn.disabled = !scorable;
   yesBtn.classList.remove('chosen');
   noBtn.classList.remove('chosen');
-  if (isNBack) {
-    if (scorable) {
-      setQuestion('Same as the previous shape?', '');
-      startBar(NBACK_WINDOW_S * 1000);
-    } else {
-      setQuestion('MEMORIZE this first shape — no answer needed', 'warn');
-      stopBar();
-    }
+  if (scorable) {
+    setQuestion('Same as the previous shape?', '');
+    startBar(NBACK_WINDOW_S * 1000);
+  } else {
+    setQuestion('MEMORIZE this first shape — no answer needed', 'warn');
+    stopBar();
   }
 
   state.onsetTime = performance.now();
@@ -555,16 +658,16 @@ function runTrial(tok) {
   state.choice = null;
   state.awaitingResponse = scorable;
   state.currentIsGo = isGo;
-  logEvent(state.pid, state.condition, 'CPT_ONSET', `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'}`
-    + (isNBack ? `;shape=${state.shapes[state.idx]}` : ''));
+  logEvent(state.pid, state.condition, 'CPT_ONSET',
+    `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'};shape=${state.shapes[state.idx]}`);
 
-  // 1-back: the shape stays up for the whole answer window (hiding it at 700ms while the
-  // timer kept running read as a glitch — feedback 2026-07-20); the CPT keeps its spec 700ms.
+  // The shape stays up for the whole answer window (hiding it earlier while the timer kept
+  // running read as a glitch — feedback 2026-07-20).
   state.hideTimer = setTimeout(() => { shapeEl.style.visibility = 'hidden'; },
-    (isNBack ? NBACK_WINDOW_S : STIMULUS_S) * 1000);
-  if (isNBack && scorable) {
+    NBACK_WINDOW_S * 1000);
+  if (scorable) {
     // Close the answer window before the trial ends: the remaining SOA is a feedback-only
-    // gap, so a timeout's red flash is actually visible (previously it was cleared by the
+    // gap, so the "Too slow" notice is actually visible (previously it was cleared by the
     // next onset in the same tick) and a late answer can't spill onto the next shape.
     state.windowTimer = setTimeout(() => {
       if (!state || tok !== state.token) return;
@@ -576,22 +679,15 @@ function runTrial(tok) {
       }
     }, NBACK_WINDOW_S * 1000);
   }
-  state.trialTimer = setTimeout(() => finishTrial(tok), (isNBack ? NBACK_SOA_S : SOA_S) * 1000);
+  state.trialTimer = setTimeout(() => finishTrial(tok), NBACK_SOA_S * 1000);
 }
 
-function handleResponse() {
-  if (!state || !state.awaitingResponse || state.responded) return;
-  state.responded = true;
-  state.rt = (performance.now() - state.onsetTime) / 1000;
-  flashEl.className = state.currentIsGo ? 'hit' : 'commission';
-}
-
-// 1-back forced choice: YES ("same as previous") or NO ("different") on every scored trial.
+// Forced choice: YES ("same as previous") or NO ("different") on every scored trial.
 // The answer visibly registers (chosen button outlined, both locked, "Answer recorded") but
 // correctness is deliberately NOT shown — per-trial right/wrong feedback shifts participant
 // strategy mid-run; scoring lives in the log and the end-of-run stats only.
 function handleChoice(saidYes) {
-  if (!state || state.taskMode !== 'nback1' || !state.awaitingResponse || state.responded) return;
+  if (!state || !state.awaitingResponse || state.responded) return;
   const rt = (performance.now() - state.onsetTime) / 1000;
   if (rt < NBACK_MIN_RT_S) return; // spillover from the previous trial, not a real answer
   state.responded = true;
@@ -605,25 +701,18 @@ function handleChoice(saidYes) {
 
 function onKeyDown(e) {
   if (!state) return;
-  if (e.code === 'Escape') { endRun(true); return; } // end the run any time (both tasks)
-  if (state.taskMode === 'nback1') {
-    // Multiple bindings so whatever hand position feels natural works: mnemonic letters,
-    // adjacent arrow keys (left button = YES = ←), or the number row.
-    if (e.code === 'KeyY' || e.code === 'ArrowLeft' || e.code === 'Digit1' || e.code === 'Numpad1') {
-      e.preventDefault(); handleChoice(true);
-    } else if (e.code === 'KeyN' || e.code === 'ArrowRight' || e.code === 'Digit2' || e.code === 'Numpad2') {
-      e.preventDefault(); handleChoice(false);
-    }
-    return;
+  if (e.code === 'Escape') { endRun(true); return; } // end the run any time
+  // Window-setup stage: Enter/Space begins the run (mirrors the Begin button).
+  if (state.startedIdx < 0 && (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space')) {
+    e.preventDefault(); beginRun(); return;
   }
-  if (e.code !== 'Space' && e.key !== ' ') return;
-  e.preventDefault();
-  if (state.respondMode === 'either' || state.respondMode === 'space') handleResponse();
-}
-
-function onClick() {
-  if (!state || state.taskMode === 'nback1') return; // 1-back answers via buttons/keys only
-  if (state.respondMode === 'either' || state.respondMode === 'click') handleResponse();
+  // Multiple bindings so whatever hand position feels natural works: mnemonic letters,
+  // adjacent arrow keys (left button = YES = ←), or the number row.
+  if (e.code === 'KeyY' || e.code === 'ArrowLeft' || e.code === 'Digit1' || e.code === 'Numpad1') {
+    e.preventDefault(); handleChoice(true);
+  } else if (e.code === 'KeyN' || e.code === 'ArrowRight' || e.code === 'Digit2' || e.code === 'Numpad2') {
+    e.preventDefault(); handleChoice(false);
+  }
 }
 
 function finishTrial(tok) {
@@ -632,12 +721,11 @@ function finishTrial(tok) {
   state.finishedIdx = state.idx;
   state.awaitingResponse = false;
   const isGo = state.currentIsGo;
-  const isNBack = state.taskMode === 'nback1';
   let outcome;
 
-  if (isNBack && state.idx === 0) {
+  if (state.idx === 0) {
     outcome = 'first_unscored';
-  } else if (isNBack) {
+  } else {
     // Forced choice: an answer is expected on every scored trial, so a timeout is an error
     // in both directions — a missed repeat, or an unanswered non-repeat (tracked separately
     // as no_response so erratic/disengaged runs are visible in the stats).
@@ -672,25 +760,15 @@ function finishTrial(tok) {
         outcome = 'no_response';
       }
     }
+    // Time-course record (the CSV has the same data in CPT_RESULT rows; this copy feeds
+    // the end-of-run consistency stats without re-parsing).
+    state.trialRecords.push({
+      idx: state.idx,
+      correct: outcome.startsWith('hit') || outcome.startsWith('correct_reject'),
+      answered: state.responded,
+      rt: state.responded ? state.rt : null,
+    });
     updateTally();
-  } else if (isGo) {
-    state.goCount++;
-    if (state.responded) {
-      state.goHits++;
-      state.hitRTs.push(state.rt);
-      outcome = `hit;rt_ms=${Math.round(state.rt * 1000)}`;
-    } else {
-      flashEl.className = 'miss';
-      outcome = 'miss';
-    }
-  } else {
-    state.noGoCount++;
-    if (state.responded) {
-      state.commissions++;
-      outcome = `commission;rt_ms=${Math.round(state.rt * 1000)}`;
-    } else {
-      outcome = 'correct_reject';
-    }
   }
   logEvent(state.pid, state.condition, 'CPT_RESULT', `idx=${state.idx};outcome=${outcome}`);
 
@@ -700,12 +778,12 @@ function finishTrial(tok) {
 
 function endRun(aborted) {
   if (!state) return;
+  setDistractorsPlaying(false); // screens go dark the moment the run is over
   state.token = ++runToken; // invalidate any still-pending trial timers from this run
   clearTimeout(state.trialTimer);
   clearTimeout(state.hideTimer);
   clearTimeout(state.windowTimer);
   document.removeEventListener('keydown', onKeyDown);
-  panelEl.removeEventListener('click', onClick);
 
   const goAcc = state.goCount > 0 ? state.goHits / state.goCount : 0;
   const faRate = state.noGoCount > 0 ? state.commissions / state.noGoCount : 0;
@@ -713,6 +791,11 @@ function endRun(aborted) {
   logEvent(state.pid, state.condition, aborted ? 'CPT_RUN_ABORTED' :
     (state.isPractice ? 'PRACTICE_END' : 'CPT_RUN_END'),
     `go_acc=${goAcc.toFixed(3)}${state.isPractice ? ';criterion=0.90' : ''}`);
+
+  // Belt and braces: mark the localStorage copy complete AND auto-download the CSV —
+  // the manual Save button is now a re-export, not the only copy.
+  persistRun(!aborted);
+  if (state.startedIdx >= 0) saveCsv();
 
   taskEl.style.display = 'none';
   showResults(aborted, goAcc, faRate);
@@ -756,37 +839,81 @@ function probit(p) {
          (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
 }
 
+// ---- time-course / consistency metrics (2026-07-23) ----
+// At-a-glance versions of the drift questions (is the participant slowing? getting less
+// consistent? making more errors late in the run?). The same per-trial data is in the CSV
+// (CPT_RESULT rows carry idx/outcome/rt_ms), so Tools/analysis/blocka_timecourse.py can
+// compute these across runs and compare FILTER vs NOFILTER; these rows are the single-run
+// view. RT metrics use CORRECT responses only (hits + correct rejects) so speed and
+// consistency aren't confounded by error/guess responses.
+function timeCourseRows(records) {
+  if (records.length < 12) return []; // too few scored trials for thirds to mean anything
+  const third = Math.ceil(records.length / 3);
+  const bins = [records.slice(0, third), records.slice(third, 2 * third), records.slice(2 * third)];
+  const rtsOf = b => b.filter(t => t.correct && t.rt != null).map(t => t.rt);
+  const acc = bins.map(b => b.length ? 100 * b.filter(t => t.correct).length / b.length : null);
+  const med = bins.map(b => medianRT(rtsOf(b)));
+  const cvOf = b => {
+    const r = rtsOf(b);
+    if (r.length < 4) return null;
+    const m = meanRT(r);
+    const sd = Math.sqrt(r.reduce((a, x) => a + (x - m) ** 2, 0) / (r.length - 1));
+    return 100 * sd / m; // coefficient of variation, % — scale-free consistency measure
+  };
+  const cvs = bins.map(cvOf);
+
+  // OLS slope of correct-response RT on trial index, expressed as ms per MINUTE of task
+  // time (slope/trial × trials/min) so runs with different SOAs stay comparable.
+  const pts = records.filter(t => t.correct && t.rt != null);
+  let slopeTxt = '—';
+  if (pts.length >= 8) {
+    const mx = pts.reduce((a, t) => a + t.idx, 0) / pts.length;
+    const my = pts.reduce((a, t) => a + t.rt, 0) / pts.length;
+    let num = 0, den = 0;
+    for (const t of pts) { num += (t.idx - mx) * (t.rt - my); den += (t.idx - mx) ** 2; }
+    const msPerMin = (den ? num / den : 0) * 1000 * (60 / NBACK_SOA_S);
+    slopeTxt = `${msPerMin >= 0 ? '+' : ''}${Math.round(msPerMin)} ms/min ` +
+      (Math.abs(msPerMin) < 5 ? '(steady)' : msPerMin > 0 ? '(slowing)' : '(speeding up)');
+  }
+
+  const pct = v => v == null ? '—' : `${v.toFixed(0)}%`;
+  const ms = v => v == null ? '—' : Math.round(v * 1000);
+  return [
+    ['Accuracy by thirds (start / mid / end)', acc.map(pct).join(' / ')],
+    ['Median correct RT by thirds', `${med.map(ms).join(' / ')} ms`],
+    ['RT consistency by thirds (CV — lower = steadier)', cvs.map(pct).join(' / ')],
+    ['RT drift over the run', slopeTxt],
+  ];
+}
+
 function showResults(aborted, goAcc, faRate) {
   document.getElementById('resultsTitle').textContent =
     aborted ? 'Run aborted' : (state.isPractice ? 'Practice complete' : `${state.condition} complete`);
 
-  const isNBack = state.taskMode === 'nback1';
   const dPrime = probit(goAcc) - probit(faRate);
   const scored = state.goCount + state.noGoCount;
   const overallAcc = scored ? (state.goHits + state.correctRejects) / scored : 0;
   const rows = [
-    ['Task', isNBack ? '1-back — yes/no (shape repeat)' : 'Go/No-Go CPT'],
+    ['Task', '1-back — yes/no (shape repeat)'],
     ['Participant', state.pid],
     ['Condition', state.condition],
+    ['Headset filter', state.filter === 'FILTER' ? 'ON' : state.filter === 'NOFILTER' ? 'OFF' : 'not recorded'],
     ['Trials completed', `${state.idx} / ${state.sequence.length}`],
-    [isNBack ? 'Repeat trials (correct = YES)' : 'Go trials', state.goCount],
-    [isNBack ? 'Hit rate (YES on repeats)' : 'Go accuracy (hit rate)', `${(goAcc * 100).toFixed(1)}%`],
-    [isNBack ? 'Non-repeat trials (correct = NO)' : 'No-go trials', state.noGoCount],
-    [isNBack ? 'False alarms (YES on non-repeats)' : 'False alarms (commissions)',
-      `${state.commissions} (${(faRate * 100).toFixed(1)}%)`],
+    ['Repeat trials (correct = YES)', state.goCount],
+    ['Hit rate (YES on repeats)', `${(goAcc * 100).toFixed(1)}%`],
+    ['Non-repeat trials (correct = NO)', state.noGoCount],
+    ['False alarms (YES on non-repeats)', `${state.commissions} (${(faRate * 100).toFixed(1)}%)`],
+    ['No response (timed out)', state.omissions],
+    ['Overall accuracy', `${(overallAcc * 100).toFixed(1)}%`],
     ['Mean hit RT', state.hitRTs.length ? `${Math.round(meanRT(state.hitRTs) * 1000)} ms` : '—'],
     ['Median hit RT', state.hitRTs.length ? `${Math.round(medianRT(state.hitRTs) * 1000)} ms` : '—'],
     ["d′ (sensitivity)", dPrime.toFixed(2)],
+    ...timeCourseRows(state.trialRecords),
   ];
-  if (isNBack) {
-    rows.splice(8, 0,
-      ['No response (timed out)', state.omissions],
-      ['Overall accuracy', `${(overallAcc * 100).toFixed(1)}%`]);
-  }
 
   if (state.isPractice) {
     const pass = goAcc >= PRACTICE_CRITERION;
-    rows.push(['Criterion (≥ 90% go-accuracy)',
+    rows.push(['Criterion (≥ 90% hit rate on repeats)',
       `<span class="${pass ? 'criterion-pass' : 'criterion-fail'}">${pass ? 'PASS' : 'FAIL — repeat practice'}</span>`]);
   }
 
@@ -795,17 +922,16 @@ function showResults(aborted, goAcc, faRate) {
   resultsEl.style.display = 'block';
 }
 
+// Filename carries the filter state like Block B's authored_results_*_FILTER-A_* naming.
+// The stamp is fixed at run start, so re-exports of the same run get the SAME filename
+// (re-export ≠ new run; the 2026-07-22 duplicate-timestamp confusion came from this).
+function csvFileName() {
+  const filterTag = state.filter && state.filter !== 'NA' ? `_${state.filter}` : '';
+  return `blockA_nback1_P${state.pid}_${state.condition}${filterTag}_${state.stamp}.csv`;
+}
+
 function saveCsv() {
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const blob = new Blob([CSV_HEADER + '\n' + csvRows.join('\n') + '\n'], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `blockA_${state.taskMode === 'nback1' ? 'nback1' : 'cpt'}_P${state.pid}_${state.condition}_${stamp}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadCsvText(csvFileName(), CSV_HEADER + '\n' + csvRows.join('\n') + '\n');
 }
 </script>
 </body>

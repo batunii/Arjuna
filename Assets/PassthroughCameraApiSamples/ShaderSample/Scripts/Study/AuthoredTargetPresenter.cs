@@ -119,6 +119,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField, Range(0, 8)] private int m_ringSegments = 0;
         [Tooltip("Dark border flanking the ring — the yellow/black warning-sign pairing. Guarantees a luminance step on bright/yellowish backgrounds where the ring colour alone fades; multiplicative darkening, so it dims with the filter automatically (Point 3). 0 = off.")]
         [SerializeField, Range(0f, 1f)] private float m_ringOutline = 0.6f;
+        [Tooltip("On: ring colour is attenuated by the filter's local desat+dim (supervisor Point 3 — the probe behaves like a real object, so deep-periphery detection honestly floors under the filter). Off: ring draws on top at full colour everywhere — an always-visible attention marker; the Filter condition then measures attention allocation, not visibility.")]
+        [SerializeField] private bool m_ringBehindFilter = false;
         [SerializeField, Range(0f, 2f)] private float m_onsetRampSeconds = 0.5f;
         [SerializeField] private Color m_hitFlashColor = new(0.3f, 1f, 0.4f, 0.9f);
         [SerializeField, Range(0.05f, 1f)] private float m_hitFlashSeconds = 0.25f;
@@ -397,7 +399,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
                                         m_ringColor, m_ringWidth, m_hitFlashColor, m_ringSegments,
-                                        m_ringOutline);
+                                        m_ringOutline, m_ringBehindFilter);
         }
 
         private void StartPass()
@@ -521,8 +523,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             // moment the experimenter needs it, so Unity data and CPT data join on the same pid.
             SetHUDTimed(AutoBlockHud(Current,
                 $"CPT tool participant id:  {(m_participantId < 0 ? 0 : m_participantId)}\n"
+              + $"CPT tool filter state:  {(Current.filter ? "Filter ON" : "Filter OFF")}\n"
               + "Hold RIGHT trigger to paint the window, release to lock\n"
-              + "Press X when the block is finished"), 6f);
+              + "Run the CPT round to the END, then press X"), 8f);
         }
 
         private Coroutine m_hudFade;
@@ -789,6 +792,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             IStudyVignetteControl ctrl = mgr;
             ctrl.StudySetMode(VignetteMode.HardDark);   // both arms: identical mode/procedure
+            ctrl.MotionEnabled = false;                 // constant filter — no fade on head turns
             ctrl.StudyEffectSuppressed = !hardDark;     // baseline arm = same run, invisible effect
             ctrl.StudyInputLock = false;                // participant paints the window
             mgr.StudyMinimalUi = true;                  // no mode toast/cycling; debug text self-clears

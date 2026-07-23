@@ -277,6 +277,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_blobRingWidthId  = Shader.PropertyToID("_BlobRingWidth");
         private static readonly int s_blobRingSegmentsId = Shader.PropertyToID("_BlobRingSegments");
         private static readonly int s_blobRingOutlineId  = Shader.PropertyToID("_BlobRingOutline");
+        private static readonly int s_blobRingBehindFilterId = Shader.PropertyToID("_BlobRingBehindFilter");
         private static readonly int s_blobFlashColorId = Shader.PropertyToID("_BlobFlashColor");
 
         // FlatClipToEquirect composite material (flat clip mode)
@@ -1267,10 +1268,12 @@ namespace PassthroughCameraSamples.ShaderSample
 
         /// <summary>Static blob-probe shape/amount — set once when the blob task activates. The
         /// probe is a scene-pixel modulation composited in the vignette shader (soft desaturation
-        /// + gentle dim), so a probe in a defocused area is filtered too (supervisor Point 3).</summary>
+        /// + gentle dim), so a probe in a defocused area is filtered too (supervisor Point 3);
+        /// for the style-3 ring that behaviour is gated by ringBehindFilter.</summary>
         public void SetBlobProbeStatics(int style, float sigmaFrac, float desat, float dim,
                                         float rim, float lens, Color ringColor, float ringWidth,
-                                        Color flashColor, int ringSegments = 0, float ringOutline = 0f)
+                                        Color flashColor, int ringSegments = 0, float ringOutline = 0f,
+                                        bool ringBehindFilter = true)
         {
             if (m_material == null) return;
             m_material.SetFloat(s_blobStyleId, style);
@@ -1284,6 +1287,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetColor(s_blobFlashColorId, flashColor);
             m_material.SetFloat(s_blobRingSegmentsId, ringSegments);
             m_material.SetFloat(s_blobRingOutlineId, ringOutline);
+            m_material.SetFloat(s_blobRingBehindFilterId, ringBehindFilter ? 1f : 0f);
         }
 
         /// <summary>Single blob probe (slot 0), azEl in radians; radiusRad = angular radius;

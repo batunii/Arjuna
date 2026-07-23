@@ -573,6 +573,10 @@ namespace PassthroughCameraSamples.ShaderSample
                                  / Mathf.Max(Time.deltaTime, 0.001f);
             m_lastHeadRot = head.rotation;
 
+            // Keep tracking head rotation above (no speed spike on re-enable), but never
+            // arm suppression while disabled; the setter already zeroed timer/suppression.
+            if (!m_motionEnabled) return;
+
             // Check whether the head direction is inside the focus rect + arrival margin.
             // When true: cancel hold immediately so effect resumes without waiting.
             bool headInFocus = false;
@@ -640,8 +644,18 @@ namespace PassthroughCameraSamples.ShaderSample
             }
         }
 
-        // Motion suppression has no enable flag in the passthrough scene — it is always on.
-        public bool MotionEnabled { get => true; set { } }
+        // Free-play comfort default; study blocks turn this off so the manipulation is constant
+        // (a head turn must never fade the condition the block is measuring).
+        private bool m_motionEnabled = true;
+        public bool MotionEnabled
+        {
+            get => m_motionEnabled;
+            set
+            {
+                m_motionEnabled = value;
+                if (!value) { m_motionDisableTimer = 0f; m_motionSuppression = 0f; }
+            }
+        }
 
         public void StudySetMode(VignetteMode mode)
         {

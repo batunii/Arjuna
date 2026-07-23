@@ -129,6 +129,14 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   critical viewing; also above the classic ~10:1 task-to-remote-surround comfort limit, which is
   IES/ergonomics lore — verify ISO 9241-6 before citing). Dim history: 7% (v1, floored the
   probes) → 28% → 21% → 15%.
+- **Block A task DECIDED (2026-07-22): forced-choice 1-back with video-clip distractors.**
+  `PilotTools/block-a-cpt.html` now runs ONLY that configuration — the Go/No-Go CPT mode,
+  the respond-with selector, and the procedural-reel distractor option were removed (the
+  filename keeps its historical `cpt` name so references stay valid). Setup screen is just
+  pid + run slot (Practice/A1–A4). Main runs cut 140→**84 trials** (84 × 2.5 s SOA = 3:30,
+  the intended block length; 140 was the old CPT count at 1.5 s SOA and ran 5:50) — ~25
+  repeat trials per run. CSV `mode` stays `NBACK1_PILOT`. `testing-strategy-v2.md`
+  §4.1 still describes the old CPT and needs updating. See `PilotTools/README.md`.
 - **Cross-system pid matching (Block A CPT ↔ Unity), 2026-07-22:** within Unity the AutoSession
   pid is stamped everywhere (video CSV filename+rows, ledger PLAN/BLOCK) — guaranteed. The Block
   A SCORES come from `PilotTools/block-a-cpt.html`, whose participant field is HAND-TYPED →
@@ -138,6 +146,56 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   (BLOCK-row timestamps) — a typo shows up as time/pid inconsistency. Known hazard: pid −1
   builds cannot RESUME a crashed session (relaunch auto-assigns the NEXT id, orphaning the
   interrupted participant) — fix if needed: pid_override.txt read at boot (not built).
+  **Tightened 2026-07-23:** the CPT tool now REQUIRES a filter-state selection for main runs
+  (stamped in `dr_intensity` 1/0, run-start payload, filename `..._A3_FILTER_...`); the Unity
+  Block A HUD shows the arm's filter state next to the pid; every trial autosaves the full CSV
+  to localStorage (recovery list on the setup screen, auto-download at run end — a missed
+  export no longer loses the run); and a window-setup stage shows the 540×540 panel as a
+  dashed dummy so the participant paints the focus window against the real task geometry
+  before trials start (P33-style same-arm double-runs and P4-style lost files both addressed).
+- **Block A distractor pool expanded (2026-07-23):** five Bollywood music-video clips
+  (YouTube, middle sections — first 30 s / last 10 s trimmed) added to `RawFootage/` as
+  `video[5-9]_bolly_*`, and both `Assets/_Scratch/tiktok_5min_{1,2}.mp4` reels regenerated
+  with `tiktok_captions.py`'s new `--long-sources bolly` option (matching sources' cuts hold
+  ~2× longer; reels now ~7–8 min before looping). Richer motion/dance content = stronger
+  peripheral distraction. Details: `.agent-docs/systems/distractor-content-pipeline.md`.
+  Two reel pairs now exist — `tiktok_5min_1/2` ("New videos", default) and `tiktok_5min_3/4`
+  ("Original videos", rebuilt from the original 4 sources, no songs) — switchable via the CPT
+  tool's new **Distractor videos** selector; the choice is stamped in the run-start payload
+  (`distractors=NEW|ORIGINAL`). The side screens stay dark until Start and re-darken at run
+  end. Side frames also bumped a size (500px/73vh, was 440/66vh).
+  ⚠ Comparability: distractor content is now a recorded variable — runs with different
+  `distractors` values (and all pre-2026-07-23 runs, which played the old 5-min originals)
+  should not be pooled without noting it, same caveat class as the v1/v2 trial-count change.
+- **Block A v3 + time-course metrics (2026-07-23, user request):** main runs are now
+  **140 trials × 1.8 s SOA = 4:12** (window 1.5 s, same 0.3 s closed gap; practice
+  unchanged). Rationale recorded in the tool's constants comment: 140 restores the
+  original spec count → 42 repeats (d′ sampling variance scales with inverse signal/noise
+  counts, Macmillan & Creelman 2005) and ~46-trial thirds; 1.8 s keeps the ≥~2×-median-RT
+  window rule (1.5 s vs Day-1 medians 567–776 ms) and sits above SART's 1.15 s
+  (Robertson et al. 1997). **v1 (84×2.5) / v2 (105×2.0) / v3 never pool** — payload
+  `trials`/`soa_s` distinguish. New consistency metrics: end-of-run stats now show
+  accuracy / median correct RT / RT-CV by run thirds + an RT-drift slope (ms/min);
+  `Tools/analysis/blocka_timecourse.py` computes the same per run from the CSVs and
+  contrasts FILTER vs NOFILTER per version (answers "more/less consistent with time under
+  filter?"). Pre-2026-07-23 files lack the filter stamp → UNKNOWN; match via ledger.
+- **Block B time-course too (2026-07-23):** `Tools/analysis/blockb_timecourse.py` does the
+  same for the video runs (`authored_results_*.csv`) — per run: hit rate / median hit RT /
+  RT-CV in the early vs late half of the clip (split at median target onset), RT-drift
+  slope, false alarms per half; then a **difference-in-differences fatigue contrast**
+  per set: (late−early) under Filter minus under NoFilter. Within a set both arms see
+  IDENTICAL targets, so half-difficulty cancels — read the contrast, never the raw
+  late-half drop (late targets are different targets). Dedupes the 2026-07-22 twin-CSV
+  runs; ⚠ probe/window/dim changed across days, so only contrast same-era runs (date is
+  in the filename).
+- **Pid-66 typo fixed & merged into P6 (2026-07-23):** participant 6's two video blocks ran
+  under mistyped pid 66. Corrected `_P6_` copies (pid column rewritten) are canonical in
+  `raw/`; untouched originals are in `raw/mislabeled_p66_20260723/` with a README. A third
+  partial NoFilter-A file (15:04) is an ABORT, not exposure: the participant felt uneasy
+  and removed the headset before starting; the video played on unattended — do not score,
+  and no practice-effect concern for her real 17:06 NoFilter-A run. No PLAN row for 66
+  existed → counterbalancing unaffected. Device files left untouched. P6's full dataset:
+  Block A browser CSVs (P6) + passthrough BLOCK (pid 6) + the two relabeled video runs.
 - Next: rebuild → PILOT1003 NoFilter + Filter with the rope, check the 60–85% band and RTs vs
   the yellow anchors (57–84%, ~1.8 s).
 - **Person engine: closeness-widened cone (2026-07-22, user design).** The fixed 12.5°/25°
