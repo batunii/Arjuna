@@ -1366,10 +1366,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_video: {fileID: 949970469}
   m_poolFileName: pool_split.csv
-  m_participantId: 10
+  m_participantId: 10007
   m_sessionMode: 1
   m_environment: 0
-  m_targetSet: 2
+  m_targetSet: 1
   m_filter: 0
   m_baselineScreening: 0
   m_filterMode: 10

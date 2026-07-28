@@ -113,11 +113,19 @@
   .savedRow .badge.complete { background: #14351f; color: #4ade80; }
   .savedRow .badge.partial  { background: #3a2a12; color: #fbbf24; }
   .savedRow button { margin-top: 0; padding: 6px 12px; font-size: 0.8rem; }
-  /* 4 shapes: square is the default (no class), the others carve it via clip-path/radius. */
+  /* 6 shapes in 3 look-alike pairs (v4 2026-07-27): square/diamond (rotation twins),
+     pentagon/hexagon (side count), circle/ellipse (both round, no corners). Square is the
+     default (no rule for its class), the others carve it via clip-path/radius/height.
+     The pair similarity is the difficulty, but each shape must still be IDENTIFIABLE in
+     isolation: the ellipse started at 182px (0.86 aspect) and was indistinguishable from
+     the circle at a glance (user, 2026-07-27) — now 148px (0.70), clearly squashed while
+     still the circle's round twin. */
   #shape { width: 212px; height: 212px; background: #fff; visibility: hidden; }
   #shape.circle { border-radius: 50%; }
-  #shape.triangle { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+  #shape.ellipse { border-radius: 50%; height: 148px; }
   #shape.diamond  { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+  #shape.pentagon { clip-path: polygon(50% 0%, 100% 38%, 81% 100%, 19% 100%, 0% 38%); }
+  #shape.hexagon  { clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
   /* Yes/No forced-choice buttons. */
   #choiceRow { display: flex; gap: 18px; margin-top: 18px; justify-content: center; }
   #choiceRow button { margin-top: 0; min-width: 220px; padding: 16px 26px; font-size: 1.15rem; line-height: 1.5; }
@@ -155,7 +163,8 @@
   <div class="sub">
     The Block A workstation task: forced-choice 1-back — answer YES/NO on every shape,
     "same as the previous one?" — with real-footage video clips as the side-margin
-    distractors. See PilotTools/README.md for caveats.
+    distractors. v4: six shapes in look-alike pairs, 50% repeats, lure-biased non-repeats.
+    See PilotTools/README.md for caveats.
   </div>
 
   <label for="pid">Participant ID</label>
@@ -163,11 +172,11 @@
 
   <label for="runType">Run</label>
   <select id="runType">
-    <option value="practice">Practice (40 trials, seed 999, criterion ≥ 90% hit rate on repeats)</option>
-    <option value="A1">A1 (140 trials · 1.8 s, ~4:12)</option>
-    <option value="A2">A2 (140 trials · 1.8 s, ~4:12)</option>
-    <option value="A3">A3 (140 trials · 1.8 s, ~4:12)</option>
-    <option value="A4">A4 (140 trials · 1.8 s, ~4:12)</option>
+    <option value="practice">Practice (40 trials, seed 999, criterion ≥ 80% hit rate on repeats)</option>
+    <option value="A1">A1 (140 trials · 2.0 s, ~4:40)</option>
+    <option value="A2">A2 (140 trials · 2.0 s, ~4:40)</option>
+    <option value="A3">A3 (140 trials · 2.0 s, ~4:40)</option>
+    <option value="A4">A4 (140 trials · 2.0 s, ~4:40)</option>
   </select>
 
   <label for="filterState">Headset filter state — copy from the Unity HUD (required for A1–A4)</label>
@@ -179,6 +188,7 @@
 
   <label for="distractorSet">Distractor videos (side screens stay dark until the run starts)</label>
   <select id="distractorSet">
+    <option value="PROTEST">Newest videos (protest + ad/meme clips)</option>
     <option value="NEW">New videos</option>
     <option value="ORIGINAL">Original videos</option>
   </select>
@@ -247,15 +257,43 @@ const PRACTICE_TRIALS = 40;
 // History: 140 × 1.5s Go/No-Go CPT → 84 × 2.5s 1-back → 105 × 2.0s → this.
 const MAIN_TRIALS = 140;
 const PRACTICE_SEED = 999;
-const PRACTICE_CRITERION = 0.90;
+// v4: lowered 0.90 → 0.80. The criterion is a comprehension gate, not a performance bar —
+// with look-alike lures a participant who fully understands the task can sit below 90%.
+const PRACTICE_CRITERION = 0.80;
 
 // ---- 1-back task (THE Block A study task as of 2026-07-22; the earlier Go/No-Go CPT and
 // procedural-reel distractor options were removed — see PilotTools/README.md) ----
 // Respond when the current shape matches the PREVIOUS one.
-// ~30% repeat rate is the conventional 1-back target density; 4 shapes keep repeats
-// non-guessable while staying trivially discriminable at a glance.
-const NBACK_TARGET_PROPORTION = 0.3;
-const NBACK_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
+// VERSION 4 (2026-07-27, decision-difficulty + anti-predictability pass; SOA 1.8→2.0s —
+// see the timing comment below). v3 proved the pace lever exhausted (Day-2 naive runs at 95–100%, RT 500–690ms,
+// flat) and participants reported exploiting sequence structure: (a) no-consecutive-targets
+// meant every YES was followed by a certain NO, (b) gap-sampling + the 8-trial drought cap
+// made repeats feel "due", (c) 30% base rate made default-NO 70% correct. v4 changes:
+//   - 6 shapes in 3 LOOK-ALIKE pairs (square/diamond, pentagon/hexagon, circle/ellipse);
+//     non-repeat trials show the previous shape's twin with p=0.6 (lures), so "different"
+//     needs a fine discrimination, not a glance;
+//   - 50% repeat rate — the right base rate for a forced-choice same/different task
+//     (the 30% convention is go/no-go n-back lore); default-guessing earns chance;
+//   - memoryless sequence: per-trial coin flips, consecutive repeats ALLOWED (max run
+//     below), so no answer is ever determined by the previous answers.
+// Versions NEVER pool (supervisor directive 2026-07-23): v1 = 84×2.5s, v2 = 105×2.0s,
+// v3 = 140×1.8s (distinct shapes, 30%), v4 = 140×2.0s + lures. The run-start payload's
+// task=nback1_lures (+ gen=v4) is the robust distinguisher (v4 briefly ran at 1.8s in
+// self-pilots on 2026-07-27 before the timing decision — the task tag covers those too).
+const NBACK_TARGET_PROPORTION = 0.5;
+const NBACK_SHAPES = ['circle', 'ellipse', 'square', 'diamond', 'pentagon', 'hexagon'];
+// Each shape's confusable twin. A non-repeat draws the PREVIOUS shape's twin with
+// probability NBACK_LURE_P (logged as lure=1), else uniformly one of the 4 non-twin others
+// (twin excluded there so the lure rate is exactly NBACK_LURE_P, not "at least").
+const NBACK_TWIN = { circle: 'ellipse', ellipse: 'circle', square: 'diamond',
+                     diamond: 'square', pentagon: 'hexagon', hexagon: 'pentagon' };
+const NBACK_LURE_P = 0.6;
+// Sequence-shape caps: forcing kicks in only at the cap, so the leak is tiny (a 4th
+// identical shape never appears; with p=0.5 that rule fires ~9 times per 140 trials and
+// is far harder to exploit than v3's "a 3rd identical NEVER appears").
+const NBACK_MAX_TARGET_RUN = 3; // max consecutive repeats (≤ 4 identical shapes in a row)
+const NBACK_MAX_DROUGHT = 8;    // max consecutive non-repeats (kept from v3; rarely binds at 50%)
+const NBACK_COUNT_TOL = 7;      // accept a draw if |repeats − trials/2| ≤ this (≈ 1.2 binomial SD)
 // Forced-choice timing (the CPT's 1.5s SOA with a full-SOA response window is too tight for a
 // yes/no decision on every trial, and back-to-back trials let a late answer land on the NEXT
 // shape — scored against a stimulus the participant hadn't processed, i.e. seemingly random
@@ -268,8 +306,19 @@ const NBACK_SHAPES = ['circle', 'square', 'triangle', 'diamond'];
 // well above validated every-trial-response attention tasks (SART: 1.15s SOA over 225
 // trials, Robertson et al. 1997; Conners' CPT runs blocks at a 1s ISI with responses
 // expected inside it). The 300ms closed gap between window and next onset is unchanged.
-const NBACK_SOA_S = 1.8;     // onset-to-onset for 1-back trials (140 trials = 4:12 per run)
-const NBACK_WINDOW_S = 1.5;  // answers accepted until here; the last 300ms is a closed gap
+// v4 (2026-07-27): SOA 1.8→2.0s / window 1.5→1.7s, decided against literature anchors
+// (Dissertation/blocka-timing-research.md). The lures moved RTs up (author self-pilot
+// median 812ms vs Day-2 naive 500–690ms; slowest response sat exactly at the old 1500ms
+// edge), so 1.5s no longer met the ≥~2×-median window rule, and two literatures say a
+// tight window measures the wrong thing here: distraction/lapse effects live in the slow
+// RT tail (ex-Gaussian τ) which a tight window censors, and deadline errors reflect a
+// speed-accuracy criterion shift, not the discrimination sensitivity d′ needs. 1.7s is
+// 2.1× the author median (~1.7–1.8× the projected naive median — accept, and check
+// participant 1's practice stats). The field-standard n-back window is 3.0s, so v4
+// remains well on the fast side of convention. SART's 1.15s stays the pace floor only —
+// it is a detection task, not a discrimination, so it never justified the window itself.
+const NBACK_SOA_S = 2.0;     // onset-to-onset for 1-back trials (140 trials = 4:40 per run)
+const NBACK_WINDOW_S = 1.7;  // answers accepted until here; the last 300ms is a closed gap
 const NBACK_MIN_RT_S = 0.25; // faster than any real choice — treat as spillover and ignore
 
 // ---- seeded PRNG (mulberry32) ----
@@ -283,61 +332,61 @@ function mulberry32(seed) {
   };
 }
 
-// 1-back sequence: returns { flags, shapes } where flags[i] = "trial i is a repeat of i-1"
-// (the go/target trials) and shapes[i] is the shape class to display.
-// Constraints:
-//   - trial 0 is never a target (there is nothing before it to repeat);
-//   - no two consecutive targets (three identical shapes in a row reads as a glitch);
-//   - no more than 8 consecutive non-targets (max-drought cap).
-// Adjacency is guaranteed by construction (gap sampling) rather than rejection, so this
-// converges in a handful of attempts; only the drought cap can trigger a retry.
+// 1-back sequence: returns { flags, shapes, lures } where flags[i] = "trial i is a repeat
+// of i-1" (correct answer YES), shapes[i] is the shape class to display, and lures[i] =
+// "trial i is a non-repeat showing the previous shape's look-alike twin".
+// v4 generator (2026-07-27): each trial after the first is an independent coin flip at
+// NBACK_TARGET_PROPORTION — memoryless by construction, so the answer history carries no
+// information about the next answer (v3's gap-sampling was exploited by participants; see
+// the version comment above). Forcing only at the caps: a run of NBACK_MAX_TARGET_RUN
+// repeats forces a non-repeat, a drought of NBACK_MAX_DROUGHT forces a repeat. A draw is
+// accepted when its repeat count lands within NBACK_COUNT_TOL of the nominal 50% (~68% of
+// draws; converges in a few attempts), so per-run signal/noise counts stay comparable.
 // NOTE: mulberry32 is NOT the same PRNG family as .NET's System.Random, so a given seed will
 // NOT reproduce the bit-for-bit trial order a Unity implementation would generate.
 function buildNBackSequence(trials, seed) {
   const rand = mulberry32(seed);
-  const targets = Math.round(trials * NBACK_TARGET_PROPORTION);
+  const wantTargets = Math.round((trials - 1) * NBACK_TARGET_PROPORTION);
 
-  let flags = null;
-  for (let attempt = 0; attempt < 1000000; attempt++) {
-    // Choose `targets` positions in [1, trials-1] with no two adjacent: pick sorted slots
-    // from a compressed range, then re-expand with +i so every pair is >= 2 apart.
-    const slots = (trials - 1) - targets + 1;
-    if (slots < targets) break; // infeasible; fall through to the even-spacing fallback
-    const picks = new Set();
-    while (picks.size < targets) picks.add(Math.floor(rand() * slots));
-    const positions = [...picks].sort((a, b) => a - b).map((v, i) => 1 + v + i);
-
-    const f = new Array(trials).fill(false);
-    for (const p of positions) f[p] = true;
-
-    let run = 0, ok = true;
-    for (const t of f) {
-      run = t ? 0 : run + 1;
-      if (run > 8) { ok = false; break; }
+  let flags = null, best = null, bestDev = Infinity;
+  for (let attempt = 0; attempt < 200 && !flags; attempt++) {
+    const f = new Array(trials).fill(false); // trial 0 stays false: nothing to repeat
+    let yesRun = 0, noRun = 0, count = 0;
+    for (let i = 1; i < trials; i++) {
+      let t;
+      if (yesRun >= NBACK_MAX_TARGET_RUN) t = false;
+      else if (noRun >= NBACK_MAX_DROUGHT) t = true;
+      else t = rand() < NBACK_TARGET_PROPORTION;
+      f[i] = t;
+      if (t) { yesRun++; noRun = 0; count++; } else { noRun++; yesRun = 0; }
     }
-    if (ok) { flags = f; break; }
+    const dev = Math.abs(count - wantTargets);
+    if (dev <= NBACK_COUNT_TOL) flags = f;
+    else if (dev < bestDev) { bestDev = dev; best = f; }
+  }
+  if (!flags) { // statistically ~0.6^200 — but never run with a null sequence
+    console.warn('[BlockA-CPT] count tolerance not met in 200 draws; using closest draw.');
+    flags = best;
   }
 
-  if (!flags) {
-    console.warn('[BlockA-CPT] 1-back constraints not met by sampling; using even spacing.');
-    flags = new Array(trials).fill(false);
-    const step = trials / targets;
-    for (let k = 0; k < targets; k++) {
-      flags[Math.max(1, Math.min(trials - 1, Math.floor(k * step + step * 0.5)))] = true;
-    }
-  }
-
-  // Materialize shapes: a target repeats the previous shape; a non-target draws any OTHER
-  // shape (so a non-target can never accidentally be a repeat).
-  const shapes = [];
+  // Materialize shapes: a repeat copies the previous shape; a non-repeat draws the previous
+  // shape's TWIN with p = NBACK_LURE_P (a look-alike lure), else uniformly one of the other
+  // shapes (previous shape and its twin both excluded, so lure trials are exactly the
+  // lure-flagged ones and a non-repeat can never accidentally be a repeat).
+  const shapes = [], lures = new Array(trials).fill(false);
   for (let i = 0; i < trials; i++) {
     if (i > 0 && flags[i]) { shapes.push(shapes[i - 1]); continue; }
     let s;
-    do { s = NBACK_SHAPES[Math.floor(rand() * NBACK_SHAPES.length)]; }
-    while (i > 0 && s === shapes[i - 1]);
+    if (i > 0 && rand() < NBACK_LURE_P) {
+      s = NBACK_TWIN[shapes[i - 1]];
+      lures[i] = true;
+    } else {
+      do { s = NBACK_SHAPES[Math.floor(rand() * NBACK_SHAPES.length)]; }
+      while (i > 0 && (s === shapes[i - 1] || s === NBACK_TWIN[shapes[i - 1]]));
+    }
     shapes.push(s);
   }
-  return { flags, shapes };
+  return { flags, shapes, lures };
 }
 
 // ---- CSV log, same header/columns as StudyLogger.cs; head-pose columns blank (no VR here) ----
@@ -495,15 +544,18 @@ let state = null; // set when a run starts
 let runToken = 0;
 
 // The side-margin distractors are the study's video clips (video-reel.html playing
-// Tools/tiktok_captions.py output) — a different clip per side. Two reel pairs exist
-// (2026-07-23): NEW = _1/_2 (incl. Bollywood song clips, long cuts), ORIGINAL = _3/_4
-// (the pre-2026-07-23 4-source pool). The setup selector picks the pair; the choice is
-// stamped into the run-start payload (distractors=NEW|ORIGINAL).
+// Tools/tiktok_captions.py output) — a different clip per side. Three reel pairs exist:
+// PROTEST = _5/_6 (2026-07-27: the full 18-source pool incl. 4 Delhi-protest news Shorts
+// + 5 ad/meme Shorts added later the same day, before any PROTEST-stamped run existed),
+// NEW = _1/_2 (2026-07-23: 9 sources incl. Bollywood song clips, long cuts), ORIGINAL =
+// _3/_4 (the pre-2026-07-23 4-source pool). The setup selector picks the pair; the choice
+// is stamped into the run-start payload (distractors=PROTEST|NEW|ORIGINAL).
 // The screens stay DARK until a run actually starts and go dark again when it ends
 // (user request 2026-07-23): the distraction must not be running while ids are typed
 // or stats are read. The empty frames still sit there like switched-off phones, so
 // there's no layout jump when they light up.
 const DISTRACTOR_SETS = {
+  PROTEST:  ['../Assets/_Scratch/tiktok_5min_5.mp4', '../Assets/_Scratch/tiktok_5min_6.mp4'],
   NEW:      ['../Assets/_Scratch/tiktok_5min_1.mp4', '../Assets/_Scratch/tiktok_5min_2.mp4'],
   ORIGINAL: ['../Assets/_Scratch/tiktok_5min_3.mp4', '../Assets/_Scratch/tiktok_5min_4.mp4'],
 };
@@ -514,7 +566,7 @@ function setDistractorsPlaying(on) {
     distractorRightIframe.src = 'about:blank';
     return;
   }
-  const [left, right] = DISTRACTOR_SETS[distractorSetEl.value] || DISTRACTOR_SETS.NEW;
+  const [left, right] = DISTRACTOR_SETS[distractorSetEl.value] || DISTRACTOR_SETS.PROTEST;
   distractorLeftIframe.src = 'video-reel.html?src=' + encodeURIComponent(left) + '&embedded=1';
   distractorRightIframe.src = 'video-reel.html?src=' + encodeURIComponent(right) + '&embedded=1';
 }
@@ -566,16 +618,36 @@ function startRun() {
   const seed = isPractice ? PRACTICE_SEED : (parseInt(pid, 10) * 10 + slot);
   const condition = isPractice ? 'PRACTICE' : runType;
 
-  const { flags: sequence, shapes } = buildNBackSequence(trials, seed);
+  // Slot-reuse guard (P9 incident 2026-07-23: both main runs entered as A3 → same seed →
+  // the identical trial sequence twice, second run suspect). The autosave list already
+  // knows every run this device has seen, so re-picking a used slot for the same pid is
+  // an explicit, confirmed override rather than a silent mistake.
+  if (!isPractice) {
+    const used = loadSavedRuns()
+      .filter(r => typeof r.id === 'string' && r.id.startsWith(`${pid}_`))
+      .map(r => r.id.split('_')[1]);
+    if (used.includes(condition)) {
+      const free = ['A1', 'A2', 'A3', 'A4'].filter(s => !used.includes(s));
+      if (!confirm(
+        `P${pid} already has a ${condition} run saved on this device.\n` +
+        `Re-running ${condition} repeats the IDENTICAL shape sequence (same seed) — ` +
+        `the participant has seen it before.\n\n` +
+        (free.length ? `Free slots for P${pid}: ${free.join(', ')}.\n\n` : '') +
+        `Run ${condition} anyway?`)) return;
+    }
+  }
+
+  const { flags: sequence, shapes, lures } = buildNBackSequence(trials, seed);
 
   state = {
-    pid, condition, isPractice, sequence, shapes, seed,
+    pid, condition, isPractice, sequence, shapes, lures, seed,
     distractors: distractorSetEl.value,
     filter: filter || 'NA',
     saveId: `${pid}_${condition}_${Date.now()}`,
     stamp: new Date().toISOString().replace(/[:.]/g, '-'),
     token: ++runToken, startedIdx: -1, finishedIdx: -1,
     idx: 0, goCount: 0, goHits: 0, noGoCount: 0, commissions: 0,
+    lureCount: 0, lureCommissions: 0,
     correctRejects: 0, omissions: 0, choice: null,
     nCorrect: 0, nWrong: 0, nTimeout: 0,
     hitRTs: [], onsetTime: 0, responded: false, awaitingResponse: false,
@@ -619,7 +691,7 @@ function beginRun() {
   logEvent(state.pid, state.condition, 'CPT_PANEL_PLACED',
     'dist_m=n/a;tool=block-a-cpt.html;window_stage=done');
   logEvent(state.pid, state.condition, state.isPractice ? 'PRACTICE_START' : 'CPT_RUN_START',
-    `trials=${state.sequence.length};seed=${state.seed};soa_s=${NBACK_SOA_S};task=nback1;filter=${state.filter};distractors=${state.distractors}`);
+    `trials=${state.sequence.length};seed=${state.seed};soa_s=${NBACK_SOA_S};task=nback1_lures;gen=v4;target_p=${NBACK_TARGET_PROPORTION};lure_p=${NBACK_LURE_P};filter=${state.filter};distractors=${state.distractors}`);
 
   runTrial(state.token);
 }
@@ -659,7 +731,8 @@ function runTrial(tok) {
   state.awaitingResponse = scorable;
   state.currentIsGo = isGo;
   logEvent(state.pid, state.condition, 'CPT_ONSET',
-    `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'};shape=${state.shapes[state.idx]}`);
+    `idx=${state.idx};kind=${isGo ? 'go' : 'nogo'};shape=${state.shapes[state.idx]}` +
+    (isGo || state.idx === 0 ? '' : `;lure=${state.lures[state.idx] ? 1 : 0}`));
 
   // The shape stays up for the whole answer window (hiding it earlier while the timer kept
   // running read as a glitch — feedback 2026-07-20).
@@ -746,8 +819,10 @@ function finishTrial(tok) {
       }
     } else {
       state.noGoCount++;
+      if (state.lures[state.idx]) state.lureCount++;
       if (state.responded && state.choice) {
         state.commissions++;
+        if (state.lures[state.idx]) state.lureCommissions++;
         state.nWrong++;
         outcome = `commission;rt_ms=${rtMs}`;
       } else if (state.responded) {
@@ -790,7 +865,7 @@ function endRun(aborted) {
 
   logEvent(state.pid, state.condition, aborted ? 'CPT_RUN_ABORTED' :
     (state.isPractice ? 'PRACTICE_END' : 'CPT_RUN_END'),
-    `go_acc=${goAcc.toFixed(3)}${state.isPractice ? ';criterion=0.90' : ''}`);
+    `go_acc=${goAcc.toFixed(3)}${state.isPractice ? `;criterion=${PRACTICE_CRITERION.toFixed(2)}` : ''}`);
 
   // Belt and braces: mark the localStorage copy complete AND auto-download the CSV —
   // the manual Save button is now a re-export, not the only copy.
@@ -894,7 +969,7 @@ function showResults(aborted, goAcc, faRate) {
   const scored = state.goCount + state.noGoCount;
   const overallAcc = scored ? (state.goHits + state.correctRejects) / scored : 0;
   const rows = [
-    ['Task', '1-back — yes/no (shape repeat)'],
+    ['Task', '1-back — yes/no (shape repeat), v4 look-alike lures'],
     ['Participant', state.pid],
     ['Condition', state.condition],
     ['Headset filter', state.filter === 'FILTER' ? 'ON' : state.filter === 'NOFILTER' ? 'OFF' : 'not recorded'],
@@ -903,6 +978,8 @@ function showResults(aborted, goAcc, faRate) {
     ['Hit rate (YES on repeats)', `${(goAcc * 100).toFixed(1)}%`],
     ['Non-repeat trials (correct = NO)', state.noGoCount],
     ['False alarms (YES on non-repeats)', `${state.commissions} (${(faRate * 100).toFixed(1)}%)`],
+    ['— on look-alike lures', `${state.lureCommissions} / ${state.lureCount}`],
+    ['— on other shapes', `${state.commissions - state.lureCommissions} / ${state.noGoCount - state.lureCount}`],
     ['No response (timed out)', state.omissions],
     ['Overall accuracy', `${(overallAcc * 100).toFixed(1)}%`],
     ['Mean hit RT', state.hitRTs.length ? `${Math.round(meanRT(state.hitRTs) * 1000)} ms` : '—'],
@@ -913,7 +990,7 @@ function showResults(aborted, goAcc, faRate) {
 
   if (state.isPractice) {
     const pass = goAcc >= PRACTICE_CRITERION;
-    rows.push(['Criterion (≥ 90% hit rate on repeats)',
+    rows.push([`Criterion (≥ ${Math.round(PRACTICE_CRITERION * 100)}% hit rate on repeats)`,
       `<span class="${pass ? 'criterion-pass' : 'criterion-fail'}">${pass ? 'PASS' : 'FAIL — repeat practice'}</span>`]);
   }
 

@@ -22,19 +22,30 @@ Open it in any browser (serve via a local static server if `file://` iframes are
 see the bottom of this doc). No other setup.
 
 1. Enter a participant ID and pick **Practice** (40 trials) or a condition slot **A1-A4**
-   (**v3, 2026-07-23: 140 trials at 1.8 s SOA** = 4:12. History: v1 = 84 × 2.5 s, v2 =
-   105 × 2.0 s — v2 was the ceiling fix after all Day-1 naive runs scored 96–100%; v3
-   restores the original spec's 140-trial count (42 repeats → tighter d′, ~46-trial
-   thirds for the time-course stats) and trims the SOA to 1.8 s — the 1.5 s answer
-   window still spans 1.9–2.6× the Day-1 naive median RTs (567–776 ms), and stays above
-   validated fast every-trial-response tasks (SART's 1.15 s SOA, Robertson et al. 1997).
-   **v1/v2/v3 runs must never be aggregated** (supervisor directive 2026-07-23); the
-   run-start payload's `trials`/`soa_s` fields distinguish them).
+   (**v4, 2026-07-27: 140 trials at 2.0 s SOA / 1.7 s answer window** = 4:40, six
+   look-alike shapes, 50% repeats, memoryless sequence; see the v4 section below. The
+   window was re-derived after the lures moved RTs up (author self-pilot median 812 ms
+   vs naive 500–690 ms on v3) — anchors and rationale in
+   `Dissertation/blocka-timing-research.md`. History: v1 = 84 × 2.5 s, v2 = 105 × 2.0 s — v2 was the ceiling fix
+   after all Day-1 naive runs scored 96–100%; v3 (2026-07-23) restored the original
+   spec's 140-trial count and trimmed the SOA to 1.8 s — and Day-2 naive runs STILL
+   scored 95–100% (RT 500–690 ms, flat), proving the pace lever exhausted; v4 attacks
+   the discrimination and the sequence statistics instead, and widens the window
+   (1.5→1.7 s) so difficulty comes from the decision, not the deadline — a tight window
+   censors the slow-RT tail where distraction effects live (ex-Gaussian τ) and turns
+   d′ into a speed-accuracy-criterion measure.
+   **Versions must never be aggregated** (supervisor directive 2026-07-23); the
+   run-start payload's `trials`/`soa_s`/`task` fields distinguish them — v4 shares v3's
+   timing, so `task=nback1_lures` is its distinguisher. A **slot-reuse guard** (v4) warns
+   when a pid+slot pair already has a saved run on this device — same seed = the identical
+   sequence again (the P9 incident); it lists the free slots and requires an explicit
+   confirm to override.)
 2. Every shape asks "same as the previous one?" — YES (`Y` / `←` / `1` or the left button),
    NO (`N` / `→` / `2` or the right button). The first shape is memorize-only.
-3. After the run: on-screen stats (repeat-hit rate, false alarms, no-responses, overall
-   accuracy, mean/median hit RT, d-prime, and — for Practice — the ≥ 90% criterion
-   pass/fail), plus **time-course rows** (2026-07-23): accuracy / median correct RT /
+3. After the run: on-screen stats (repeat-hit rate, false alarms — split lure vs
+   non-lure in v4 — no-responses, overall accuracy, mean/median hit RT, d-prime, and —
+   for Practice — the ≥ 80% criterion pass/fail (v4; was 90%)), plus **time-course rows**
+   (2026-07-23): accuracy / median correct RT /
    RT-consistency (CV) split into run thirds, and an RT-drift slope in ms per minute —
    the at-a-glance "were they slowing down / getting erratic late in the run" view.
    A **Save CSV** button re-exports the log. For the cross-run FILTER-vs-NOFILTER
@@ -94,26 +105,47 @@ CSV schema, stats). Details:
   runs only is a small conditional.
 - **1-back timing differs from the CPT** (fixed 2026-07-20 after hands-on feel — with the CPT's
   1.5s SOA and full-SOA response window, a late answer landed on the *next* shape and was scored
-  against a stimulus the participant hadn't processed): SOA 1.8s, answer window 1.5s (v3,
-  2026-07-23 — timing history: 2.0 → 2.5 ("still a little hard", 2026-07-20) → back to 2.0
-  as the v2 ceiling fix once Day-1 naive medians came in at 567–776ms → 1.8 in v3, keeping
-  the same ≥~2×-median-RT headroom rule: the 1.5s window spans 1.9–2.6× those medians, and
-  the pace stays above SART's validated 1.15s SOA for every-trial-response attention tasks
-  (Robertson et al. 1997; Conners' CPT blocks run down to a 1s ISI)). Main runs are 140
-  trials = 4:12. Answers accepted 0.25–1.5s after onset. The shape stays visible for
-  the whole 1.5s window (hiding it at the CPT's 700ms while the timer kept running read as a
-  glitch); the last 300ms of each trial is a closed-window gap so late answers can't spill onto
-  the next shape. Clicks before 0.25s are ignored as spillover from the previous trial.
-- 4 shapes (circle, square, triangle, diamond), ~30% repeat rate (12 targets / 40 practice,
-  42 / 140 main in v3 — more go trials per run than v1's 25/84 or v2's 32/105, so per-run
-  hit rates get LESS noisy while the pace pressure rises; d′'s sampling variance scales with
-  the inverse of the signal/noise trial counts (Macmillan & Creelman 2005), which is the
-  quantitative case for 140 over 105; pilot should confirm the stats now discriminate). Trial 1 is never a target; no two consecutive targets (no triple-repeats);
-  max 8 trials between targets. Non-adjacency is guaranteed by gap-sampling construction, so
-  unlike the CPT builder this doesn't depend on a huge rejection-sampling attempt cap.
+  against a stimulus the participant hadn't processed): SOA 2.0s, answer window 1.7s (v4,
+  2026-07-27 — timing history: 2.0 → 2.5 ("still a little hard", 2026-07-20) → back to 2.0
+  as the v2 ceiling fix once Day-1 naive medians came in at 567–776ms → 1.8 in v3 (the 1.5s
+  window spanned 1.9–2.6× those medians) → 2.0 in v4, because the lures moved RTs up
+  (author self-pilot median 812ms, slowest answer at the exact 1500ms edge) and the same
+  ≥~2×-median-RT headroom rule then demands a wider window. Full literature evaluation in
+  `Dissertation/blocka-timing-research.md`: the field-standard n-back window is 3.0s
+  (500ms stimulus + 2500ms ISI), so v4 stays on the fast side of convention; SART's 1.15s
+  (Robertson et al. 1997) is a *detection*-task pace floor, not a discrimination-window
+  anchor; and a tight window censors the slow-RT tail (ex-Gaussian τ) where
+  lapse/distraction effects live while deflating d′ via a speed-accuracy criterion shift).
+  Main runs are 140 trials = 4:40. Answers accepted 0.25–1.7s after onset. The shape stays
+  visible for the whole 1.7s window (hiding it at the CPT's 700ms while the timer kept
+  running read as a glitch); the last 300ms of each trial is a closed-window gap so late
+  answers can't spill onto the next shape. Clicks before 0.25s are ignored as spillover
+  from the previous trial.
+- **Shapes & sequence (v4, 2026-07-27 — the decision-difficulty + anti-predictability
+  pass).** v3 kept 4 maximally distinct shapes at a 30% repeat rate with a
+  no-consecutive-targets gap-sampled sequence, and participants both stayed at ceiling
+  AND reported exploiting the structure: after a repeat the next answer was certainly NO,
+  long droughts made a repeat feel "due", and default-NO was 70% correct. v4 changes all
+  three:
+  - **6 shapes in 3 look-alike pairs** — square/diamond (rotation twins),
+    pentagon/hexagon (side count), circle/ellipse (aspect). On a non-repeat trial the
+    previous shape's twin appears with p = 0.6 (a **lure**, logged `;lure=1` on the
+    onset row); other non-repeats draw uniformly from the 4 non-twin shapes. "Different"
+    now takes a fine discrimination, not a glance; the pair similarity IS the difficulty.
+  - **50% repeat rate** — the correct base rate for a forced-choice same/different task
+    (30% is go/no-go n-back lore); guessing any fixed answer earns chance. ~70 repeats /
+    140 also tightens d′ further (sampling variance scales with inverse signal/noise
+    counts, Macmillan & Creelman 2005).
+  - **Memoryless sequence** — per-trial coin flips (verified: 43% of repeats directly
+    follow another repeat), forcing only at the caps: max 3 consecutive repeats (≤ 4
+    identical shapes in a row), max 8-trial drought (rarely binds at 50%), repeat count
+    accepted within ±7 of nominal (converges in ≤ 4 draws across all realistic seeds).
+  Trial 1 is never a repeat (nothing to repeat).
 - CSV `mode` column is stamped `NBACK1_PILOT` (kept from when the tool had two tasks, so
-  existing analysis keyed on it keeps working), the run-start payload carries `task=nback1`,
-  onset payloads add `;shape=...`, and the exported filename says `nback1`.
+  existing analysis keyed on it keeps working), the run-start payload carries
+  `task=nback1_lures;gen=v4;target_p=0.5;lure_p=0.6` (was `task=nback1` through v3),
+  onset payloads add `;shape=...` (+ `;lure=0|1` on non-repeats), and the exported
+  filename says `nback1`.
 - **The screen narrates itself** (2026-07-20, after "even knowing the rules I can't tell what
   to do"): a large status line above the panel always states the current ask or state —
   "MEMORIZE this first shape", "Same as the previous shape?", "Answer recorded", "⏱ Too slow" —
@@ -124,8 +156,11 @@ CSV schema, stats). Details:
   ended run still shows its stats and offers the CSV, flagged `CPT_RUN_ABORTED` in the log.
 - Results add `No response (timed out)` and `Overall accuracy` rows — overall accuracy is the
   number to watch against the ~75–90% no-distractor band.
-- The practice criterion is still the old CPT's ≥ 90% (on repeat-hit rate) — provisional;
-  piloting should confirm or set its own band (target ~75–90% no-distractor accuracy).
+- The practice criterion is ≥ 80% repeat-hit rate (v4; lowered from the old CPT's 90%
+  because with look-alike lures a participant who fully understands the task can sit
+  below 90% — the criterion is a comprehension gate, not a performance bar). Target
+  main-run band remains ~75–90% no-distractor overall accuracy; self-pilot v4 before
+  real participants to confirm it lands there.
 - **No Unity implementation exists — and none is needed:** Block A's task runs in the browser
   at the workstation (the Unity Block A HUD surfaces the pid AND the arm's filter state to
   type into this tool). Adopting the 1-back as the study task still means updating
@@ -214,14 +249,18 @@ pre-rendered fast-cut clip with animated captions, generated by
 [Distractor Content Pipeline](<../.agent-docs/systems/distractor-content-pipeline.md>) for
 how those clips are built.
 
-**Two reel pairs + a set selector (2026-07-23):** five Bollywood music-video clips were
-added alongside the original four sources (with their cuts held ~2× longer via the
-generator's new `--long-sources` flag — those reels run ~8 min before looping), and the
-setup screen gained a **Distractor videos** selector: *New videos* (`tiktok_5min_1/2.mp4`,
-the 9-source pool) vs *Original videos* (`tiktok_5min_3/4.mp4`, rebuilt from the original
-4 sources only). The side screens stay **dark until the run starts** and go dark again
+**Reel pairs + a set selector (2026-07-23, third pair 2026-07-27):** five Bollywood
+music-video clips were added alongside the original four sources (with their cuts held
+~2× longer via the generator's new `--long-sources` flag — those reels run ~8 min before
+looping), and the setup screen gained a **Distractor videos** selector: *Newest videos*
+(`tiktok_5min_5/6.mp4`, the full 18-source pool incl. four Delhi-protest news Shorts
+and five ad/meme Shorts
+added 2026-07-27 — the default), *New videos* (`tiktok_5min_1/2.mp4`, the 9-source pool)
+and *Original videos* (`tiktok_5min_3/4.mp4`, rebuilt from the original 4 sources only).
+The side screens stay **dark until the run starts** and go dark again
 when it ends (the empty phone frames remain, so no layout jump); the choice is stamped
-into the run-start payload (`distractors=NEW|ORIGINAL`), so every run records what it played.
+into the run-start payload (`distractors=PROTEST|NEW|ORIGINAL`), so every run records
+what it played.
 This is NOT the removed 2026-07-22 content-type selector coming back — both options here
 are the study's video-clip distractors, it only picks which reel pair. The side frames
 were also bumped a size class (500px/73vh caps, was 440px/66vh) the same day. `video-reel.html` is a minimal sibling to

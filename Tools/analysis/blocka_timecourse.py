@@ -10,8 +10,10 @@ Per run (one blockA_nback1_*.csv), from the CPT_RESULT rows:
   - RT drift: OLS slope of correct RT on trial index, scaled to ms per MINUTE of task
     time (slope/trial x trials/min) so different-SOA versions stay comparable
 Then groups runs by (version, filter state) and prints group means, plus a FILTER vs
-NOFILTER contrast per version. Versions (trials x SOA) are NEVER pooled (supervisor
-directive 2026-07-23) - v1 = 84x2.5s, v2 = 105x2.0s, v3 = 140x1.8s.
+NOFILTER contrast per version. Versions (trials x SOA x task) are NEVER pooled (supervisor
+directive 2026-07-23) - v1 = 84x2.5s, v2 = 105x2.0s, v3 = 140x1.8s, v4 = 140x1.8s+lures
+(2026-07-27: same timing as v3, so the run-start payload's task=nback1_lures is the
+distinguisher - the "+lures" suffix in the version key keeps them apart).
 
 Filter state comes from the run-start payload (filter=FILTER|NOFILTER, present from
 2026-07-23) or the dr_intensity column (1/0); older files without either are UNKNOWN -
@@ -47,6 +49,7 @@ def payload_dict(payload: str) -> dict:
 def parse_run(path: Path):
     """Returns a run dict or None if the file isn't a usable main run."""
     trials = soa = None
+    task = ""
     filt = None
     condition = None
     pid = None
@@ -60,6 +63,7 @@ def parse_run(path: Path):
                 d = payload_dict(pl)
                 trials = int(d.get("trials", 0)) or None
                 soa = float(d.get("soa_s", 0)) or None
+                task = d.get("task", "") or task
                 filt = d.get("filter") or filt
                 condition = row.get("condition")
                 pid = row.get("pid")
@@ -88,7 +92,7 @@ def parse_run(path: Path):
         soa = 2.5 if (trials or 84) == 84 else 2.0  # pre-soa_s files were v1
     return {
         "file": path.name, "pid": pid, "condition": condition, "aborted": aborted,
-        "version": f"{trials or '?'}x{soa:g}s",
+        "version": f"{trials or '?'}x{soa:g}s" + ("+lures" if "lures" in task else ""),
         "filter": filt if filt in ("FILTER", "NOFILTER") else "UNKNOWN",
         "soa": soa, "records": sorted(records),
     }

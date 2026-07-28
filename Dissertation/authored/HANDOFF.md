@@ -217,6 +217,215 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   - Block A v3 (140×1.8 s) still at ceiling for P9/P10 (95–100%, RT ~500–690 ms, no
     drift): pace is not the lever; discuss harder discrimination (confusable shapes /
     2-back) with John.
+- **Block A v4 (2026-07-27, ahead of the day-3 participants):** v3's ceiling (95–100%)
+  plus participant reports of SEQUENCE exploits (after a repeat the next answer was
+  certainly NO — the generator forbade consecutive targets; droughts made repeats feel
+  "due"; 30% base rate made default-NO 70% correct) → decision-difficulty +
+  anti-predictability pass (140 trials, SOA 1.8→**2.0 s** / window 1.5→**1.7 s** = 4:40 —
+  decided against literature anchors after the author self-pilot's median hit 812 ms with
+  the slowest answer at the exact 1500 ms edge; field-standard n-back window is 3.0 s,
+  SART 1.15 s is a detection-task pace floor only, tight windows censor the ex-Gaussian-τ
+  slow tail where distraction lives and deflate d′ via criterion shift — full note:
+  `Dissertation/blocka-timing-research.md`): 6 shapes in 3 look-alike pairs
+  (square/diamond, pentagon/hexagon, circle/ellipse), non-repeats show the previous
+  shape's twin at p=0.6 (logged `;lure=1`; results split FAs lure vs non-lure), 50%
+  repeat rate (forced-choice base rate), memoryless per-trial coin-flip sequence (caps:
+  ≤3 consecutive repeats, ≤8 drought; count ±7; verified over all pid≤60 seeds — 43% of
+  repeats follow a repeat, exploit dead). Payload `task=nback1_lures;gen=v4` is the
+  version distinguisher (v4 shares v3 timing!) — `blocka_timecourse.py` now appends
+  "+lures" to the version key so v3/v4 never pool. Practice criterion 0.90→0.80
+  (comprehension gate, not performance bar). Tool also gained a **slot-reuse guard**
+  (pid+slot already saved on this device → confirm dialog listing free slots; the P9
+  same-seed incident made impossible-by-default). **Self-pilot v4 before the first
+  participant** — target ~75–90% no-distractor accuracy; if still ≥95, raise lure_p /
+  consider 2-back with John.
+- **Block A distractor pool third pair (2026-07-27):** four Delhi-protest news Shorts
+  (lathi charge / detention / clash footage, 30–47 s portrait, used untrimmed) added to
+  `RawFootage/` as `video1[0-3]_protest_*`, then five ad/meme Shorts later the same day
+  (`video1[4-8]_*`: 3 retail/perfume ads, a football prank, dogs eating; 11–27 s) → reel
+  pair `tiktok_5min_5/6` built over the full 18-source pool (`--long-sources bolly
+  --seed 5/6`; regenerated in place the same day BEFORE any PROTEST-stamped run existed,
+  so the stamp has one meaning; `_1/_2` NOT regenerated — day-2 NEW content preserved
+  byte-identical). CPT tool selector gained "Newest videos (protest + ad/meme clips)" as
+  the DEFAULT, stamped `distractors=PROTEST`. Same pooling caveat as NEW|ORIGINAL: runs
+  with different `distractors` values don't pool without noting it.
+- **Day-3 P12→P13 (2026-07-27, the P13 participant):** she started as P12 — filter-arm CPT first
+  (hand-typed pid **1**, Unity not yet up so no HUD pid to copy; the exact hazard the
+  cross-system-id note predicted) then video Filter B — and the app crashed after that
+  block. Relaunch auto-assigned **13**; the full redo session (video NoFilter A + Filter B,
+  CPT A1 FILTER + A2 NOFILTER, questionnaire) is canonical. P12 fragments + the mistyped
+  "P1" CPT file are quarantined in `raw/aborted_p12_20260727/` (see its README). Caveats:
+  P13 carries prior exposure (one video-Filter-B + one filter-CPT run before her real
+  session); P13's final passthrough-NoFilter BLOCK row is missing from the ledger (app
+  relaunched for the next participant before X-advance — CPT CSV itself is complete).
+  **P11 was never used** (ledger jumps P10→P12). Day-3 pids are NOT contiguous.
+- **Day-3 P14/P15/P16 = ONE participant, p15 (2026-07-27):** P14 = video Filter A
+  aborted at 3.6 min (PLAN, no BLOCK row). Relaunch → P15 (passthrough-first): CPT
+  A3 + A4 ran back-to-back but the browser filter toggle was never flipped for A4 —
+  original file says NOFILTER everywhere, yet the ledger BLOCK row (passthrough
+  **Filter**, 17:44), the scores (A4: 60 hit/5 commissions vs A3: 54/24) and user
+  recollection all say A4 was the FILTER arm. Corrected copy
+  (`blocka/blockA_nback1_P15_A4_FILTER_*.csv`: filename + `filter=` payload +
+  `dr_intensity` rewritten) is canonical — note `dr_intensity` is NOT independent
+  evidence, it mirrors the same hand-set toggle. P15's video Filter B run flooded
+  (206 FAs/246 trials) → excluded; her canonical **Block B pair is P16's** forced-arm
+  relaunches (NoFilter-B 18:04 + Filter-A 18:35; no PLAN row, both logged slot 0).
+  Rejects + original mislabeled A4 quarantined in `raw/excluded_p15_20260727/`
+  (see its README, incl. triple-filter-exposure + response-style-swing caveats).
+  **Analysis must join P15 (Block A) + P16 (Block B) as one participant**;
+  questionnaire is the shared `post-study-questionnaire-15-16-p15.docx`.
+- **Day-3 P17 (2026-07-27, the P17 participant): clean session, taken as-is.** Video NoFilter-B +
+  Filter-A, CPT practice + A1 FILTER + A2 NOFILTER, questionnaire 17. Two footnotes:
+  a 1 KB A2 false start (restarted 23 s later, same seed 171) is quarantined in
+  `raw/aborted_p17_a2_20260727/`; and like P13, her final passthrough-NoFilter BLOCK
+  row is missing from the ledger (app closed before X-advance — CSV itself complete).
+- **Versions POOL now (2026-07-27, John, verbal — supersedes the 2026-07-23
+  never-aggregate rule):** the pilot versions came out close enough to report as a
+  single section. Pooled run 2026-07-27: Block A = 21 runs P1–P17 (day-1 84×2.5 files
+  have NO filter label → they join difficulty/time-course only, not the arm contrast;
+  8 byte-identical day-1 re-downloads moved to `raw/duplicates_20260722/`); Block B =
+  10 canonical pairs (P9 excluded per day-2 rule, aborts/rejects excluded). Headlines:
+  Block A filter +4.5 pp mean paired gain (4/6 pairs positive, all of it from the two
+  non-ceiling participants P6 +7.7 / P15 +16); Block B filter 60% vs 51% pooled hits
+  (+9 pp mean paired) BUT concentrated in FA-heavy/confused runs (P3 539-FA run, P16,
+  P17's 18% first-block NoFilter) — clean pairs ≈ 0; no vigilance decrement in any of
+  21 CPT runs. `blocka_timecourse.py` default (per-version) left unchanged.
+- **Day-1 Block A filter state RECOVERED from the ledger (2026-07-27):** the 22 July CPT
+  files predate both the `filter=` payload and the `dr_intensity` column, so they parsed
+  as UNKNOWN and were excluded from every arm contrast. Recovered by matching each run's
+  `t_ms` span against that pid's passthrough BLOCK rows (BLOCK is written at block
+  COMPLETION, so the run that ends just before a BLOCK row sits inside it). Unambiguous
+  matches — block row lands **16/18/19 s** after the CPT run ends, the same signature as
+  day-3 sessions where the arm was stamped directly: **P2 A3=FILTER, A4=NOFILTER; P3
+  A1=NOFILTER, A2=FILTER; P33 A3=FILTER** (A4 has no BLOCK row → still unknown). **P1 and
+  P4 NOT recoverable** — both passthrough BLOCK rows were logged BEFORE their CPT runs
+  started (blocks X-advanced without the CPT inside), so no window contains them.
+  Block A paired n: 6 → **8**; both new pairs favour Filter (+2.4, +3.6). Recovery is
+  analysis-side only — the CSVs were NOT rewritten; the mapping lives here and in the
+  report script. If you later bake it in, use corrected copies + quarantine per the
+  P66/A4 convention.
+- **Pooled inferential results (2026-07-27, for John's point 1).** Block A (n=8):
+  Filter 96.1% (SD 4.4) vs NoFilter 92.0% (SD 8.4); mean paired diff **+4.05 pp**
+  (SD 5.83, median +3.0, IQR +1.3..+5.7), 95% CI **−0.82..+8.92**, t(7)=1.97 **p=.090**,
+  Wilcoxon W=5.0 **p=.078**, **dz=0.70**, 6/8 positive, per-day +3.0/+5.0/+3.8.
+  Power at n=8 = 40%; **n=19 needed for 80%** (study plans N=20). Block B (n=10):
+  +9.00 pp, SD 15.73, 95% CI −2.25..+20.25, t(9)=1.81 p=.104, Wilcoxon p=.184, dz=0.57,
+  5/10 positive; **sensitivity excluding the 3 high-variance runs (P3 539-FA, P16, P17
+  first-block): mean exactly 0.0 pp, CI ±5.97** — report the sensitivity check alongside
+  the headline, it is the first thing a reader will ask for. Filter also HALVES
+  between-participant SD in both blocks (A 8.4→4.4, B 17.4→5.9).
+- **UPDATED pooled results at n=10 (2026-07-27, user chose the wider day-1 set).** Block A now
+  uses 4 day-1 pairs: P2/P3 ledger-verified + **P33/P4 from `analysis-2026-07-22.md` §6
+  plan-order assignment** (P4's NoFilter 98.4 is experimenter-reported, NO exported file —
+  flag this in the write-up). n=10: Filter 96.8% (SD 4.2) vs NoFilter 93.2% (SD 7.9), mean
+  **+3.51 pp** (SD 5.26, median +2.30, IQR +1.30..+4.65), 95% CI −0.25..+7.27, t(9)=2.11
+  p=.064, **Wilcoxon W=8.0 p=.0488 — SIGNIFICANT**, dz=0.667, **8/10 positive**, power .47,
+  n=20 for 80%. Strict n=8 subset = +4.05, Wilcoxon p=.078 (report as sensitivity).
+- **Block B BAND ANALYSIS across all 3 days (2026-07-27) — the mechanism result.** 330 scored
+  targets joined to `pool_split.csv` on (set, point_id); bands by `eccentricity_deg`.
+  Pooled trial-level: <10° 67.5→80.0 (+12.5); 10–20° 60.9→57.4 (−3.5); **20–30° 19.2→50.0
+  (+30.8)**; >30° 75.9→91.1 (+15.1). The 20–30° gap survives EVERY subset — day1 +27.6,
+  days2-3 +34.0, trusted-7 +30.4, ≥2 s targets +20.5. **Caveat: only 2–3 targets per pid per
+  arm in that ring**, so per-participant rates are 0/50/100% and it cannot be tested — the
+  testable version is **10–30°: +10.56 pp (SD 17.06), 95% CI −1.65..+22.76, t(9)=1.96 p=.082,
+  Wilcoxon W=6.0 p=.0547, dz=0.62, 7/10 positive**. ACTION for next pool: put more targets in
+  20–30°. Duration cliff (all days): ≤1.5 s **10%**, 1.5–3 s 46%, 3–8 s 61%, >8 s 90% — day 1
+  carries half the ≤1.5 s trials (pool re-screened to ≥2 s after day 1). Kind: traffic lights
+  32→52%, persons 73→81%.
+- **ESQ re-extracted for ALL 9 participants (2026-07-27).** Answers live in the docx table's
+  THIRD column (participants overwrote the Key cell) — parse `word/document.xml` tables, rows
+  where col0 matches ^[ABC]\d. Re-extraction **reproduces `esq-day1-analysis.md` exactly**
+  (A 19/20, B 9/20, C 14/16) → method validated. All nine: **A 42/45, B 27/45, C 27/36**;
+  **A1/A2/A3 unanimous 9/9**. **B3 ("noticed side events later") flipped: 4/4 day-1 reported a
+  delay vs only 1/5 on days 2–3** — tracks the settings freeze; frame as observation, not a
+  controlled comparison, but it makes perceived awareness cost a tunable design parameter.
+  Section D was never administered (keys still show +/(R)); C3 never asked.
+- **CORRECTION (2026-07-28): the band analysis above joined the WRONG POOL FILE.** Two
+  `pool_split.csv` exist: `authored/pool_split.csv` (82 = A40/B40+2P) is the one the RUNS LOAD —
+  verified by checking every run's target ids against both files. `authored/raw/pool_split.csv`
+  (58) is an earlier draft split; only **33 of its 58 (set,point_id) keys** match the 82-pool
+  (those 33 agree exactly), so the join analysed **330 of 800** scored targets and credited some
+  targets with a *different* point's angles. **Always join `authored/pool_split.csv`.**
+  Corrected band table (n=10, both arms, mid-lifetime position): <10° 75.0→76.8 (+1.8, n=64/56);
+  10–20° 47.8→49.3 (+1.5, n=138/142); **20–30° 41.0→58.5 (+17.5, n=78/82)**; >30° 60.8→59.2
+  (−1.7, n=120/120). Single clean peak; ~8 ring targets per participant per arm (NOT 2–3 — that
+  caveat was an artifact of the bad join, so the ring IS testable per participant).
+  Per-participant **20–30°: +17.78 pp (SD 25.12), CI −0.2..+35.7, t(9)=2.24 p=.052,
+  Wilcoxon W=8.0 p=.0469 SIGNIFICANT, dz=0.71, 8/10, power .52, n=18 for 80%**.
+  10–30° dilutes to +7.50 (p=.264); overall Block B is NULL: +3.25 (p=.553, 4/10).
+  Duration cliff recomputed: ≤1.5 s **19.2%** (off 11.7 → on 26.7), 1.5–3 s 32.6, 3–8 s 60.0,
+  >8 s 86.7. Kind: traffic lights 33.6→41.7, persons 66.9→67.2.
+- **Mechanism sharpened: the effect is BRIEF targets IN the ring.** 20–30° split by duration —
+  **<2 s: 6.2% (2/32) → 32.1% (9/28), +25.9**; ≥2 s: 65.2→72.2 (+7.0). Brief targets in OTHER
+  bands gain only +4..+10, so it is not a general short-target effect. This is why the ≥2 s
+  sensitivity cut collapses the ring to +7.1 — it removes the cells where the filter can act.
+  ACTION for next pool: keep short (<2 s) targets **in the 20–30° ring specifically**; the ≥2 s
+  re-screen was removing the evidence. Day 1 +25.4 vs counterbalanced days 2–3 +12.7 (day-1 set
+  confound is real but does not create the pattern).
+- **P3 Block B EXCLUDED (2026-07-28), Block A retained.** P3's FILTER-B run logged **539 false
+  alarms** (vs 18 in its baseline) and its hits are provably looser than every other filter run:
+  median angle_deg 1.82 vs 1.59, p90 **8.62 against the 10° acceptance radius**, Mann-Whitney
+  **p=.0301** → some hits were accidental. Excluded from Block B only; its CPT pair shows no
+  such pattern (3 commission errors) so Block A stays n=10 and keeps Wilcoxon p=.0488.
+  Dropping participants WHOLESALE would destroy Block A (drop P3+P15 → +1.96, W p=.195), and
+  there is no evidence against P15 (52 FAs but hits *tighter* on filter: 2.08 vs 2.63) → P15
+  KEPT. P3's Block B diff was +32.5 pp, so the exclusion works against the reported result.
+  Block B set is now every pair except P3 (n=10, includes P1 — its arms are in the filenames
+  even though its CPT arm is unrecoverable).
+- **Block B false alarms are a real cost, and they run OPPOSITE to Block A.** Per run: off 5.9
+  vs on 11.5, 7/10 pressed more (t p=.199, W p=.121; with P3 in, W p=.023). Block A commission
+  errors FALL with the filter. Not a contradiction — CPT responses concern one central stream
+  (dimming removes the impulse trigger) while Block B's filter pulls attention outward to things
+  worth pressing at. Consequence: **response bias cannot be separated from sensitivity** in
+  Block B. ACTION: log the aim direction of `false_alarm` rows — `AuthoredTargetPresenter.Log`
+  currently writes `ang=-1` with no az/el, so wrong presses cannot be placed in a band at all.
+- **Press-time angle reconstruction (2026-07-28, new method).** Targets MOVE — each is a tracked
+  detection whose box is interpolated by `PosAt`; `az_mid_deg/el_mid_deg` is only PosAt(tMid).
+  Median lifetime swing **17.2°**; 45/82 cross a band boundary; **31% of catches land in a
+  different band than the target's mid position** → the pool column is a weak proxy. Rebuild
+  method: bake `Builds/StudyVideo/study_video.detections.json` (0.5 s samples, shipped
+  2026-07-18 — NOT `DevVideos/study_video.detections.json`, which is the older 420 s bake),
+  map box→az/el with `BoxToAzElRectEQ` (scene values uOffset=0, vOffset=0, yoloFlipY=1 →
+  az=(u−0.5)·360, el=(0.5−v_yolo)·180), anchor on the pool's mid position via the two bracketing
+  samples, then nearest-same-class walk (1.5× box size). **Validation: reproduces authored
+  az/el exactly for 75/82 targets** (median error 0.000°, independent check on box_height_deg
+  0.000°); 7 targets differ >2° and are a reported sensitivity subset (+19.6 in the ring).
+  Result: catches made while the target sat in 10–30° = **92/219 (42.0%) off vs 114/232 (49.1%)
+  on**; median angle at press barely moves (17.5→18.9) → people are not reaching further out,
+  they are converting more of what was already out there. Median RT 2.04→1.88 s.
+  Scripts live in the session scratchpad (`click_bands.py`, `final_numbers.py`) — NOT yet in
+  `Tools/analysis/`; port them before relying on this again.
+- **P20 (day 4, 2026-07-28) — BOTH headline results now significant on BOTH tests.** Clean
+  session: one PLAN + four BLOCK rows, no aborts, no duplicates. **First session with the arm
+  order ALTERNATED — video FILTER ran first** (BLOCK 2 Filter/A 19:22:29, BLOCK 3 NoFilter/B
+  19:31:35), so practice worked AGAINST the filter and it still won both blocks. Arms confirmed
+  twice: CPT run spans sit inside the matching passthrough BLOCK windows (A3 18:41:51–18:46:34 →
+  BLOCK 0 NoFilter; A4 18:57:09–19:01:52 → BLOCK 1 Filter) AND `dr_intensity` 0 vs 1.
+  NOTE: CPT filenames are UTC (`...Z`), ledger/`t_ms` are local (UTC+1) — do not compare directly.
+  Block A (A3/A4 = the HARD version, well off ceiling): **86.33 → 91.37 (+5.04)**, commissions
+  10 → 6, misses 7 → 4; within-run NoFilter faded −7.04 while Filter improved +3.97.
+  Block B: **22.5% (9/40) → 32.5% (13/40)**, FA 26 → 23, bands <10 +12.5 / 10–20 +12.3 /
+  **20–30 +27.0** / >30 0.0. Absolute rates are the LOWEST in the set — flagged in the report;
+  ask what was different about that session if it matters.
+  **Group at n=11 — Block A: +3.65 pp, CI +0.28..+7.02 (excludes zero), t(10)=2.42 p=.0364,
+  Wilcoxon W=8.0 p=.0244, dz=0.73, 9/11, power .59, n=17 for 80%. Block B 20–30° ring: +18.61 pp,
+  CI +2.5..+34.7, t(10)=2.57 p=.028, Wilcoxon W=9.0 p=.0303, dz=0.78, 9/11, power .64, n=16.**
+  Block B overall still NULL (+3.86, p=.44, 5/11); 10–30° +8.48 (p=.23). Bands n=11: <10 +4.2,
+  10–20 +2.1, **20–30 +18.2**, >30 −1.5. Hard corner holds: 20–30° & <2 s **5.6% (2/36) → 30.0%
+  (9/30)**, vs +4.3/+3.3 for brief targets in the other peripheral bands. FA cost weakened to
+  7.7 → 12.5 (p=.22) because P20 pressed heavily in BOTH arms.
+- **ESQ re-extracted for ALL 10 (2026-07-28) — and the P20 docx CHANGED between reads.** The
+  first read happened while Word still held the file (`~$` lock present) and caught it mid-edit;
+  7 of 14 items differed from the saved version. **Rule: never parse a .docx while its `~$` lock
+  file exists.** Authoritative totals: **A 47/50, B 29/50, C 30/40** (total 106/140). Excluding
+  P20 reproduces the published 42/45, 27/45, 27/36 exactly → method still validated.
+  **A1/A2/A3 unanimous 10/10.** Section C scores FOUR items (C1, C2, C4, **C5**) — C5 was always
+  in the total, which is why 27/36 = 9×4; **C3 is answered by nobody** (all ten left the "+" key
+  showing) so it is omitted from the figure. B3 by day: 4/4 day-1 reported the delay vs **1 of
+  the 6 tested on days 2–4** — the day-1 flip strengthens rather than dissolves.
+- Report republished at the same artifact URL (n=11). Figures with per-row content are now
+  generated by scratchpad scripts (`regen_figs.py`) rather than hand-authored — port those to
+  `Tools/analysis/` alongside `click_bands.py` if the report is to be maintained.
 - Next: rebuild → PILOT1003 NoFilter + Filter with the rope, check the 60–85% band and RTs vs
   the yellow anchors (57–84%, ~1.8 s).
 - **Person engine: closeness-widened cone (2026-07-22, user design).** The fixed 12.5°/25°
