@@ -235,6 +235,12 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_detectionContrastId      = Shader.PropertyToID("_DetectionContrast");
         private static readonly int s_suppressDetectionWindowsId = Shader.PropertyToID("_SuppressDetectionWindows");
         private static readonly int s_simpleModeId        = Shader.PropertyToID("_SimpleMode");
+        private static readonly int s_tintModeId          = Shader.PropertyToID("_TintMode");
+        private static readonly int s_chromaticCoolId     = Shader.PropertyToID("_ChromaticCool");
+        private static readonly int s_squeezeModeId       = Shader.PropertyToID("_SqueezeMode");
+        private static readonly int s_grainModeId         = Shader.PropertyToID("_GrainMode");
+        private static readonly int s_outlineModeId       = Shader.PropertyToID("_OutlineMode");
+        private static readonly int s_spotLiftModeId      = Shader.PropertyToID("_SpotLiftMode");
         private static readonly int s_vignetteStrengthId  = Shader.PropertyToID("_VignetteStrength");
         private static readonly int s_maxVignetteAlphaId  = Shader.PropertyToID("_MaxVignetteAlpha");
         private static readonly int s_frostTexId          = Shader.PropertyToID("_FrostTex");
@@ -287,10 +293,17 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_flatSurroundId = Shader.PropertyToID("_Surround");
         private static readonly int s_flatFlipYId    = Shader.PropertyToID("_FlipY");
 
-        // A-button cycle. The study still uses only ColorPop / SoftDark / HardDark;
-        // SignPop (detection-gated ColorPop) is a free-play/demo mode.
+        // A-button cycle — every mode in the enum, in enum order, matching the passthrough
+        // scene's cycle so the same button walks the same list in both. The study still uses
+        // only ColorPop / SoftDark / HardDark; the rest are free-play/demo modes. SignPop
+        // (detection-gated ColorPop) is video's own, gated by the baked track.
         private static readonly VignetteMode[] k_modeCycle =
-            { VignetteMode.ColorPop, VignetteMode.SignPop, VignetteMode.SoftDark, VignetteMode.HardDark };
+        {
+            VignetteMode.Blur, VignetteMode.SoftDark, VignetteMode.HardDark,
+            VignetteMode.TintedDark, VignetteMode.ChromaticCool, VignetteMode.ColorPop,
+            VignetteMode.ConspicuitySqueeze, VignetteMode.GranulatedPeriphery,
+            VignetteMode.OutlinedDark, VignetteMode.SpotLift, VignetteMode.SignPop
+        };
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
@@ -571,8 +584,8 @@ namespace PassthroughCameraSamples.ShaderSample
             InitSelectionDots();
             InitModeUI();
 
-            // Free-play cycle is ColorPop / SignPop / SoftDark / HardDark (the study uses
-            // only the original three); snap any stale serialized mode into the cycle.
+            // The cycle now covers the whole enum, so this only catches a genuinely invalid
+            // serialized value.
             if (Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
                 m_vignetteMode = VignetteMode.ColorPop;
 
@@ -584,14 +597,8 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_flipYId,          m_flipVideoY ? 1f : 0f);
             m_material.SetInt(s_detectionCountId,   0);
 
-            // Removed modes are no longer driven per-frame — zero their toggles once in
-            // case the serialized material carries stale values.
-            m_material.SetFloat("_TintMode",      0f);
-            m_material.SetFloat("_ChromaticCool", 0f);
-            m_material.SetFloat("_SqueezeMode",   0f);
-            m_material.SetFloat("_GrainMode",     0f);
-            m_material.SetFloat("_OutlineMode",   0f);
-            m_material.SetFloat("_SpotLiftMode",  0f);
+            // All mode toggles are driven per-frame by UpdateModeUniforms now that the cycle
+            // covers the whole enum — no stale-value zeroing needed here.
             m_material.SetInt(s_blobCountId,      0); // no blob probes until a controller pushes some
 
             if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
@@ -1211,12 +1218,22 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- motion disable ----
 
+        // The video scene keeps only three motion profiles, so the modes added to the cycle
+        // map onto the nearest one. TintedDark/ChromaticCool land on profiles whose defaults
+        // already match their passthrough counterparts; Blur and Squeeze use ColorPop's 35°/0.7s
+        // rather than passthrough's dedicated 30°/0.6s m_motionBlur. Moot by default anyway —
+        // m_enableMotion is false here, so UpdateMotionDisable returns before reading this.
         private MotionSettings CurrentMotionSettings => m_vignetteMode switch
         {
-            VignetteMode.ColorPop => m_motionColorPop,
-            VignetteMode.SignPop  => m_motionColorPop,
-            VignetteMode.SoftDark => m_motionSoftDark,
-            _                     => m_motionHardDark
+            VignetteMode.ColorPop            => m_motionColorPop,
+            VignetteMode.SignPop             => m_motionColorPop,
+            VignetteMode.ChromaticCool       => m_motionColorPop,
+            VignetteMode.Blur                => m_motionColorPop,
+            VignetteMode.ConspicuitySqueeze  => m_motionColorPop,
+            VignetteMode.SoftDark            => m_motionSoftDark,
+            VignetteMode.GranulatedPeriphery => m_motionSoftDark,
+            VignetteMode.SpotLift            => m_motionSoftDark,
+            _                                => m_motionHardDark
         };
 
         private const float k_focusArrivalMarginRad = 0.2618f;
@@ -1430,7 +1447,11 @@ namespace PassthroughCameraSamples.ShaderSample
             mode == VignetteMode.ColorPop || mode == VignetteMode.SignPop;
 
         // "Camera" modes render the source texture (instant, no formation animation).
-        private static bool IsCameraMode(VignetteMode mode) => IsPopMode(mode);
+        // Same set as CameraSphereVignetteManager.IsCameraMode — the dark-overlay family
+        // (SoftDark/HardDark/TintedDark/OutlinedDark/Grain) is what animates in.
+        private static bool IsCameraMode(VignetteMode mode) =>
+            IsPopMode(mode) || mode == VignetteMode.Blur || mode == VignetteMode.ChromaticCool
+            || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
 
         private void HandleSelection()
         {
@@ -1542,14 +1563,39 @@ namespace PassthroughCameraSamples.ShaderSample
         private void UpdateModeUniforms()
         {
             bool isPop = IsPopMode(m_vignetteMode);
+            // Exactly one branch toggle may be set — the shader tests them in this order
+            // (Simple > Tint > ColorPop > Squeeze > Grain > Outline > SpotLift > else Blur),
+            // so Blur is the all-toggles-off fallback.
+            bool isSimple   = m_vignetteMode == VignetteMode.SoftDark || m_vignetteMode == VignetteMode.HardDark;
+            bool isTinted   = m_vignetteMode == VignetteMode.TintedDark;
+            bool isCoolBlur = m_vignetteMode == VignetteMode.ChromaticCool;
+            bool isSqueeze  = m_vignetteMode == VignetteMode.ConspicuitySqueeze;
+            bool isGrain    = m_vignetteMode == VignetteMode.GranulatedPeriphery;
+            bool isOutline  = m_vignetteMode == VignetteMode.OutlinedDark;
+            bool isSpotLift = m_vignetteMode == VignetteMode.SpotLift;
 
             float effectiveStrength = StudyEffectSuppressed
                 ? 0f
                 : m_vignetteStrength * (1f - m_motionSuppression);
             CurrentEffectiveStrength = effectiveStrength;
-            float maxAlpha = m_vignetteMode == VignetteMode.HardDark ? 1f : m_mode2MaxAlpha;
+            // Grain/Outline/SpotLift scale their own peripheral alpha (_GrainDensity,
+            // _OutlineDimAlpha, _SpotDimAlpha), so the shared cap must not also dim them.
+            float maxAlpha = m_vignetteMode switch
+            {
+                VignetteMode.HardDark            => 1f,
+                VignetteMode.TintedDark          => 1f,
+                VignetteMode.OutlinedDark        => 1f,
+                VignetteMode.GranulatedPeriphery => 1f,
+                _                                => m_mode2MaxAlpha
+            };
 
-            m_material.SetFloat(s_simpleModeId,       isPop ? 0f : 1f);
+            m_material.SetFloat(s_simpleModeId,       isSimple   ? 1f : 0f);
+            m_material.SetFloat(s_tintModeId,         isTinted   ? 1f : 0f);
+            m_material.SetFloat(s_chromaticCoolId,    isCoolBlur ? 1f : 0f);
+            m_material.SetFloat(s_squeezeModeId,      isSqueeze  ? 1f : 0f);
+            m_material.SetFloat(s_grainModeId,        isGrain    ? 1f : 0f);
+            m_material.SetFloat(s_outlineModeId,      isOutline  ? 1f : 0f);
+            m_material.SetFloat(s_spotLiftModeId,     isSpotLift ? 1f : 0f);
             m_material.SetFloat(s_colorPopModeId,     isPop ? 1f : 0f);
             m_material.SetFloat(s_popDetGateId,       m_vignetteMode == VignetteMode.SignPop ? 1f : 0f);
             m_material.SetFloat(s_popDetFallbackId,   m_signRogFallback);
@@ -1755,19 +1801,33 @@ namespace PassthroughCameraSamples.ShaderSample
             int idx = Array.IndexOf(k_modeCycle, m_vignetteMode) + 1;
             string modeName = m_vignetteMode switch
             {
-                VignetteMode.ColorPop => "COLOR POP",
-                VignetteMode.SignPop  => "SIGN POP",
-                VignetteMode.SoftDark => "SOFT DARK",
-                _                     => "HARD DARK"
+                VignetteMode.Blur                => "BLUR",
+                VignetteMode.SoftDark            => "SOFT DARK",
+                VignetteMode.TintedDark          => "TINTED DARK",
+                VignetteMode.ChromaticCool       => "CHROMA COOL",
+                VignetteMode.ColorPop            => "COLOR POP",
+                VignetteMode.ConspicuitySqueeze  => "FLATTEN",
+                VignetteMode.GranulatedPeriphery => "GRAIN",
+                VignetteMode.OutlinedDark        => "OUTLINE DARK",
+                VignetteMode.SpotLift            => "SPOTLIGHT",
+                VignetteMode.SignPop             => "SIGN POP",
+                _                                => "HARD DARK"
             };
             string desc = m_vignetteMode switch
             {
-                VignetteMode.ColorPop => "Red/orange/green pop in window, kept outside; glare dimmed",
-                VignetteMode.SignPop  => m_bakedTrack != null
+                VignetteMode.Blur                => "Blurred + desaturated periphery",
+                VignetteMode.SoftDark            => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
+                VignetteMode.TintedDark          => "Coloured dark vignette",
+                VignetteMode.ChromaticCool       => "Warm focus / cool periphery, colour kept",
+                VignetteMode.ColorPop            => "Red/orange/green pop in window, kept outside; glare dimmed",
+                VignetteMode.ConspicuitySqueeze  => "Contrast balanced, gently desaturated + dimmed",
+                VignetteMode.GranulatedPeriphery => "Static noise grains in periphery",
+                VignetteMode.OutlinedDark        => "Blackout with edge outlines kept",
+                VignetteMode.SpotLift            => "Brightened focus, soft dim periphery",
+                VignetteMode.SignPop             => m_bakedTrack != null
                     ? "Only DETECTED lights & signs pop; other colours muted"
                     : "NO DETECTION TRACK — all ROG at fallback dim",
-                VignetteMode.SoftDark => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
-                _                     => "Full black-out vignette"
+                _                                => "Full black-out vignette"
             };
             m_modeNameText.text = $"[{idx}/{k_modeCycle.Length}]  {modeName}  [VIDEO]";
             m_modeHintText.text = $"{desc}     [A] cycle  [B] clear";
@@ -1776,12 +1836,21 @@ namespace PassthroughCameraSamples.ShaderSample
             m_modeUITimer = k_modeUIShowTime;
         }
 
+        // Same accents as CameraSphereVignetteManager.ModeAccentColor so a mode reads the
+        // same in both scenes.
         private Color ModeAccentColor() => m_vignetteMode switch
         {
-            VignetteMode.ColorPop => new Color(1.00f, 0.80f, 0.10f, 1f),
-            VignetteMode.SignPop  => new Color(0.20f, 0.85f, 0.35f, 1f),
-            VignetteMode.SoftDark => new Color(1.00f, 0.65f, 0.10f, 1f),
-            _                     => new Color(0.90f, 0.15f, 0.15f, 1f)
+            VignetteMode.Blur                => new Color(0.25f, 0.55f, 1.00f, 1f), // blue
+            VignetteMode.SoftDark            => new Color(1.00f, 0.65f, 0.10f, 1f), // amber
+            VignetteMode.TintedDark          => new Color(0.55f, 0.35f, 1.00f, 1f), // violet
+            VignetteMode.ChromaticCool       => new Color(0.45f, 0.90f, 0.95f, 1f), // cyan
+            VignetteMode.ColorPop            => new Color(1.00f, 0.80f, 0.10f, 1f), // warm yellow
+            VignetteMode.ConspicuitySqueeze  => new Color(0.60f, 0.60f, 0.65f, 1f), // neutral grey
+            VignetteMode.GranulatedPeriphery => new Color(0.75f, 0.75f, 0.55f, 1f), // sand
+            VignetteMode.OutlinedDark        => new Color(0.95f, 0.95f, 0.95f, 1f), // white
+            VignetteMode.SpotLift            => new Color(1.00f, 0.95f, 0.55f, 1f), // pale gold
+            VignetteMode.SignPop             => new Color(0.20f, 0.85f, 0.35f, 1f), // green
+            _                                => new Color(0.90f, 0.15f, 0.15f, 1f)  // red (hard dark)
         };
 
         private void UpdateModeUI()

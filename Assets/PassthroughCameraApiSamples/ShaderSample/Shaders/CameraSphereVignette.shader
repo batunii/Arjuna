@@ -6,7 +6,12 @@
 // Mode 2 (SoftDark):      pure dark overlay, periphery never fully opaque (~75% max).
 // Mode 3 (HardDark):      pure dark overlay, periphery goes fully black.
 // Mode 4 (TintedDark):    configurable-colour dark overlay (e.g. deep navy).
-// Mode 5 (ChromaticCool): camera feed with warm focus window, cool blue periphery.
+// Mode 5 (ChromaticCool): shares Blur's path but works the chromatic channel instead of the
+//                         luminance one — periphery keeps its chroma (only _CoolDesatScale of
+//                         Blur's desaturation) and shifts cool; the focus window shifts warm,
+//                         video only, since passthrough's focus is transparent. The warm-cool
+//                         opposition is the point (Bailey et al., TOG 2009) — without the warm
+//                         half and with the periphery greyed first, this was just Blur.
 // Mode 6 (ColorPop):      four-level red/orange/green hierarchy — ROG boosted inside the
 //                         window, kept-but-dimmed outside; everything else near-natural inside,
 //                         dim grey outside. Bright unsaturated glare (headlights) compressed.
@@ -56,8 +61,21 @@ Shader "Meta/PCA/CameraSphereVignette"
         [Toggle] _TintMode ("Tinted Dark Mode (Mode 5)", Float) = 0
 
         [Header(Chromatic Cool)]
+        // Bailey et al. (TOG 2009) manipulate a warm-COOL axis, i.e. an opposition between
+        // the focus and the surround, not a one-sided cool wash. Two params below restore
+        // that: _CoolDesatScale keeps chroma alive for the shift to act on, and
+        // _WarmStrength supplies the warm counterpart in the focus window (video only).
         [Toggle] _ChromaticCool ("Chromatic Cool Shift (Mode 6)", Float) = 0
         _CoolStrength ("Cool Shift Strength", Range(0, 1)) = 0.6
+        // Fraction of the shared blur-path desaturation that ChromaticCool keeps. Near 0 so
+        // the periphery stays chromatic: desaturating to grey first (the Blur path's own
+        // luminance manipulation) left the tint nothing to work on, which made this mode
+        // visually identical to Blur.
+        _CoolDesatScale ("Cool: Desaturation Retained", Range(0, 1)) = 0.15
+        // Warm lift applied to the focus window. Video only - in passthrough the focus is
+        // transparent so the real world shows through and cannot be tinted (same limitation
+        // that makes SpotLift video-only).
+        _WarmStrength ("Cool: Warm Focus Strength (video only)", Range(0, 1)) = 0.5
 
         [Header(Video Test Mode)]
         // 0 = video mode: single opaque sphere, focus zone renders sharp video, periphery renders effect.
@@ -214,6 +232,8 @@ Shader "Meta/PCA/CameraSphereVignette"
 
             float  _ChromaticCool;
             float  _CoolStrength;
+            float  _CoolDesatScale;
+            float  _WarmStrength;
             float  _EqCamSampling;
             float  _PassthroughMode;
             float  _EqUOffset;
@@ -863,6 +883,13 @@ Shader "Meta/PCA/CameraSphereVignette"
 
                     float desatSpan = max(1.0 - _DesatDelay, 1e-4);
                     float desatT    = pow(saturate((tEff - _DesatDelay) / desatSpan), _DesatCurveExp);
+                    // Blur and ChromaticCool share this branch, and desaturation is Blur's
+                    // own (luminance-channel) manipulation. ChromaticCool works the CHROMATIC
+                    // channel, so it has to keep chroma for the shift to act on — greying the
+                    // periphery first is why the two modes looked the same. Stewart et al.
+                    // (2020) also rank chromatic loss as the peripheral change noticed least,
+                    // so this mode has no margin to spend on a grey intermediate.
+                    if (_ChromaticCool > 0.5) desatT *= _CoolDesatScale;
                     float grey      = dot(camColor, float3(0.299, 0.587, 0.114));
                     float3 filtered = lerp(camColor, float3(grey, grey, grey), desatT);
 
@@ -893,7 +920,23 @@ Shader "Meta/PCA/CameraSphereVignette"
                     return fixed4(outC, outA);
                 }
 
-                fixed3 result = lerp(sharpColor, periColor, saturate(periAlpha));
+                // Warm counterpart of ChromaticCool's warm-cool opposition (Bailey et al.
+                // TOG 2009). Reached only in video mode — the passthrough path returned
+                // above, and there the focus window is transparent so the real world shows
+                // through and cannot be warmed. Ramped by (1 - t) so it lives in the focus
+                // window, opposing the cool periphery across the boundary; it is the
+                // opposition, not either tint alone, that the source manipulation relies on.
+                fixed3 focusColor = sharpColor;
+                if (_ChromaticCool > 0.5)
+                {
+                    // Gated by _VignetteStrength like every other part of the effect, so the
+                    // no-filter arm and the motion-suppression fade leave the frame untinted.
+                    float3 warmTint = float3(1.0, 0.94, 0.82);
+                    focusColor = (fixed3)lerp(sharpColor, sharpColor * warmTint,
+                                              (1.0 - t) * _WarmStrength * _VignetteStrength);
+                }
+
+                fixed3 result = lerp(focusColor, periColor, saturate(periAlpha));
                 if (_SpotLiftMode > 0.5)
                     result *= 1.0 + _SpotLiftAmp * (1.0 - t) * _VignetteStrength;
                 // Saliency lift on the detected object: saturation + brightness boost with

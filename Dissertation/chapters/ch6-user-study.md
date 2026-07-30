@@ -242,7 +242,9 @@ P) or a world-locked virtual panel at the same position, approximately 0.6 m fro
 V). Two tablets on stands are placed at **±35° azimuth** from the task centre, approximately 1 m from
 the participant, screens facing them. The 35° eccentricity places the distractors in the
 near-periphery zone of maximal involuntary attentional capture identified by the Useful Field of View
-literature (Ball & Owsley) [VERIFY exact reference].
+literature (Ball & Owsley, 1993). Note that Ball & Owsley define and validate the UFOV *test*; the
+≈30° extent used here is the conventional figure from that literature rather than a value stated in
+their paper.
 
 [Figure 6.1 — plan-view diagram of the Block A layout: participant, desk, task surface, tablets at
 ±35°, focus-window extent.]
@@ -350,7 +352,8 @@ condition** — brief virtual diamond flashes of ~300 ms, size and contrast pilo
 segment to absorb head-yaw deferrals). Probe positions are scripted at known
 eccentricities relative to the focus-window centre:
 
-- 12 **central** probes at < 10° eccentricity (inside the window);
+- 12 **central** probes at < 10° eccentricity (inside the window; this brackets the ~8°-radius "road
+  centre" region where driver gaze concentrates, Victor et al., 2005);
 - 12 **peripheral** probes at 25–40° eccentricity (outside the window but within the headset's field
   of view for a forward-facing head; the probe schedule pauses while head yaw exceeds 20°
   off-forward and resumes when the head settles, so every probe is actually displayable — and the
@@ -610,9 +613,9 @@ materials, forms) is ticked for every session.
 
 - Bailey, R., McNamara, A., Sudarsanam, N., & Grimm, C. (2009). Subtle gaze direction. *ACM
   Transactions on Graphics, 28*(4). https://doi.org/10.1145/1559755.1559757
-- Ball, K., & Owsley, C. (1993). The Useful Field of View test: a new technique for evaluating
+- Ball, K., & Owsley, C. (1993). The useful field of view test: a new technique for evaluating
   age-related declines in visual function. *Journal of the American Optometric Association, 64*(1),
-  71–79. [VERIFY — exact UFOV reference used]
+  71–79. PMID: 8454831.
 - Bourdon, B. (1895). Observations comparatives sur la reconnaissance, la discrimination et
   l'association. *Revue Philosophique, 40*, 153–185. [VERIFY]
 - Byers, J. C., Bittner, A. C., & Hill, S. G. (1989). Traditional and raw task load index (TLX)
@@ -640,7 +643,7 @@ materials, forms) is ticked for every session.
   Detection-response task (DRT) for assessing attentional effects of cognitive load in driving.*
 - Jahn, G., Oehme, A., Krems, J. F., & Gelau, C. (2005). Peripheral detection as a workload measure in
   driving: effects of traffic complexity and route guidance system use in a driving study.
-  *Transportation Research Part F, 8*(3), 255–275.
+  *Transportation Research Part F, 8*(3), 255–275. https://doi.org/10.1016/j.trf.2005.04.009
 - Kim, H. K., Park, J., Choi, Y., & Choe, M. (2018). Virtual reality sickness questionnaire (VRSQ):
   motion sickness measurement index in a virtual reality environment. *Applied Ergonomics, 69*,
   66–73. https://www.sciencedirect.com/science/article/abs/pii/S000368701730282X
@@ -661,6 +664,9 @@ materials, forms) is ticked for every session.
 - Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., & Regenbrecht, H. (2022). Look over
   there! Investigating saliency modulation for visual guidance with augmented reality glasses. In
   *Proceedings of UIST 2022*. ACM. https://dl.acm.org/doi/10.1145/3526113.3545633
+- Victor, T. W., Harbluk, J. L., & Engström, J. A. (2005). Sensitivity of eye-movement measures to
+  in-vehicle task difficulty. *Transportation Research Part F, 8*(2), 167–190.
+  https://doi.org/10.1016/j.trf.2005.04.014
 - Wobbrock, J. O., Findlater, L., Gergle, D., & Higgins, J. J. (2011). The aligned rank transform for
   nonparametric factorial analyses using only ANOVA procedures. In *Proceedings of CHI 2011* (pp.
   143–146). ACM. (See also the recent critique of ART: https://statransform.github.io/jovi/

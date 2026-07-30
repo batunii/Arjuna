@@ -1,0 +1,927 @@
+<title>The Bargain — Diminished-Reality Attention Guidance on Quest 3</title>
+<style>
+  :root{
+    --ink:#EDF1F7;          /* focus text */
+    --dim:#8A94A6;          /* periphery text */
+    --faint:#5A6373;        /* footnotes */
+    --bg:#0B0E13;           /* ground */
+    --panel:#131822;        /* card — also the surface every data figure sits on */
+    --panel2:#0F131B;       /* deeper card */
+    --line:#232B38;         /* hairline */
+    --amber:#F2A93B;        /* chrome: the human half */
+    --cyan:#62B6C9;         /* chrome: the technical half */
+    --green:#63C67A;        /* semantic good */
+    --red:#E4695F;          /* semantic risk */
+    /* Data-bearing hues. Validated with scripts/validate_palette.js --mode dark
+       --surface #131822: all five checks pass (CVD ΔE 26.8, normal-vision 31.8).
+       The amber/cyan above are CHROME only — they fail the categorical gate on this
+       ground and never encode a value. */
+    --off:#3987e5;          /* filter OFF */
+    --on:#d95926;           /* filter ON  */
+    --dose:#199e70;         /* the filter's strength curve */
+    --serif:"Charter","Cambria",Georgia,"Times New Roman",serif;
+    --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  /* Single dark theme on purpose: the deck's own look is the system's metaphor —
+     a bright focus window on a dimmed ground. Not an omission. */
+  .deck{position:relative;width:100%;height:100vh;overflow:hidden;}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:4.2vh 5.5vw 7vh 5.5vw;box-sizing:border-box;overflow-y:auto;
+    background:radial-gradient(ellipse 120% 90% at 50% 42%, rgba(21,27,38,.55) 0%, rgba(11,14,19,0) 62%), var(--bg);
+  }
+  .slide.active{display:flex;}
+  .eyebrow{font-size:.76rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:.9rem;}
+  .eyebrow b{color:var(--amber);font-weight:600;}
+  .eyebrow.tech b{color:var(--cyan);}
+  h1{font-family:var(--serif);font-weight:700;font-size:2.15rem;line-height:1.14;margin:0 0 1rem 0;text-wrap:balance;max-width:26ch;}
+  h1 .hl{color:var(--amber);} h1 .hlt{color:var(--cyan);}
+  h2{font-weight:600;font-size:1rem;margin:0 0 .4rem 0;color:var(--ink);}
+  p{font-size:.96rem;line-height:1.55;color:var(--dim);margin:.2rem 0;max-width:70ch;}
+  p.lead{font-size:1.08rem;color:var(--ink);max-width:62ch;}
+  .body{flex:1;display:flex;flex-direction:column;gap:1rem;min-height:0;}
+  .cols{display:grid;gap:.9rem;}
+  .cols.c2{grid-template-columns:1fr 1fr;} .cols.c3{grid-template-columns:repeat(3,1fr);}
+  .cols.c4{grid-template-columns:repeat(4,1fr);}
+  .cols.wide-l{grid-template-columns:1.35fr 1fr;} .cols.wide-r{grid-template-columns:1fr 1.35fr;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.3rem;}
+  .card h3{margin:0;font-size:.92rem;font-weight:600;color:var(--ink);}
+  .card p{font-size:.85rem;line-height:1.48;margin:0;}
+  .card.good{border-left:3px solid var(--green);} .card.bad{border-left:3px solid var(--red);}
+  .card.tech{border-left:3px solid var(--cyan);} .card.hum{border-left:3px solid var(--amber);}
+  .tag{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);}
+  .stat{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--ink);line-height:1;}
+  .stat.on{color:var(--on);} .stat.off{color:var(--off);}
+  .stat small{font-size:.85rem;font-family:var(--sans);color:var(--dim);font-weight:400;}
+  .kv{display:flex;flex-direction:column;gap:.15rem;}
+  .kv .k{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);}
+  .kv .v{font-size:.92rem;color:var(--dim);} .kv .v b{color:var(--ink);font-weight:600;}
+  .foot{margin-top:auto;padding-top:.7rem;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;}
+  .src{font-size:.72rem;line-height:1.45;color:var(--faint);max-width:88ch;}
+  .src b{color:var(--dim);font-weight:600;}
+  .pageno{font-family:var(--mono);font-size:.72rem;color:var(--faint);flex-shrink:0;}
+  .progress{position:fixed;left:0;top:0;height:2px;background:var(--amber);width:0;z-index:50;transition:width .18s;}
+  /* definition chips — the "assume nothing is known" device */
+  .def{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:8px;padding:.6rem .8rem;}
+  .def .w{font-weight:600;color:var(--ink);font-size:.88rem;}
+  .def .d{font-size:.82rem;color:var(--dim);line-height:1.45;}
+  .defgrid{display:grid;gap:.55rem;grid-template-columns:1fr 1fr;}
+  /* video drop-zones */
+  .vid{border:1.5px dashed var(--line);border-radius:10px;background:
+       repeating-linear-gradient(45deg, rgba(98,182,201,.03) 0 10px, transparent 10px 20px), var(--panel2);
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
+       min-height:150px;padding:1rem;text-align:center;}
+  .vid .play{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--cyan);color:var(--cyan);
+       display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+  .vid .what{font-size:.84rem;color:var(--ink);font-weight:600;}
+  .vid .how{font-size:.75rem;color:var(--faint);max-width:46ch;line-height:1.4;}
+  table{border-collapse:collapse;width:100%;font-size:.82rem;}
+  th,td{text-align:left;padding:.38rem .5rem;border-bottom:1px solid var(--line);}
+  th{color:var(--faint);font-weight:600;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;}
+  td{color:var(--dim);} td b{color:var(--ink);}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .pos{color:var(--on);font-weight:600;} .neg{color:var(--off);font-weight:600;}
+  .nul{color:var(--faint);}
+  .pill{display:inline-block;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+        padding:.16rem .48rem;border-radius:20px;border:1px solid var(--line);color:var(--dim);}
+  .pill.p{border-color:#3d5a7a;color:#8fb4d8;}   /* pilot */
+  .pill.e{border-color:#7a4a33;color:#e0a184;}   /* extra */
+  .pill.sig{border-color:#2f6b45;color:var(--green);}
+  .legend{display:flex;gap:1.1rem;flex-wrap:wrap;font-size:.76rem;color:var(--dim);margin-top:.2rem;}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:.35rem;vertical-align:-1px;}
+  .scroll{overflow-x:auto;}
+  svg{display:block;max-width:100%;height:auto;}
+  .ft{font-family:var(--sans);font-size:11px;fill:var(--dim);}
+  .ft.s{font-size:9.5px;fill:var(--faint);}
+  .ft.b{font-size:12px;fill:var(--ink);font-weight:600;}
+  .gridln{stroke:var(--line);stroke-width:1;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+
+<div class="progress" id="bar"></div>
+<div class="deck">
+
+<!-- ══════════════ 1 · TITLE ══════════════ -->
+<section class="slide active">
+  <div class="eyebrow"><b>MSc Dissertation</b> · Trinity College Dublin · progress review</div>
+  <div class="body" style="justify-content:center;">
+    <h1 style="font-size:3.1rem;max-width:23ch;">Attention is a <span class="hl">bargain</span>. This asks whether it's a good one.</h1>
+    <p class="lead" style="max-width:58ch;">A Diminished-Reality attention-guidance system on a consumer video-passthrough headset — and an eleven-participant test of what it buys and what it costs.</p>
+    <div style="display:flex;gap:2.5rem;margin-top:1.2rem;flex-wrap:wrap;">
+      <div class="kv"><span class="k">Author</span><span class="v"><b>Shreyansh Soni</b></span></div>
+      <div class="kv"><span class="k">Supervisor</span><span class="v"><b>Dr. John Dingliana</b></span></div>
+      <div class="kv"><span class="k">Data</span><span class="v"><b>11 participants</b> · 4 sessions · 22–28 July 2026</span></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">School of Computer Science and Statistics, Trinity College Dublin.</div><div class="pageno">1</div></div>
+</section>
+
+<!-- ══════════════ 2 · THE IDEA IN ONE MOVE ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>The idea</b> · starting from something you already do</div>
+  <h1>We already delete distraction — for <span class="hl">space</span> and for <span class="hl">sound</span>. Almost never for <span class="hl">sight</span>.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card"><span class="tag">Space</span><h3>The library carrel</h3><p>Three walls around a desk. Nothing is added to help you read — the room is simply <em>subtracted</em> until only the page is left.</p></div>
+      <div class="card"><span class="tag">Sound</span><h3>Noise-cancelling headphones</h3><p>A everyday consumer product whose entire function is removal. Nobody finds it strange to pay for silence.</p></div>
+      <div class="card hum"><span class="tag">Sight</span><h3>…nothing</h3><p>For vision we do the opposite: we <em>add</em> arrows, highlights, labels, pop-ups. The visual equivalent of the carrel does not exist as a wearable product.</p></div>
+    </div>
+    <p class="lead">This project builds the missing one — a wearable that dims what you are not attending to — and then asks the only question that matters: <b style="color:var(--ink)">does subtracting the surroundings actually help, and what does it cost you?</b></p>
+  </div>
+  <div class="foot"><div class="src">The acoustic analogy is the literature's own: <b>Visual Noise Cancellation</b> proposes head-worn AR that "moderates the visual environment" by direct analogy to active noise cancellation.</div><div class="pageno">2</div></div>
+</section>
+
+<!-- ══════════════ 3 · TWO WORDS ══════════════ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Vocabulary</b> · two words, then everything else follows</div>
+  <h1>Augmented Reality <span class="hlt">adds</span>. Diminished Reality <span class="hlt">takes away</span>.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div class="card tech">
+        <h3>Augmented Reality (AR)</h3>
+        <p>Digital content is <b>added on top of</b> what you see. An arrow floating over a machine part; a name label over a face. Almost all commercial headset software does this.</p>
+        <p style="color:var(--faint)">Its failure mode: the addition becomes one more thing competing for your attention.</p>
+      </div>
+      <div class="card hum">
+        <h3>Diminished Reality (DR)</h3>
+        <p>Real content is <b>concealed, muted or removed</b> so that what remains is easier to attend to. Formally defined in the literature as "concealing real-world objects and visual clutter to support focus".</p>
+        <p style="color:var(--faint)">Its failure mode is the subject of this dissertation: you may remove something you needed.</p>
+      </div>
+    </div>
+    <div class="defgrid">
+      <div class="def"><div class="w">Attention guidance</div><div class="d">Any technique that changes <em>where</em> a person looks or attends, rather than what information they are given.</div></div>
+      <div class="def"><div class="w">Subtractive guidance</div><div class="d">Guiding attention by degrading the non-target regions instead of marking the target. The approach taken here.</div></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Cheng, Yin, Yan, Gugenheimer &amp; Lindlbauer</b>, "Towards Understanding Diminished Reality", CHI 2022 — DR definition and the within-subject evaluation pattern this study follows. <b>Mori et al.</b>, "A Survey of Diminished Reality", 2017.</div><div class="pageno">3</div></div>
+</section>
+
+<!-- ══════════════ 4 · THE HARDWARE ══════════════ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>Why now</b> · the hardware precondition</div>
+  <h1>On a video-passthrough headset, every visible pixel is <span class="hlt">software</span>.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.8rem;">
+        <div class="def"><div class="w">Video passthrough (video see-through, VST)</div><div class="d">The headset is opaque. Outward-facing cameras film the room and the displays show you that video. You are watching a live recording of your surroundings, not looking through glass.</div></div>
+        <div class="def"><div class="w">Optical see-through (OST)</div><div class="d">Transparent glass with light projected onto it — the older AR approach. Light can only be <em>added</em>: physically incapable of making the real world darker.</div></div>
+        <p>This is the precondition for the whole project. Diminished Reality on transparent glasses is close to impossible — you cannot subtract light you never controlled. On a Quest 3 the real world arrives as a texture, and a texture can be dimmed, desaturated, or replaced.</p>
+      </div>
+      <div class="vid">
+        <div class="play">▶</div>
+        <div class="what">Demo: the filter switching on, live</div>
+        <div class="how">15–20 s of in-headset capture, filter toggling off→on while the wearer looks around a normal room. This is the "oh, I see" moment — put it early and let it play without narration.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Practical caveat carried through the whole dissertation: Quest 3 passthrough never reaches normal visual acuity and degrades in low light — <b>"The perceptual gap between video see-through displays and natural human vision"</b>, arXiv 2026. This is why the tasks here use large, high-contrast stimuli and bright lighting, never fine text.</div><div class="pageno">4</div></div>
+</section>
+
+<!-- ══════════════ 5 · WHAT WAS BUILT ══════════════ -->
+<section class="slide">
+  <div class="eyebrow tech"><b>The artefact</b> · one shader, one geometry</div>
+  <h1>A clear window, and a <span class="hlt">gradient</span> that fades the rest away.</h1>
+  <div class="body">
+    <div class="cols wide-r">
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <p>The system keeps a small region of the view completely untouched, then fades progressively toward heavy dimming as you move outward from it. Two numbers define it, and both were chosen from the literature (next slides):</p>
+        <div class="card tech"><h3>The shipped configuration</h3>
+          <p><b>Clear core</b> — 6° left/right, 4° up/down from centre. Untouched.<br>
+             <b>Soft edge</b> — 24° of gradual falloff beyond the core.<br>
+             <b>Floor</b> — the far periphery settles at ≈15% of its original brightness, never zero.</p></div>
+        <div class="def"><div class="w">Degree (°) of visual angle</div><div class="d">The unit for "how far from the centre of your gaze". Your thumbnail at arm's length is about 1–2°. A whole hand at arm's length is about 20°. Everything in this deck is measured in degrees from the centre of the view.</div></div>
+      </div>
+      <div class="card" style="align-items:center;">
+        <svg viewBox="0 0 380 300" role="img" aria-label="Schematic of the focus window: a clear rectangular core at centre with a graded falloff to a dim periphery.">
+          <defs>
+            <radialGradient id="fall" cx="50%" cy="50%" r="52%">
+              <stop offset="0%"   stop-color="#2a3546" stop-opacity="0"/>
+              <stop offset="34%"  stop-color="#141a24" stop-opacity=".45"/>
+              <stop offset="100%" stop-color="#05070a" stop-opacity=".95"/>
+            </radialGradient>
+          </defs>
+          <rect x="10" y="10" width="360" height="240" rx="8" fill="#3a4658"/>
+          <g opacity=".55" stroke="#5a6b83" stroke-width="1">
+            <line x1="10" y1="90"  x2="370" y2="90"/><line x1="10" y1="170" x2="370" y2="170"/>
+            <line x1="130" y1="10" x2="130" y2="250"/><line x1="250" y1="10" x2="250" y2="250"/>
+          </g>
+          <rect x="10" y="10" width="360" height="240" rx="8" fill="url(#fall)"/>
+          <rect x="160" y="112" width="60" height="36" rx="4" fill="none" stroke="var(--amber)" stroke-width="1.6"/>
+          <text class="ft b" x="190" y="105" text-anchor="middle" fill="#F2A93B">clear core</text>
+          <text class="ft s" x="190" y="163" text-anchor="middle">6° × 4°</text>
+          <line x1="220" y1="130" x2="330" y2="130" stroke="var(--dose)" stroke-width="1.4" stroke-dasharray="3 3"/>
+          <text class="ft s" x="332" y="127" fill="#199e70">24° falloff</text>
+          <text class="ft s" x="332" y="141" fill="#199e70">→ ≈15% bright</text>
+          <text class="ft s" x="20" y="242">the periphery is muted, never blacked out</text>
+        </svg>
+        <p style="font-size:.76rem;color:var(--faint);margin-top:.3rem;">Schematic, not a screenshot — the real effect is a per-pixel shader over the camera feed.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">The 15% floor is anchored to <b>ITU-R BT.500</b>'s reference-surround ratio (0.15 × peak luminance for critical viewing) and sits above the classic ~10:1 task-to-surround comfort limit. A blackout was tried first and rejected: it made the periphery unusable and uncomfortable.</div><div class="pageno">5</div></div>
+</section>
+
+<!-- ══════════════ 6 · THE COST IS REAL ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act I — why subtract?</b> · first, prove there is something to remove</div>
+  <h1>Peripheral distractions <span class="hl">more than double</span> your errors. That's the thing being removed.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <p>A subtractive interface is only worth building if the surroundings actually cost you something measurable. They do, and the size of the cost is established independently of this project:</p>
+        <div class="card bad">
+          <h3>Established finding — not this study's data</h3>
+          <p>In a head-mounted display, adding peripheral video distractors to a sustained-attention task raised <b>commission errors from 1.33 to 3.15</b> (p &lt; .001, N = 66). Errors — not reaction time — were the sensitive measure.</p>
+        </div>
+        <div class="def"><div class="w">Commission error</div><div class="d">Pressing when you should have withheld. A false alarm. In attention research it is the classic signature of a lapse: the distraction pulled you, and your finger moved before your judgement caught up.</div></div>
+        <p>That number is the target. The question this project asks is whether dimming the surroundings gives any of it back.</p>
+      </div>
+      <div class="card" style="justify-content:center;align-items:center;gap:.6rem;">
+        <span class="tag">The gap this fills</span>
+        <div class="stat">1.33 <small>→</small> 3.15</div>
+        <p style="text-align:center;font-size:.82rem;">commission errors per run, distractors absent → present, in an HMD sustained-attention task</p>
+        <p style="text-align:center;font-size:.76rem;color:var(--faint);">Frontiers in Human Neuroscience, 2025 · N = 66</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>"Impact of visual distractors in VR on sustained attention"</b>, Frontiers in Human Neuroscience 2025 (N = 66) — the effect this system targets, and the reason the focus task's primary measure is accuracy rather than speed.</div><div class="pageno">6</div></div>
+</section>
+
+<!-- ══════════════ 7 · WHY DIMMING SPECIFICALLY ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act I — why subtract?</b> · why dimming, and not arrows or desaturation</div>
+  <h1>Three separate literatures point at <span class="hl">darkening</span> in particular.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card hum"><span class="tag">1 · Why removal works at all</span><h3>Cognitive Load Theory</h3>
+        <p>Attention and working memory are finite. Irrelevant visual information consumes capacity that the task needed — "extraneous load". Removing it is therefore not a trick; it is returning capacity.</p>
+        <p style="color:var(--faint);font-size:.78rem;">Buchner et al., on AR and cognitive load.</p></div>
+      <div class="card hum"><span class="tag">2 · Why modulating pixels guides</span><h3>Saliency modulation</h3>
+        <p>Changing the brightness and contrast of real-world regions in AR reliably moves where people look. This is the mechanism the shader implements.</p>
+        <p style="color:var(--faint);font-size:.78rem;">Sutton et al., "Look over there!", UIST 2022 (N = 20, within-subject).</p></div>
+      <div class="card good"><span class="tag">3 · Why <em>dark</em>, not grey</span><h3>Darkening beats desaturation</h3>
+        <p>In 360° video with eye tracking, <b>area darkening successfully guided attention while desaturation was nearly ineffective</b>. This single result is why the system's workhorse modes are dark ones rather than colour-removal.</p>
+        <p style="color:var(--faint);font-size:.78rem;">"Attention-guiding Methods in Cinematic VR Based on Eye Tracking", IEEE 2021.</p></div>
+    </div>
+    <div class="card">
+      <h3>And the benchmark to beat: additive guidance already works</h3>
+      <p>The <b>Attention Funnel</b> (an added 3D visual cue leading the eye to a target) cut workload by 18% and improved search by 22%. Additive guidance is not a straw man — it is effective, commercially shipped, and the thing subtractive guidance has to justify itself against. Its known weakness is that it must know <em>where</em> the target is; subtraction does not.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>Biocca et al.</b>, "Attention Funnel", CHI 2006 — workload −18%, search +22%. The contrast matters for positioning: the funnel needs a target; this system only needs to know where you are already looking.</div><div class="pageno">7</div></div>
+</section>
+
+<!-- ══════════════ 8 · WHY IT MIGHT BACKFIRE ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act I — why subtract?</b> · and the reason to be afraid of it</div>
+  <h1>The same literature that says it helps says it might <span class="hl">blind you</span>.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <div class="card bad"><h3>The documented risk</h3>
+          <p>DR lowers cognitive workload <b>but risks loss of situational awareness</b> — you stop noticing things you were not told to ignore. A 2025 Human Factors paper builds an explicit framework for testing whether peripheral manipulation causes dangerous blindness.</p>
+          <p style="color:var(--faint);font-size:.78rem;">Murphy et al. 2021; McLaughlin et al., Human Factors 2025.</p></div>
+        <div class="def"><div class="w">Attention tunnelling</div><div class="d">When a guidance cue works <em>too</em> well: attention narrows onto the guided region and genuinely important events outside it go unnoticed. The recognised failure mode of all attention guidance, additive or subtractive.</div></div>
+        <div class="def"><div class="w">Inattentional blindness</div><div class="d">Failing to see something plainly visible because attention was elsewhere. Not an eyesight problem — an attention problem.</div></div>
+      </div>
+      <div class="card hum" style="justify-content:center;">
+        <span class="tag">The shape of the whole dissertation</span>
+        <p class="lead" style="font-size:1.06rem;color:var(--ink);">A subtractive interface is a <b>bargain</b>: you buy focus, and you pay with awareness of everything else.</p>
+        <p>Every serious claim in this work is about that exchange rate. Not "does it work" — <em>what does it cost, where, and is the price worth it.</em></p>
+        <p style="color:var(--faint)">Which gives exactly two things to measure, and therefore exactly two hypotheses.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>McLaughlin et al.</b>, "Cognitive Aid Design Using Diminished Reality", Human Factors 2025 — within-subject, linear mixed models, focus-vs-awareness trade-off. This is the paper the safety hypothesis is modelled on.</div><div class="pageno">8</div></div>
+</section>
+
+<!-- ══════════════ 9 · THE TWO HYPOTHESES ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act I — why subtract?</b> · the two claims, fixed before any data</div>
+  <h1>One buys. One pays. Both were written down <span class="hl">before</span> the first participant.</h1>
+  <div class="body">
+    <div class="defgrid" style="grid-template-columns:1fr;gap:.5rem;">
+      <div class="def"><div class="w">Hypothesis</div><div class="d">A specific, falsifiable prediction — stated so that a particular observation would <em>disprove</em> it. "The system is good" is not a hypothesis; "accuracy is higher with the filter on" is.</div></div>
+      <div class="def"><div class="w">Null hypothesis</div><div class="d">The boring rival explanation, always assumed by default: <b>"there is no difference; what you're seeing is chance."</b> A statistical test never proves a hypothesis true — it only reports how badly the null hypothesis fails to explain the data. Everything on the results slides is an answer to "could this just be noise?"</div></div>
+    </div>
+    <div class="cols c2">
+      <div class="card hum">
+        <span class="tag">H1 · what it buys</span>
+        <h3>Dimming the surroundings improves performance on the task you are attending to.</h3>
+        <p>Measured as accuracy on a demanding focus task while realistic distractions play in the periphery.</p>
+        <p style="color:var(--faint)"><b>Refuted if:</b> accuracy is no better, or worse, with the filter on.</p>
+      </div>
+      <div class="card bad">
+        <span class="tag">H2 · what it costs</span>
+        <h3>It does not cost more peripheral awareness than a safety margin allows.</h3>
+        <p>Measured as the proportion of peripheral events noticed. The pre-set margin was <b>10 percentage points</b>: losing more than one event in ten to the overlay is an unacceptable price.</p>
+        <p style="color:var(--faint)"><b>Refuted if:</b> peripheral detection drops by more than 10 points.</p>
+      </div>
+    </div>
+    <p>Note the asymmetry, because it is deliberate. H1 hopes for a <em>difference</em>. H2 hopes for a <em>non-difference</em> — and proving "close enough to the same" needs its own kind of test, with the margin fixed in advance so it cannot be quietly moved afterwards.</p>
+  </div>
+  <div class="foot"><div class="src">The 10-point margin follows the DR focus-versus-awareness framing of <b>McLaughlin 2025</b> and <b>Murphy 2021</b>; the equivalence-testing procedure for "proving no meaningful difference" is <b>Lakens</b>, "Equivalence Tests", SPPS 2017. Full pre-registered wording in <span style="font-family:var(--mono)">testing-strategy-v2.md §2</span>.</div><div class="pageno">9</div></div>
+</section>
+
+<!-- ══════════════ 10 · STATS VOCABULARY ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act II — how do you measure a bargain?</b> · the words on every results slide</div>
+  <h1>Six terms. Once these are clear, every number later reads itself.</h1>
+  <div class="body">
+    <div class="defgrid">
+      <div class="def"><div class="w">Within-subjects / paired</div><div class="d">Every person does <b>both</b> conditions, so each is compared only against themselves. This removes the biggest source of noise in a small study — that people simply differ. Every comparison in this deck is paired.</div></div>
+      <div class="def"><div class="w">p-value</div><div class="d">The probability of seeing a difference this large <em>if the null hypothesis were true</em> and nothing real was happening. Small = "chance explains this badly". The conventional cut-off is <b>0.05</b>. It is a convention, not a law of nature.</div></div>
+      <div class="def"><div class="w">95% confidence interval (CI)</div><div class="d">The range of true effects consistent with the data. More useful than a p-value: if the interval <b>excludes zero</b>, "no effect at all" is not among the plausible answers.</div></div>
+      <div class="def"><div class="w">Effect size (Cohen's d<sub>z</sub>)</div><div class="d">How big the difference is relative to how much it varies between people. Rough reading: 0.2 small, 0.5 medium, 0.8 large. A p-value says "probably real"; the effect size says "and worth caring about".</div></div>
+      <div class="def"><div class="w">Wilcoxon signed-rank test</div><div class="d">A paired test that uses only the <em>ranking</em> of the differences, not their exact sizes. Preferred here because scores pile up against a 100% ceiling, which breaks the assumptions of the ordinary t-test.</div></div>
+      <div class="def"><div class="w">Statistical power</div><div class="d">The chance of detecting a real effect of a given size with the sample you have. With 11 people this study has roughly <b>60%</b> power — meaning a real effect would be missed about four times in ten. Low power makes negative results weak, but it does <em>not</em> weaken the positive ones.</div></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Small-sample justification: the modal user-study sample size across all CHI papers is 12 (<b>Caine</b>, CHI 2016); small in-person studies derive power from repeated measures within each person, not from headcount. The two closest DR evaluations ran N = 16 and N = 12.</div><div class="pageno">10</div></div>
+</section>
+
+<!-- ══════════════ 11 · THE ANCHOR RULER (centrepiece) ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act II — how do you measure a bargain?</b> · the one diagram the whole study rests on</div>
+  <h1>Vision is not one thing. The <span class="hl">degrees</span> from centre decide everything.</h1>
+  <div class="body">
+    <div class="card scroll">
+      <svg viewBox="0 0 900 330" role="img" aria-label="Eccentricity ruler from 0 to 40 degrees showing fovea, parafovea, driver road-centre region, the peripheral detection task band, and the useful field of view, with the filter strength curve overlaid.">
+        <!-- axis -->
+        <line class="gridln" x1="70" y1="250" x2="860" y2="250"/>
+        <g class="ft s" text-anchor="middle" fill="#8A94A6">
+          <text x="70" y="268">0°</text><text x="268" y="268">10°</text><text x="465" y="268">20°</text>
+          <text x="663" y="268">30°</text><text x="860" y="268">40°</text>
+        </g>
+        <g class="gridln" opacity=".5">
+          <line x1="268" y1="60" x2="268" y2="250"/><line x1="465" y1="60" x2="465" y2="250"/><line x1="663" y1="60" x2="663" y2="250"/>
+        </g>
+        <text class="ft s" x="465" y="288" text-anchor="middle" fill="#5A6373">degrees away from the centre of the view (visual angle)</text>
+
+        <!-- anchor bands (upper half) -->
+        <g>
+          <rect x="70" y="40" width="20" height="13" rx="3" fill="#5A6373"/>
+          <text class="ft s" x="96" y="50">fovea ~1° — sharp vision only here</text>
+
+          <rect x="70" y="62" width="89" height="13" rx="3" fill="#6b7787"/>
+          <text class="ft s" x="165" y="72">parafovea ~4–5°</text>
+
+          <rect x="70" y="84" width="158" height="13" rx="3" fill="#F2A93B" opacity=".75"/>
+          <text class="ft s" x="234" y="94" fill="#F2A93B">road centre — where drivers actually look, 8° radius</text>
+
+          <rect x="287" y="106" width="238" height="13" rx="3" fill="#62B6C9" opacity=".7"/>
+          <text class="ft s" x="531" y="116" fill="#62B6C9">peripheral-detection probe band, 11–23° — "peripheral but must stay detectable"</text>
+
+          <rect x="70" y="128" width="593" height="13" rx="3" fill="none" stroke="#8A94A6" stroke-dasharray="4 3"/>
+          <text class="ft s" x="669" y="138">useful field of view ≈30° — and it shrinks under load</text>
+        </g>
+
+        <!-- filter strength curve (lower half): smoothstep(0, 24, |az| - 6), 0% at y=250, 100% at y=160 -->
+        <path d="M70,250 L189,250 L228,248 L268,243 L307,236 L347,227 L386,216 L426,205
+                 L465,194 L505,183 L544,174 L584,167 L623,162 L663,160 L860,160"
+              fill="none" stroke="var(--dose)" stroke-width="2.4"/>
+        <text class="ft s" x="700" y="153" fill="#199e70">filter at full strength</text>
+        <text class="ft s" x="96" y="244" fill="#199e70">filter does nothing here</text>
+        <line x1="426" y1="205" x2="426" y2="250" stroke="#199e70" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>
+        <text class="ft s" x="432" y="229" fill="#199e70">half strength at 18°</text>
+        <g class="ft s" text-anchor="end" fill="#199e70">
+          <text x="64" y="164">100%</text><text x="64" y="254">0%</text>
+        </g>
+        <text class="ft s" x="26" y="205" fill="#199e70" transform="rotate(-90 26 205)" text-anchor="middle">filter strength</text>
+      </svg>
+      <div class="legend">
+        <span><span class="sw" style="background:#F2A93B"></span>what a normal driver watches</span>
+        <span><span class="sw" style="background:#62B6C9"></span>the standard workload-probe band</span>
+        <span><span class="sw" style="background:var(--dose)"></span>this system's filter strength</span>
+      </div>
+    </div>
+    <p>The window was not tuned by eye. The clear core stops at <b>8°</b> because that is the region drivers demonstrably watch — the filter must never dim what the task itself says to look at. The gradient then spans <b>8–32°</b>, covering the entire band that decades of driving-workload research uses for "peripheral but should still be noticed", and reaches full strength right at the <b>edge of the useful field of view</b>.</p>
+  </div>
+  <div class="foot"><div class="src"><b>Victor, Harbluk &amp; Engström</b> 2005, <em>Transp. Res. F</em> 8:167–190 — Percent Road Centre, 8° radius. <b>Jahn, Oehme, Krems &amp; Gelau</b> 2005, <em>Transp. Res. F</em> 8:255–275 — peripheral detection task at 11–23° horizontal. <b>ISO 17488:2016</b> remote DRT ≈20° lateral. <b>Ball &amp; Owsley</b> + gaze-contingent UFOV driving studies — UFOV ≈30° diameter, shrinks under cognitive load.</div><div class="pageno">11</div></div>
+</section>
+
+<!-- ══════════════ 12 · BLOCK A ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act II — how do you measure a bargain?</b> · Test 1 of 2 — what it buys</div>
+  <h1>Task A: hold your attention on <span class="hl">one boring thing</span> while the edges try to steal it.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.65rem;">
+        <div class="def"><div class="w">Forced-choice 1-back</div><div class="d">A shape appears. You answer one question — <b>is this the same shape as the last one?</b> — and then it happens again, 140 times, for about four and a half minutes. Every trial demands an answer, so there is nowhere to hide and no way to coast.</div></div>
+        <p><b>The distraction.</b> Short-form vertical video — fast cuts, animated captions, the format engineered to be unignorable — plays continuously in the peripheral margins either side of the task. Same clips in both conditions for a given participant.</p>
+        <p><b>What is measured.</b> Percentage of trials answered correctly. Plus wrong presses, reaction time, and whether performance decays across the run.</p>
+        <div class="card tech"><h3>Why the clock is set where it is</h3>
+          <p>Response window <b>1.7 s</b>, one trial every <b>2.0 s</b>. The field-standard n-back gives 3.0 s — deliberately slower than this. A pace floor comes from the SART at 1.15 s, but that is a simple detection task, not a judgement. House rule: the window must exceed <b>twice</b> the typical response time, or you are measuring who panics rather than who attends.</p></div>
+      </div>
+      <div class="vid">
+        <div class="play">▶</div>
+        <div class="what">Screen capture: Task A running</div>
+        <div class="how">20–25 s showing the shape stream centre-screen with the video distractors playing in both margins. Record it twice — filter off, then on — and cut them side by side. Nothing communicates the manipulation faster than seeing the margins go dark.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">n-back parameters: PsyToolkit reference implementation and <em>Psychometric characteristics of the n-back task</em>, Current Psychology 2025 (500 ms stimulus + 2500 ms blank). Pace floor: <b>Robertson et al.</b> 1997, SART. Against tight deadlines: attentional lapses live in the slow tail of the reaction-time distribution (ex-Gaussian τ), and deadline errors reflect a shifted speed–accuracy criterion rather than reduced ability — a tight window would censor exactly the signal H1 predicts.</div><div class="pageno">12</div></div>
+</section>
+
+<!-- ══════════════ 13 · BLOCK B ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act II — how do you measure a bargain?</b> · Test 2 of 2 — what it costs</div>
+  <h1>Task B: drive, and press whenever you <span class="hl">notice</span> something at the edge.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.65rem;">
+        <p>The participant watches recorded driving footage wrapped around them and pulls the trigger whenever they spot a marker appearing somewhere in the scene. 40 markers per run, spread from dead ahead out past 40°.</p>
+        <div class="def"><div class="w">Detection Response Task (DRT) — the paradigm this copies</div><div class="d">An international standard (ISO 17488) for measuring how loaded a driver is: show a small peripheral stimulus at unpredictable intervals, measure whether and how fast it is noticed. A response counts if it lands within <b>100–2500 ms</b>. Deliberately not tailored to each person, so results compare across studies.</div></div>
+        <div class="def"><div class="w">Hit rate</div><div class="d">The percentage of markers noticed. This is the number that carries H2: if dimming the periphery blinds people, this is where it shows up.</div></div>
+        <p>This is a <b>simulation</b>, and stated as one. Recorded footage gives every participant identical, repeatable, event-dense stimuli — something a real street never provides. The precedent is direct: the closest published DR evaluations were run entirely inside simulations because real DR was not yet feasible.</p>
+      </div>
+      <div class="vid">
+        <div class="play">▶</div>
+        <div class="what">Screen capture: Task B, both conditions</div>
+        <div class="how">25–30 s of the driving footage with markers appearing, once filter-off and once filter-on. Ideally freeze on one marker in the periphery so the audience can see it dim as the filter comes on — that is the point of the next slide.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src"><b>ISO 17488:2016</b> Detection Response Task; <b>Jahn et al.</b> 2005 peripheral detection as a workload measure. Simulation-based evaluation precedent: <b>Cheng et al.</b>, CHI 2022. Response modality (click on naturalistic scene-consistent targets) follows the Road Hazard Stimuli dataset, Behavior Research Methods 2023.</div><div class="pageno">13</div></div>
+</section>
+
+<!-- ══════════════ 14 · THE PROBE ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act II — how do you measure a bargain?</b> · the detail that makes Task B honest</div>
+  <h1>The marker had to be <span class="hl">dimmed by the filter too</span> — or the test would cheat.</h1>
+  <div class="body">
+    <div class="cols wide-r">
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <p>If the marker were drawn on top of the filter at full brightness, it would <em>stand out more</em> against a darkened background and the filter would look good for a reason that has nothing to do with attention. So the marker is pushed through exactly the same dimming as the scene at its position: full strength inside the clear window, fading like a real object in the periphery.</p>
+        <div class="card good"><h3>The consequence, stated plainly</h3>
+          <p>In the filter condition the markers in the periphery were <b>harder to see</b>, not easier. Any improvement in detection there has to be paid for out of attention, not contrast.</p></div>
+        <p><b>Why a striped ring.</b> Four black-and-white arc pairs, 1.6° across. Achromatic, so desaturation does nothing to it. Contrast-complete, so some arc contrasts against any background — the fiducial-marker principle. And dimming multiplies it, which preserves the pattern's internal contrast: it fades honestly without dissolving into flat grey.</p>
+      </div>
+      <div class="card" style="align-items:center;gap:.5rem;">
+        <span class="tag">Same marker, three positions</span>
+        <svg viewBox="0 0 300 210" role="img" aria-label="The striped ring marker shown at full strength inside the window, partly dimmed at 20 degrees, and heavily dimmed at 30 degrees.">
+          <g>
+            <rect x="12" y="24" width="80" height="80" rx="6" fill="#48566b"/>
+            <rect x="110" y="24" width="80" height="80" rx="6" fill="#2a3340"/>
+            <rect x="208" y="24" width="80" height="80" rx="6" fill="#151a22"/>
+          </g>
+          <g fill="none" stroke-width="7">
+            <circle cx="52"  cy="64" r="21" stroke="#ffffff" stroke-dasharray="16.5 16.5" opacity="1"/>
+            <circle cx="52"  cy="64" r="21" stroke="#000000" stroke-dasharray="16.5 16.5" stroke-dashoffset="16.5" opacity="1"/>
+            <circle cx="150" cy="64" r="21" stroke="#ffffff" stroke-dasharray="16.5 16.5" opacity=".5"/>
+            <circle cx="150" cy="64" r="21" stroke="#000000" stroke-dasharray="16.5 16.5" stroke-dashoffset="16.5" opacity=".5"/>
+            <circle cx="248" cy="64" r="21" stroke="#ffffff" stroke-dasharray="16.5 16.5" opacity=".2"/>
+            <circle cx="248" cy="64" r="21" stroke="#000000" stroke-dasharray="16.5 16.5" stroke-dashoffset="16.5" opacity=".2"/>
+          </g>
+          <g class="ft s" text-anchor="middle" fill="#8A94A6">
+            <text x="52"  y="120">inside the window</text><text x="52"  y="133">full strength</text>
+            <text x="150" y="120">at 20°</text><text x="150" y="133">filter ≈62%</text>
+            <text x="248" y="120">at 30°</text><text x="248" y="133">filter 100%</text>
+          </g>
+          <text class="ft s" x="150" y="165" text-anchor="middle" fill="#5A6373">1.6° across · 4 arc pairs · achromatic</text>
+          <text class="ft s" x="150" y="182" text-anchor="middle" fill="#5A6373">the pattern survives the dim; the brightness does not</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Engineered <em>not</em> to pop out: ramped onset because abrupt onset is the strongest involuntary attention grab (<b>Yantis &amp; Jonides</b> 1984) while gradual change is fully visible yet does not capture (<b>Simons et al.</b> 2000; <b>Cole et al.</b> 2011); held static because motion and looming capture (<b>Franconeri &amp; Simons</b> 2003); modulates the underlying pixels rather than overpainting them (<b>Wallis, Dorr &amp; Bex</b> 2015). Target difficulty 60–85% without the filter, because probes that are too easy detect no workload effect at all (<b>van Winsum</b> 2018).</div><div class="pageno">14</div></div>
+</section>
+
+<!-- ══════════════ 15 · WHAT WAS ACTUALLY RUN ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · what exists, and its honest status</div>
+  <h1>Four evenings. Eleven people. <span class="hl">Two</span> distinct phases.</h1>
+  <div class="body">
+    <div class="card scroll">
+      <table>
+        <thead><tr><th>Phase</th><th>Session</th><th class="num">Tested</th><th>Focus task version</th><th>Distraction set</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill p">Pilot</span></td><td>22 Jul</td><td class="num">5</td><td>2.5 s pace · 4 distinct shapes</td><td>original reel</td><td>near ceiling — barely measurable</td></tr>
+          <tr><td><span class="pill e">Extra</span></td><td>23 Jul</td><td class="num">3</td><td>1.8–2.0 s pace · 4 distinct shapes</td><td>reel v2</td><td>harder; usable range</td></tr>
+          <tr><td><span class="pill e">Extra</span></td><td>27 Jul</td><td class="num">3</td><td>2.0 s pace · <b>6 look-alike shapes</b></td><td>reel v3</td><td>hardest; well off ceiling</td></tr>
+          <tr><td><span class="pill e">Extra</span></td><td>28 Jul</td><td class="num">1</td><td>2.0 s pace · 6 look-alike shapes</td><td>reel v3</td><td>+ <b>arm order reversed</b></td></tr>
+          <tr><td colspan="2"><b>12 people tested · 11 usable pairs per task</b></td><td class="num">12</td><td colspan="3">One pilot participant's focus-task condition labels were never recorded and could not be recovered; a different one's driving run was excluded for trigger spam. So each task has eleven pairs — from overlapping but not identical sets of people.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cols c3">
+      <div class="card bad"><span class="tag">Honesty 1</span><h3>The versions genuinely differ</h3><p>The focus task got harder across sessions because the first version was at ceiling. Pooling across versions was permitted by the supervisor on 27 July on the grounds that the variants came out close enough — but it is a real limitation, so pilot and extra are shown separately throughout.</p></div>
+      <div class="card bad"><span class="tag">Honesty 2</span><h3>One run was excluded</h3><p>One driving run logged 539 wrong presses and its hits were measurably sloppier than everyone else's — some were accidents. That pair is out of Task B. It would have been the second-largest gain, so the exclusion costs the result rather than creating it.</p></div>
+      <div class="card bad"><span class="tag">Honesty 3</span><h3>An analysis error, found and fixed</h3><p>An earlier version of this analysis joined the wrong target file and used 330 of 880 markers, mis-assigning some angles. Every angle-based number here is recomputed from the correct file. The main finding survived, smaller and cleaner.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Within each participant the version and distraction set are held constant across both conditions, so the paired comparison is unaffected by version drift; only cross-participant pooling is. <b>Ceiling effect</b> = when a task is so easy that scores bunch at 100% and improvement becomes invisible — the reason the task was made harder mid-study.</div><div class="pageno">15</div></div>
+</section>
+
+<!-- ══════════════ 16 · RESULTS — PILOT ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · <span class="pill p">Pilot</span> · day 1, four participants</div>
+  <h1>The pilot's job was to find out whether anything was <span class="hl">there</span>. Something was.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card hum"><span class="tag">Focus task</span>
+        <div class="stat on">+2.2<small> pts</small></div>
+        <p>97.2% → 99.4%. <b>All four improved.</b> But every participant sat above 95% to begin with — the task was too easy, so this is a direction, not a measurement.</p></div>
+      <div class="card"><span class="tag">Driving task — overall</span>
+        <div class="stat" style="color:var(--faint)">−1.2<small> pts</small></div>
+        <p>63.1% → 61.9%. Essentially unchanged; one of four improved. Averaged across the whole visual field, the filter did nothing.</p></div>
+      <div class="card good"><span class="tag">Driving task — the 20–30° ring</span>
+        <div class="stat on">+25.4<small> pts</small></div>
+        <p>38.9% → 64.3%. <b>All four improved.</b> Hidden inside a flat average was one band where detection rose by a quarter.</p></div>
+    </div>
+    <div class="card">
+      <h3>And the detail that made the rest of the study worth running</h3>
+      <p>Among markers in that ring that appeared and vanished in under two seconds — the hardest case in the entire design — participants without the filter caught <b>0 of 14</b>. With the filter on, they caught <b>4 of 10</b>.</p>
+      <p style="color:var(--faint)">Small numbers, and treated as such. But zero is an unusual number to see, and it pointed at exactly the region the filter's gradient was built to act on. Everything after day 1 was designed to find out whether it would happen again.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Day-1 arm labels were not recorded by the tool of that era; they were recovered afterwards by matching each run's timestamps against the session ledger, which writes a row naming the condition at the end of every block. Two pairs matched exactly (16–19 s after run end); two come from the planned order. One participant's day-1 focus runs remain unassignable and are excluded from the focus task.</div><div class="pageno">16</div></div>
+</section>
+
+<!-- ══════════════ 17 · RESULTS — EXTRA ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · <span class="pill e">Extra</span> · days 2–4, seven participants</div>
+  <h1>With a harder task and a fresh seven people, both effects <span class="hl">came back</span>.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card hum"><span class="tag">Focus task</span>
+        <div class="stat on">+4.5<small> pts</small></div>
+        <p>90.0% → 94.5%; 5 of 7 improved. <b>Twice the pilot's effect</b>, because the harder version left room to move. Removing the ceiling made the benefit bigger, not smaller.</p></div>
+      <div class="card"><span class="tag">Driving task — overall</span>
+        <div class="stat" style="color:var(--faint)">+6.8<small> pts</small></div>
+        <p>45.4% → 52.1%; 4 of 7. Still not significant, still consistent with chance on its own.</p></div>
+      <div class="card good"><span class="tag">Driving task — the 20–30° ring</span>
+        <div class="stat on">+14.7<small> pts</small></div>
+        <p>38.5% → 53.3%; 5 of 7 improved. Smaller than the pilot's, same direction, same band.</p></div>
+    </div>
+    <div class="cols c2">
+      <div class="card good"><h3>The order test</h3><p>In eight of eleven sessions the no-filter driving run came first, so practice always flattered the filter. The final session deliberately reversed it — filter first — so practice worked <em>against</em> it. The filter still won both tasks, and by +27.0 points in the ring. One participant is not a control condition, but it is the first direct check, and it came out the right way.</p></div>
+      <div class="card"><h3>Brief markers in the ring, again</h3><p>2 of 22 without the filter → 5 of 20 with it. Weaker than the pilot's 0-of-14, same direction. Pooled across all four sessions: <b>5.6% → 30.0%</b>.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">The extra phase also re-ran everything the pilot had established, on a task version the pilot never used and with a different distraction set — which is why the two phases function as an internal replication rather than simply as more of the same data.</div><div class="pageno">17</div></div>
+</section>
+
+<!-- ══════════════ 18 · COMBINED — BLOCK A ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · combined, phases marked · H1 — what it buys</div>
+  <h1>Focus accuracy: <span class="hl">+3.7 points</span>, nine of eleven, and chance explains it badly.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div class="card scroll">
+        <svg viewBox="0 0 640 352" role="img" aria-label="Paired comparison of focus-task accuracy for all eleven participants, filter off versus filter on, with pilot and extra phases marked.">
+          <g class="gridln" opacity=".6">
+            <line x1="201" y1="30" x2="201" y2="300"/><line x1="282" y1="30" x2="282" y2="300"/>
+            <line x1="363" y1="30" x2="363" y2="300"/><line x1="444" y1="30" x2="444" y2="300"/>
+            <line x1="525" y1="30" x2="525" y2="300"/>
+          </g>
+          <g class="ft s" text-anchor="middle" fill="#5A6373">
+            <text x="201" y="318">80%</text><text x="282" y="318">85%</text><text x="363" y="318">90%</text>
+            <text x="444" y="318">95%</text><text x="525" y="318">100%</text>
+          </g>
+          <line class="gridln" x1="110" y1="300" x2="560" y2="300"/>
+          <!-- x = 120 + (accuracy - 75) * 16.2 -->
+          <g>
+            <line x1="117" y1="42" x2="373" y2="42" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="117" cy="42" r="5.5" fill="var(--off)"/><circle cx="373" cy="42" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="46" fill="#e0a184">E</text><text class="ft s" x="30" y="46">P15</text>
+            <text class="ft s" x="590" y="46" fill="#d95926" text-anchor="end">+15.8</text>
+
+            <line x1="275" y1="66" x2="400" y2="66" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="275" cy="66" r="5.5" fill="var(--off)"/><circle cx="400" cy="66" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="70" fill="#e0a184">E</text><text class="ft s" x="30" y="70">P6</text>
+            <text class="ft s" x="590" y="70" fill="#d95926" text-anchor="end">+7.7</text>
+
+            <line x1="304" y1="90" x2="385" y2="90" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="304" cy="90" r="5.5" fill="var(--off)"/><circle cx="385" cy="90" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="94" fill="#e0a184">E</text><text class="ft s" x="30" y="94">P20</text>
+            <text class="ft s" x="590" y="94" fill="#d95926" text-anchor="end">+5.0</text>
+
+            <line x1="444" y1="114" x2="525" y2="114" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="444" cy="114" r="5.5" fill="var(--off)"/><circle cx="525" cy="114" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="118" fill="#e0a184">E</text><text class="ft s" x="30" y="118">P9</text>
+            <text class="ft s" x="590" y="118" fill="#d95926" text-anchor="end">+5.0</text>
+
+            <line x1="447" y1="138" x2="506" y2="138" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="447" cy="138" r="5.5" fill="var(--off)"/><circle cx="506" cy="138" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="142" fill="#8fb4d8">P</text><text class="ft s" x="30" y="142">P3</text>
+            <text class="ft s" x="590" y="142" fill="#d95926" text-anchor="end">+3.6</text>
+
+            <line x1="486" y1="162" x2="525" y2="162" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="486" cy="162" r="5.5" fill="var(--off)"/><circle cx="525" cy="162" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="166" fill="#8fb4d8">P</text><text class="ft s" x="30" y="166">P2</text>
+            <text class="ft s" x="590" y="166" fill="#d95926" text-anchor="end">+2.4</text>
+
+            <line x1="489" y1="186" x2="525" y2="186" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="489" cy="186" r="5.5" fill="var(--off)"/><circle cx="525" cy="186" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="190" fill="#e0a184">E</text><text class="ft s" x="30" y="190">P10</text>
+            <text class="ft s" x="590" y="190" fill="#d95926" text-anchor="end">+2.2</text>
+
+            <line x1="499" y1="210" x2="525" y2="210" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="499" cy="210" r="5.5" fill="var(--off)"/><circle cx="525" cy="210" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="214" fill="#8fb4d8">P</text><text class="ft s" x="30" y="214">P4</text>
+            <text class="ft s" x="590" y="214" fill="#d95926" text-anchor="end">+1.6</text>
+
+            <line x1="486" y1="234" x2="506" y2="234" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="486" cy="234" r="5.5" fill="var(--off)"/><circle cx="506" cy="234" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="238" fill="#8fb4d8">P</text><text class="ft s" x="30" y="238">P33</text>
+            <text class="ft s" x="590" y="238" fill="#d95926" text-anchor="end">+1.2</text>
+
+            <line x1="361" y1="258" x2="386" y2="258" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="386" cy="258" r="5.5" fill="var(--off)"/><circle cx="361" cy="258" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="262" fill="#e0a184">E</text><text class="ft s" x="30" y="262">P17</text>
+            <text class="ft s" x="590" y="262" fill="#3987e5" text-anchor="end">−1.5</text>
+
+            <line x1="478" y1="282" x2="525" y2="282" stroke="#3d4658" stroke-width="1.6"/>
+            <circle cx="525" cy="282" r="5.5" fill="var(--off)"/><circle cx="478" cy="282" r="5.5" fill="var(--on)"/>
+            <text class="ft s" x="14" y="286" fill="#e0a184">E</text><text class="ft s" x="30" y="286">P13</text>
+            <text class="ft s" x="590" y="286" fill="#3987e5" text-anchor="end">−2.9</text>
+          </g>
+          <text class="ft s" x="14" y="20" fill="#5A6373">P = pilot phase · E = extra phase · sorted by size of gain · all 11 pairs shown</text>
+        </svg>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--off)"></span>filter off</span>
+          <span><span class="sw" style="background:var(--on)"></span>filter on</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;">
+        <div class="card good">
+          <span class="tag">Combined · n = 11</span>
+          <h3>+3.65 points<span class="pill sig" style="margin-left:.5rem">significant</span></h3>
+          <p>92.6% → 96.3%. <b>95% CI +0.28 to +7.02</b> — the interval excludes zero, so "no effect" is not among the plausible answers.</p>
+          <p>Wilcoxon <b>p = 0.024</b>; t-test <b>p = 0.036</b>. Both tests agree, which matters — at ten participants the result depended on which test you chose.</p>
+          <p>Effect size d<sub>z</sub> = 0.73 (medium-to-large). Nine of eleven improved.</p>
+        </div>
+        <div class="card"><h3>Where the gain came from</h3><p>Not from catching more matches — from <b>withholding more wrong presses</b>. The clearest case fell from 24 wrong presses to 5; the newest from 10 to 6. That gives the effect a nameable mechanism: the filter reduces impulsive responding under visual distraction.</p></div>
+        <div class="card"><h3>And the spread halved</h3><p>Between-person variability fell from SD 7.7 to 4.3. People became more <em>alike</em> as well as better — a second finding, independent of the average.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Two of the eleven pairs (both pilot) rest on the planned condition order rather than a recorded label, and one of those baseline scores was reported by the experimenter from a run never exported to file. Restricting to the two timestamp-verified pilot pairs gives +4.1 points, p = 0.078 — same story, smaller sample.</div><div class="pageno">18</div></div>
+</section>
+
+<!-- ══════════════ 19 · COMBINED — THE BANDS ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · combined, phases marked · H2 — what it costs</div>
+  <h1>Averaged over the whole view: <span class="nul" style="color:var(--faint)">nothing</span>. Broken down by angle: <span class="hl">one band moves</span>.</h1>
+  <div class="body">
+    <div class="card scroll">
+      <svg viewBox="0 0 880 300" role="img" aria-label="Detection rate by eccentricity band, filter off versus filter on, with the pilot and extra phases shown separately and the filter strength annotated.">
+        <g class="gridln" opacity=".55">
+          <line x1="90" y1="230" x2="840" y2="230"/><line x1="90" y1="182" x2="840" y2="182"/>
+          <line x1="90" y1="134" x2="840" y2="134"/><line x1="90" y1="86" x2="840" y2="86"/><line x1="90" y1="38" x2="840" y2="38"/>
+        </g>
+        <g class="ft s" text-anchor="end" fill="#5A6373">
+          <text x="82" y="234">0%</text><text x="82" y="186">25%</text><text x="82" y="138">50%</text><text x="82" y="90">75%</text><text x="82" y="42">100%</text>
+        </g>
+        <!-- 4 bands x (off,on); y = 230 - rate*1.92 -->
+        <!-- <10: 70.8 / 75.0 -->
+        <rect x="120" y="94"  width="44" height="136" rx="3" fill="var(--off)"/>
+        <rect x="170" y="86"  width="44" height="144" rx="3" fill="var(--on)"/>
+        <text class="ft s" x="142" y="88"  text-anchor="middle" fill="#8A94A6">71</text>
+        <text class="ft s" x="192" y="80"  text-anchor="middle" fill="#8A94A6">75</text>
+        <text class="ft"   x="167" y="252" text-anchor="middle">under 10°</text>
+        <text class="ft s" x="167" y="268" text-anchor="middle" fill="#199e70">filter does nothing</text>
+        <text class="ft s" x="167" y="283" text-anchor="middle" fill="#5A6373">+4.2 · P −9.3 / E +13.4</text>
+        <!-- 10-20: 44.4 / 46.5 -->
+        <rect x="300" y="145" width="44" height="85" rx="3" fill="var(--off)"/>
+        <rect x="350" y="141" width="44" height="89" rx="3" fill="var(--on)"/>
+        <text class="ft s" x="322" y="139" text-anchor="middle" fill="#8A94A6">44</text>
+        <text class="ft s" x="372" y="135" text-anchor="middle" fill="#8A94A6">47</text>
+        <text class="ft"   x="347" y="252" text-anchor="middle">10–20°</text>
+        <text class="ft s" x="347" y="268" text-anchor="middle" fill="#199e70">filter ≈30%</text>
+        <text class="ft s" x="347" y="283" text-anchor="middle" fill="#5A6373">+2.1 · P −3.7 / E +5.3</text>
+        <!-- 20-30: 40.0 / 58.2  -- the finding -->
+        <rect x="480" y="153" width="44" height="77" rx="3" fill="var(--off)"/>
+        <rect x="530" y="118" width="44" height="112" rx="3" fill="var(--on)"/>
+        <rect x="472" y="104" width="110" height="134" rx="6" fill="none" stroke="#63C67A" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text class="ft s" x="502" y="147" text-anchor="middle" fill="#8A94A6">40</text>
+        <text class="ft b" x="552" y="112" text-anchor="middle" fill="#d95926">58</text>
+        <text class="ft b" x="527" y="252" text-anchor="middle" fill="#EDF1F7">20–30°</text>
+        <text class="ft s" x="527" y="268" text-anchor="middle" fill="#199e70">filter ≈84% — and still inside the useful field</text>
+        <text class="ft s" x="527" y="283" text-anchor="middle" fill="#63C67A">+18.2 · P +24.7 / E +14.4 — same sign in both phases</text>
+        <!-- >30: 57.6 / 56.1 -->
+        <rect x="660" y="119" width="44" height="111" rx="3" fill="var(--off)"/>
+        <rect x="710" y="122" width="44" height="108" rx="3" fill="var(--on)"/>
+        <text class="ft s" x="682" y="113" text-anchor="middle" fill="#8A94A6">58</text>
+        <text class="ft s" x="732" y="116" text-anchor="middle" fill="#8A94A6">56</text>
+        <text class="ft"   x="707" y="252" text-anchor="middle">beyond 30°</text>
+        <text class="ft s" x="707" y="268" text-anchor="middle" fill="#199e70">filter 100%, but past the useful field</text>
+        <text class="ft s" x="707" y="283" text-anchor="middle" fill="#5A6373">−1.5 · P −6.2 / E +1.2</text>
+      </svg>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--off)"></span>filter off</span>
+        <span><span class="sw" style="background:var(--on)"></span>filter on</span>
+        <span style="color:var(--faint)">P = pilot phase · E = extra phase</span>
+      </div>
+    </div>
+    <div class="cols c2">
+      <div class="card good"><h3>The replication argument</h3><p>The two phases were collected on different evenings, with different people and a different task version. In three of the four bands the difference <b>changes sign</b> between phases — that is what noise looks like. In the 20–30° ring both phases are positive and both are large. It is the only band where that is true.</p></div>
+      <div class="card"><h3>Per participant, the ring is significant</h3><p>+18.6 points, <b>95% CI +2.5 to +34.7</b>, Wilcoxon <b>p = 0.030</b>, t-test p = 0.028, d<sub>z</sub> = 0.78, nine of eleven improved. The overall hit rate, by contrast, is +3.9 points at p = 0.44 — and is reported as the null result it is.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Bands are the target's angle from the centre of the view at the midpoint of its life, joined from the authored target pool (880 scored markers). "Filter ≈84%" is the mean strength of the dimming across that band under the shipped 6°×4° + 24° geometry.</div><div class="pageno">19</div></div>
+</section>
+
+<!-- ══════════════ 20 · THE CONJUNCTION ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · why that band and not another</div>
+  <h1>The effect needs <span class="hl">two things at once</span> — and only one band has both.</h1>
+  <div class="body">
+    <div class="card scroll">
+      <table>
+        <thead><tr><th>Band</th><th class="num">Filter strength there</th><th>Inside the useful field of view?</th><th class="num">Detection change</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr><td><b>under 10°</b></td><td class="num">1%</td><td>yes</td><td class="num nul">+4.2</td><td>Nothing is being done to this region — there is no manipulation to have an effect.</td></tr>
+          <tr><td><b>10–20°</b></td><td class="num">30%</td><td>yes</td><td class="num nul">+2.1</td><td>The dimming has barely begun. Too little dose to matter.</td></tr>
+          <tr style="background:rgba(99,198,122,.06)"><td><b>20–30°</b></td><td class="num"><b>84%</b></td><td><b>yes — at its edge</b></td><td class="num pos"><b>+18.2</b></td><td><b>Strong manipulation, and the target is still somewhere attention can reach.</b></td></tr>
+          <tr><td><b>beyond 30°</b></td><td class="num">100%</td><td>no</td><td class="num nul">−1.5</td><td>Fully dimmed, but past the field attention operates in — and these targets are large and long-lived, so they are caught either way.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cols c2">
+      <div class="card">
+        <h3>Why this is not just "more dimming = more effect"</h3>
+        <p>If the story were simply that dimming helps, the strongest effect would be beyond 30°, where dimming is total. It is not — it is zero there. The effect requires the dimming to be strong <b>and</b> the target to still be within reach of attention. That conjunction is a prediction the geometry made in advance, not a pattern found afterwards.</p>
+      </div>
+      <div class="card good">
+        <h3>And inside the ring, it is the hardest case that moves</h3>
+        <p>Markers in the ring that appeared and vanished in under two seconds: <b>2 of 36 caught without the filter, 9 of 30 with it</b> (5.6% → 30.0%). Markers in the ring lasting longer than two seconds: 65% → 72% — they were being caught anyway.</p>
+        <p style="color:var(--faint)">Brief markers in the neighbouring bands gain only 3–4 points, so this is not a general "the filter helps with brief things" effect. It is specific to brief things in the ring.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">"Useful field of view" is the region from which information can be taken in a single fixation without moving the eyes — ≈30° across, and it shrinks under cognitive load. The 20–30° ring therefore sits exactly at the boundary where attention can still be redirected but is not automatic.</div><div class="pageno">20</div></div>
+</section>
+
+<!-- ══════════════ 21 · THE DISSOCIATION ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · the cost, as measured and as felt</div>
+  <h1>The price people <span class="hl">report</span> is not the price the task <span class="hl">records</span>.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div class="card good">
+        <span class="tag">H2 — the measured cost</span>
+        <h3>Not refuted. Not even close to refuted.</h3>
+        <p>The safety margin was a 10-point drop in peripheral detection. Beyond 30° the change is <b>−1.5 points</b>; in the 20–30° ring it is <b>+18.2</b>. Objective peripheral awareness did not fall anywhere.</p>
+        <p style="color:var(--faint)">The feared failure mode — dimming the edges makes people miss things at the edges — did not appear in the data at any angle.</p>
+      </div>
+      <div class="card bad">
+        <span class="tag">The subjective cost</span>
+        <h3>But people felt it.</h3>
+        <p>Of ten participants: only <b>4 of 10</b> denied worrying they would miss something; only <b>5 of 10</b> were comfortable not seeing everything clearly; <b>5 of 10</b> said side events registered later than usual.</p>
+        <p>Meanwhile the focus benefit was near-unanimous: <b>47 of 50</b> answers pro-filter, and three items answered identically by all ten — easier to hold attention, obvious where to look, and no, they did not look away as often.</p>
+      </div>
+    </div>
+    <div class="cols c2">
+      <div class="card"><h3>Why the gap matters</h3><p>A system can be safe and still feel unsafe, and felt-unsafe is a real adoption barrier regardless of what the task data says. This is a design finding, not a measurement error: the interface needs to <em>communicate</em> that the periphery is still being watched, not merely watch it.</p></div>
+      <div class="card"><h3>Evidence it is tunable, not inherent</h3><p>All four pilot participants said side events registered later. Among the six tested afterwards, only one did. The change tracks the settings freeze between day 1 and day 2 — which makes the perceived awareness cost look like a function of how aggressive the dimming is, rather than a fixed price of the technique.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Questionnaire administered as agree/disagree rather than the designed 7-point scale, so these are counts and remain exploratory. Reverse-keyed items are scored by their disagreement. One item was left blank by every participant and is omitted. The day-1 versus later comparison is an observation across sessions, not a controlled manipulation.</div><div class="pageno">21</div></div>
+</section>
+
+<!-- ══════════════ 22 · THE HONEST LEDGER ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act III — results</b> · everything that could still be wrong</div>
+  <h1>What would have to be true for this to be <span class="hl">wrong</span>.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card bad"><span class="tag">Alternative 1</span><h3>People just pressed more</h3>
+        <p>Wrong presses rose with the filter, 7.7 → 12.5 per run (p = 0.22). If the filter simply made people trigger-happy, hit rate would rise without anyone seeing more.</p>
+        <p style="color:var(--dim)"><b>Against it:</b> extra pressing would raise detection everywhere. The gain is confined to one 10°-wide ring and is absent in the three others. Bias does not have a favourite eccentricity.</p></div>
+      <div class="card bad"><span class="tag">Alternative 2</span><h3>The marker got easier to see</h3>
+        <p>A marker drawn on top of a darkened scene would stand out more, producing a detection gain with no attentional content.</p>
+        <p style="color:var(--dim)"><b>Against it:</b> the marker is pushed through the same dimming as the scene. In the filter condition it was <em>dimmer</em>. The confound runs the wrong way.</p></div>
+      <div class="card bad"><span class="tag">Alternative 3</span><h3>Practice, not filter</h3>
+        <p>Eight of eleven sessions ran no-filter first, so the filter run always had more practice behind it.</p>
+        <p style="color:var(--dim)"><b>Against it, partially:</b> the one session that reversed the order reproduced both results. One session is not a control condition — this stays on the list until the order is properly alternated.</p></div>
+    </div>
+    <div class="cols c3">
+      <div class="card"><span class="tag">Live limitation</span><h3>Eleven people, ~60% power</h3><p>A real effect of this size would be missed about four times in ten. The two positive results are not weakened by this; the null results are — "no difference found" here is weak evidence of no difference.</p></div>
+      <div class="card"><span class="tag">Live limitation</span><h3>The ring depends on brief markers</h3><p>Restricting to markers lasting over two seconds cuts the ring effect to +6.9 points. The finding lives in exactly the short-lived markers a pool re-screen was designed to remove — so the next pool must deliberately keep them.</p></div>
+      <div class="card"><span class="tag">Live limitation</span><h3>Task versions differ</h3><p>The focus task changed across sessions. Within each person it is constant, so paired comparisons hold; pooling across people mixes versions. Shown separately as pilot and extra throughout for exactly this reason.</p></div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Not on this list because it was found and fixed: an earlier analysis joined the wrong target-pool file and analysed 330 of 880 markers with some angles mis-assigned. Recomputed against the correct file, the ring effect fell from +31 to +18 points and the surrounding pattern became cleaner. The error is recorded rather than quietly corrected.</div><div class="pageno">22</div></div>
+</section>
+
+<!-- ══════════════ 23 · MECHANISM ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act IV — what it means</b> · the best current explanation, and how to kill it</div>
+  <h1>Dimming a region made things in it <span class="hl">easier to notice</span>. That needs explaining.</h1>
+  <div class="body">
+    <div class="cols wide-l">
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <p>The naive prediction is the opposite of what happened. The marker was dimmed along with the scene, so its absolute visibility fell — and detection went up anyway. Two published findings make that coherent:</p>
+        <div class="card good"><h3>1 · Peripheral sensitivity is gated by attention</h3><p>In head-mounted displays, how well the periphery detects things depends on where attention is allocated, not only on optics. Move attention and peripheral sensitivity moves with it.<br><span style="color:var(--faint);font-size:.78rem;">Krajancich, Kellnhofer &amp; Wetzstein, ACM TOG 42(4), 2023.</span></p></div>
+        <div class="card good"><h3>2 · Clutter masks probes</h3><p>In naturalistic video, local contrast probes are masked by high-edge-density surroundings — busy regions hide them. The filter suppresses that surrounding structure, while the marker's striped pattern was engineered so multiplicative dimming preserves its internal contrast.<br><span style="color:var(--faint);font-size:.78rem;">Wallis, Dorr &amp; Bex, Journal of Vision 15(8), 2015.</span></p></div>
+        <p><b>Candidate mechanism:</b> the filter removes the competing clutter faster than it removes the marker. In a quietened periphery, a structured object is the only thing left with internal structure — so it wins a competition it was losing before.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.7rem;">
+        <div class="card bad"><h3>Stated as a candidate, not a result</h3>
+          <p>This study did not test the mechanism. It measured an outcome and found a spatial pattern consistent with one. That distinction belongs in the write-up.</p></div>
+        <div class="card tech"><h3>The falsifiable prediction</h3>
+          <p>If clutter suppression is the mechanism, the benefit must <b>scale with how cluttered the scene is at the marker's location</b> — large where the background is busy, near zero against plain sky or road.</p>
+          <p>That is directly testable with data already on disk: the baked scene detections give an edge-density estimate at every marker. If the effect turns out to be flat across clutter levels, this explanation is wrong and attention reallocation alone survives.</p></div>
+        <div class="vid" style="min-height:110px;">
+          <div class="play">▶</div>
+          <div class="what">Side-by-side: one marker, filter off / on</div>
+          <div class="how">Same 3 s of footage, same marker at ~25°, cut side by side. The audience should see the marker get dimmer and still be easier to spot.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="src">The competing account — that the gradient itself acts as a directional cue pulling attention outward — predicts a benefit wherever the gradient is steep, which would put the peak in the 10–20° band. It is not there. That does not settle the question, but it is a point against the pure-cue reading.</div><div class="pageno">23</div></div>
+</section>
+
+<!-- ══════════════ 24 · THE THESIS ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act IV — what it means</b> · the claim the dissertation actually makes</div>
+  <h1>Subtractive guidance is not a feature you switch on. It's a <span class="hl">dose you place</span>.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div class="card"><span class="tag">The wrong question</span><h3>"Does dimming the periphery help?"</h3>
+        <p>Asked this way the answer is a shrug: overall focus accuracy +3.7 points, overall peripheral detection +3.9 and not significant. A reviewer would reasonably call that thin.</p></div>
+      <div class="card good"><span class="tag">The right question</span><h3>"Where does dimming the periphery help, and at what strength?"</h3>
+        <p>Asked this way there is a specific, quantified, replicated answer — and a prediction the next study can falsify.</p></div>
+    </div>
+    <div class="card hum">
+      <h3>The bargain, priced</h3>
+      <p class="lead" style="color:var(--ink);">On a sustained-attention task under realistic distraction, dimming the surroundings <b>bought 3.7 accuracy points</b> (nine of eleven people, p = 0.024) — and it did so mostly by suppressing impulsive responses rather than by revealing anything new.</p>
+      <p class="lead" style="color:var(--ink);">The awareness it was supposed to <b>cost never got paid</b>. At the angles the safety margin was written for, detection did not drop. In the 20–30° ring — where the dimming is strong and attention can still reach — detection <b>rose by 18.6 points</b>, and the recovered events were precisely the brief ones nobody was catching before: 2 of 36, up to 9 of 30.</p>
+      <p style="color:var(--dim)">What people <em>felt</em> was a cost, and half of them said so. That gap between the measured price and the felt price is the design problem the next iteration inherits.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Both headline results clear the conventional threshold on both a parametric and a rank-based test, with confidence intervals excluding zero, at n = 11 and ~60% power. Neither is a confirmed finding at this sample size; both are the kind of result that a pre-registered N = 20 either confirms or kills.</div><div class="pageno">24</div></div>
+</section>
+
+<!-- ══════════════ 25 · NEXT ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Act IV — what it means</b> · six changes, then freeze</div>
+  <h1>Everything needed to turn this into a <span class="hl">confirmed</span> result is cheap.</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="card"><span class="tag">1 · Sample</span><h3>Reach twenty</h3><p>The power analysis now puts 80% power at <b>16–17 participants</b> for both headline effects. The planned twenty clears it with margin. Five more people is the single highest-value action.</p></div>
+      <div class="card"><span class="tag">2 · Stimulus</span><h3>Load the hard corner</h3><p>Put more markers in the 20–30° ring and <b>keep them brief</b>. That cell currently carries about 8 markers per person per condition, only 3 of them short. Doubling it doubles the evidence at no cost in session length.</p></div>
+      <div class="card"><span class="tag">3 · Logging</span><h3>Record where wrong presses aimed</h3><p>A missed press currently records no direction, which is why the response-bias question cannot be closed from the data. One extra column settles it.</p></div>
+      <div class="card"><span class="tag">4 · Protocol</span><h3>Alternate the order properly</h3><p>Eight of eleven sessions ran no-filter first. The one reversal reproduced both results; making it systematic removes the confound rather than arguing about it.</p></div>
+      <div class="card"><span class="tag">5 · Analysis</span><h3>Test the mechanism</h3><p>Score every marker for background clutter from the baked detections and test whether the benefit scales with it. Answerable from data already on disk, before any new session.</p></div>
+      <div class="card"><span class="tag">6 · Design</span><h3>Close the felt-safety gap</h3><p>Half the participants worried about missing things while missing nothing. Signal that the periphery is still being monitored — the literature's recommendation is a non-visual channel, since audio-tactile guidance matched visual guidance while <em>improving</em> situational awareness.</p></div>
+    </div>
+    <div class="card"><h3>Then freeze</h3><p>The supervisor's directive stands: one more iteration at most, then stop changing the stimulus and collect the maximum sample. A "bad" result with deep analysis is a valuable outcome; a good result on shifting stimuli is not a result at all.</p></div>
+  </div>
+  <div class="foot"><div class="src">Non-visual fallback precedent: <b>Marquardt et al.</b> — audio-tactile guidance matched visual guidance in accuracy while improving situational awareness; multi-modal cues are the documented mitigation for the dimmed-periphery notification problem.</div><div class="pageno">25</div></div>
+</section>
+
+<!-- ══════════════ 26 · CONTRIBUTIONS ══════════════ -->
+<section class="slide">
+  <div class="eyebrow"><b>Close</b> · what this adds</div>
+  <h1>Four things that did not exist before, and one number that does.</h1>
+  <div class="body">
+    <div class="cols c2">
+      <div class="card tech"><span class="tag">Technical</span><h3>A working subtractive-guidance system on consumer hardware</h3><p>Diminished Reality on a video-passthrough headset with no OS-level access to the passthrough layer — a hybrid composite of system passthrough and app-processed camera feed for which no prior art was found. Ten mode variants, detector-free by design, inside frame budget.</p></div>
+      <div class="card tech"><span class="tag">Methodological</span><h3>A probe that the filter dims honestly</h3><p>A click-target engineered to survive multiplicative dimming without popping out — achromatic, contrast-complete, ramped, static, modulating the underlying pixels. This is what makes a subtractive manipulation testable at all: without it the measurement rewards the manipulation for free.</p></div>
+      <div class="card hum"><span class="tag">Empirical</span><h3>A spatial dose–response, not a verdict</h3><p>The benefit of peripheral dimming is localised to the band where the dimming is strong and attention can still reach — replicated in two independently collected phases, absent in the three neighbouring bands, and largest for brief events.</p></div>
+      <div class="card hum"><span class="tag">Empirical</span><h3>A measured-versus-felt cost gap</h3><p>Objective peripheral detection did not drop at any angle; half the participants nevertheless reported worrying they would miss things. Naming that dissociation is a contribution in itself — it relocates the remaining problem from perception to communication.</p></div>
+    </div>
+    <div class="card good" style="align-items:center;">
+      <p class="lead" style="text-align:center;color:var(--ink);max-width:70ch;">Software-defined visual noise cancellation — on hardware anyone can buy — that buys focus without charging for awareness, in a band we can now point to on a ruler.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="src">Status: system built and frozen pending one final iteration · study designed, pre-registered and piloted across four sessions · 11 of 20 participants collected · both headline effects significant on both tests at n = 11.</div><div class="pageno">26</div></div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var bar = document.getElementById('bar');
+  var i = 0;
+  function show(n){
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].classList.remove('active');
+    i = n;
+    slides[i].classList.add('active');
+    slides[i].scrollTop = 0;
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    if (history.replaceState) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { show(i + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(i - 1); e.preventDefault(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+  document.addEventListener('click', function(e){
+    if (e.target.closest('a, button, .scroll')) return;
+    if (e.clientX > window.innerWidth * 0.72) show(i + 1);
+    else if (e.clientX < window.innerWidth * 0.14) show(i - 1);
+  });
+  var h = parseInt((location.hash || '').slice(1), 10);
+  if (h >= 1 && h <= slides.length) show(h - 1); else show(0);
+})();
+</script>

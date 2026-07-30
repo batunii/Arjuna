@@ -14,7 +14,9 @@ namespace PassthroughCameraSamples.ShaderSample
         SoftDark           = 1, // Dark overlay, soft (~75% max alpha), gradual formation
         HardDark           = 2, // Dark overlay, full blackout, gradual formation
         TintedDark         = 3, // Configurable-colour dark overlay, gradual formation
-        ChromaticCool      = 4, // Camera: warm focus, cool blue periphery shift
+        ChromaticCool      = 4, // Camera: chromatic-channel counterpart to Blur — periphery keeps
+                                // its colour and shifts cool; focus shifts warm (video only).
+                                // Warm-cool opposition after Bailey et al. TOG 2009.
         ColorPop           = 5, // Muted grey periphery; saturated warm/green colors boosted vivid
         ConspicuitySqueeze = 6, // Camera: periphery contrast flattened toward local mean (Veas 2011)
         GranulatedPeriphery= 7, // World-locked noise grains, density ramps with eccentricity (Cao 2021)
@@ -238,6 +240,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_chromaticCoolId      = Shader.PropertyToID("_ChromaticCool");
         private static readonly int s_coolStrengthId       = Shader.PropertyToID("_CoolStrength");
         private static readonly int s_colorPopModeId       = Shader.PropertyToID("_ColorPopMode");
+        private static readonly int s_popDetGateId         = Shader.PropertyToID("_PopDetGate");
 
         private static readonly Vector4 k_fullSphere =
             new(-Mathf.PI, Mathf.PI, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
@@ -306,15 +309,19 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private static bool IsCameraMode(VignetteMode mode) =>
             mode == VignetteMode.Blur || mode == VignetteMode.ChromaticCool || mode == VignetteMode.ColorPop
+            || mode == VignetteMode.SignPop
             || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
 
-        // A-button cycle — the kept modes. Legacy modes stay in the enum and shader but are
-        // no longer reachable from the controller. ConspicuitySqueeze is surfaced as "Flatten":
+        // A-button cycle — every mode in the enum, in enum order, so all 11 are reachable
+        // from the controller in passthrough. ConspicuitySqueeze is surfaced as "Flatten":
         // contrast balanced toward the local mean + gentle desaturation + slight dim.
+        // SignPop is ColorPop gated by the live YOLO detections rather than a baked track.
         private static readonly VignetteMode[] k_modeCycle =
         {
             VignetteMode.Blur, VignetteMode.SoftDark, VignetteMode.HardDark,
-            VignetteMode.ColorPop, VignetteMode.ConspicuitySqueeze,
+            VignetteMode.TintedDark, VignetteMode.ChromaticCool, VignetteMode.ColorPop,
+            VignetteMode.ConspicuitySqueeze, VignetteMode.GranulatedPeriphery,
+            VignetteMode.OutlinedDark, VignetteMode.SpotLift, VignetteMode.SignPop
         };
 
         // ---- Unity lifecycle ----
@@ -557,6 +564,7 @@ namespace PassthroughCameraSamples.ShaderSample
             VignetteMode.TintedDark          => m_motionTintedDark,
             VignetteMode.ChromaticCool       => m_motionChromaticCool,
             VignetteMode.ColorPop            => m_motionColorPop,
+            VignetteMode.SignPop             => m_motionColorPop,
             VignetteMode.ConspicuitySqueeze  => m_motionBlur,
             VignetteMode.GranulatedPeriphery => m_motionSoftDark,
             VignetteMode.SpotLift            => m_motionSoftDark,
@@ -722,7 +730,7 @@ namespace PassthroughCameraSamples.ShaderSample
             bool aPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.A);
             bool bPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.B);
 
-            // A button: cycle through all 6 modes
+            // A button: cycle through all 11 modes
             if (aPressed)
             {
                 int cyclePos = System.Array.IndexOf(k_modeCycle, m_vignetteMode);
@@ -890,7 +898,9 @@ namespace PassthroughCameraSamples.ShaderSample
             if (System.Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
                 m_vignetteMode = VignetteMode.Blur;
 
-            bool isColorPop = m_vignetteMode == VignetteMode.ColorPop;
+            // SignPop rides the ColorPop path with the detection gate on.
+            bool isSignPop  = m_vignetteMode == VignetteMode.SignPop;
+            bool isColorPop = m_vignetteMode == VignetteMode.ColorPop || isSignPop;
             bool isSimple   = m_vignetteMode == VignetteMode.SoftDark || m_vignetteMode == VignetteMode.HardDark;
             bool isTinted   = m_vignetteMode == VignetteMode.TintedDark;
             bool isCoolBlur = m_vignetteMode == VignetteMode.ChromaticCool;
@@ -916,6 +926,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_tintModeId,         isTinted   ? 1f : 0f);
             m_material.SetFloat(s_chromaticCoolId,    isCoolBlur  ? 1f : 0f);
             m_material.SetFloat(s_colorPopModeId,     isColorPop  ? 1f : 0f);
+            m_material.SetFloat(s_popDetGateId,       isSignPop   ? 1f : 0f);
             m_material.SetFloat(s_squeezeModeId,      isSqueeze   ? 1f : 0f);
             m_material.SetFloat(s_grainModeId,        isGrain     ? 1f : 0f);
             m_material.SetFloat(s_outlineModeId,      isOutline   ? 1f : 0f);
@@ -1229,6 +1240,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 VignetteMode.ConspicuitySqueeze  => "FLATTEN",
                 VignetteMode.GranulatedPeriphery => "GRAIN",
                 VignetteMode.OutlinedDark        => "OUTLINE DARK",
+                VignetteMode.SignPop             => "SIGN POP",
                 _                                => "SPOTLIGHT"
             };
             string desc = m_vignetteMode switch
@@ -1237,11 +1249,12 @@ namespace PassthroughCameraSamples.ShaderSample
                 VignetteMode.SoftDark            => $"Gradual dark vignette  ({(int)(m_mode2MaxAlpha * 100)}% max)",
                 VignetteMode.HardDark            => "Full black-out vignette",
                 VignetteMode.TintedDark          => "Coloured dark vignette",
-                VignetteMode.ChromaticCool       => "Warm focus / cool periphery",
+                VignetteMode.ChromaticCool       => "Cool periphery, colour kept (warm focus: video only)",
                 VignetteMode.ColorPop            => "Muted grey periphery; vivid colors pop",
                 VignetteMode.ConspicuitySqueeze  => "Contrast balanced, gently desaturated + dimmed",
                 VignetteMode.GranulatedPeriphery => "Static noise grains in periphery",
                 VignetteMode.OutlinedDark        => "Blackout with edge outlines kept",
+                VignetteMode.SignPop             => "Color Pop gated by live detections",
                 _                                => "Brightened focus, soft dim periphery"
             };
 
@@ -1272,6 +1285,7 @@ namespace PassthroughCameraSamples.ShaderSample
                 VignetteMode.ConspicuitySqueeze  => new Color(0.60f, 0.60f, 0.65f, 1f), // neutral grey
                 VignetteMode.GranulatedPeriphery => new Color(0.75f, 0.75f, 0.55f, 1f), // sand
                 VignetteMode.OutlinedDark        => new Color(0.95f, 0.95f, 0.95f, 1f), // white
+                VignetteMode.SignPop             => new Color(0.20f, 0.85f, 0.35f, 1f), // green
                 _                                => new Color(1.00f, 0.95f, 0.55f, 1f)  // pale gold (spotlight)
             };
         }

@@ -15,9 +15,11 @@
 // Per-mode controls:
 //   X — toggle. Video modes: play/pause the clip. Passthrough modes: start the vignette
 //       forming / reset it to off. First press also dismisses the instructions text.
-//   A — advance to the next mode (leaves the current mode stopped/reset first). Moving
+//   Y — advance to the next mode (leaves the current mode stopped/reset first). Moving
 //       between a video mode and a passthrough mode does a full scene load (same reasoning
 //       as SceneSwitcher.cs — the two managers own different pipelines).
+//       Was A until the A-button collision with the scene managers' own mode cycles;
+//       A now belongs to those (11 modes in passthrough, 4 in video).
 // Nothing auto-advances on a timer — advancing is always an explicit A press.
 
 using System.Collections.Generic;
@@ -76,7 +78,11 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         [Header("Input — Quest controller")]
         [SerializeField] private OVRInput.RawButton m_toggleButton = OVRInput.RawButton.X;
-        [SerializeField] private OVRInput.RawButton m_advanceButton = OVRInput.RawButton.A;
+        // Y, not A: A is the vignette mode-cycle button in both scene managers
+        // (CameraSphereVignetteManager / VideoTestSceneManager). Sharing it meant one press
+        // cycled the mode AND advanced the harness, which then overwrote the mode via
+        // StudySetMode — the in-scene cycles were unusable while the harness was running.
+        [SerializeField] private OVRInput.RawButton m_advanceButton = OVRInput.RawButton.Y;
 
         [Header("Instruction UI")]
         [SerializeField, Range(0.5f, 3f)] private float m_uiDistance = 1.5f;
