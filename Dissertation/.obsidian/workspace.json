@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "chapters/ch3-design-space.md",
+                "file": "chapters/QUESTIONS.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "ch3-design-space"
+              "title": "QUESTIONS"
             }
           }
         ]
@@ -185,13 +185,18 @@
   },
   "active": "26ff0ce98beb2043",
   "lastOpenFiles": [
+    "presentation/~$Only-the-Eye-of-the-Bird-TIGHT.pptx",
+    "chapters/ch4-system.md",
+    "chapters/QUESTIONS.md",
+    "chapters/ch6-user-study.md",
+    "chapters/ch3-design-space.md",
     "chapters/ch2-related-work.md",
     "chapters/ch1-introduction.md",
+    "chapters/00-README.md",
     "testing-strategy-v2.md",
     "framing.md",
     "chapters/front-matter.md",
     "chapters/VERIFY-citations.md",
-    "chapters/00-README.md",
     "lit-review-48papers.md",
     "chapters/ch6-user-study.md.tmp.15784.7e21b8f1b5a7",
     "testing-strategy-v2.md.tmp.15784.3135f6b6f444",
@@ -202,12 +207,8 @@
     "testing-strategy-v2.md.tmp.15784.80c49ae1d31e",
     "chapters/ch4-system.md.tmp.15784.9d84f8e69699",
     "framing.md.tmp.15784.09b1c980efae",
-    "framing.md.tmp.15784.7299e920fc9d",
-    "chapters/ch4-system.md",
     "chapters/ch7-discussion.md",
-    "chapters/ch6-user-study.md",
     "chapters/ch5-technical-evaluation.md",
-    "chapters/ch3-design-space.md",
     "chapters/ch8-conclusion.md"
   ]
 }
