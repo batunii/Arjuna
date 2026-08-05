@@ -187,10 +187,11 @@ camera pixels, double image) versus world-direction sampling (one camera pixel, 
 
 ## 4.5 The Modes
 
-The mode enumeration in the codebase (`VignetteMode`) contains ten entries; three are evaluated in
-this dissertation, one is their superseded ancestor, and six are retained design-exploration
-variants. All share the geometry, window, and t-coordinate of Section 4.2 — a mode is, in
-implementation terms, a per-fragment colour/alpha policy.
+The mode enumeration in the codebase (`VignetteMode`) contains eleven entries; three are evaluated
+in this dissertation, one is their superseded ancestor, six are retained design-exploration
+variants, and one is a video-only, detection-gated demo mode (Section 4.5.6). All share the
+geometry, window, and t-coordinate of Section 4.2 — a mode is, in implementation terms, a
+per-fragment colour/alpha policy.
 
 ### 4.5.1 Hard Dark
 
@@ -249,7 +250,7 @@ content is present but muted.
 own luminance, a sigmoidal midtone-contrast transfer is applied per Sutton et al.'s published recipe
 (α = 10, β = 0.5, normalised so 0→0 and 1→1; strength `_PopSigmoid` = 0.6, scaled by (1−t) so it is
 full inside the window and absent outside), and brightness is lifted ×`_PopBrightIn` (1.15).
-Outside the window, ROG pixels keep their **natural colour, dimmed** to ×`_PopBrightOut` (0.8) —
+Outside the window, ROG pixels keep their **natural colour, dimmed** to ×`_PopBrightOut` (0.65) —
 a deliberate design decision: signal-relevant colours remain detectable *everywhere*, merely
 privileged inside the window, which fits a monitoring context in which a peripheral traffic light
 must never become invisible.
@@ -266,7 +267,7 @@ saturated fringe — the pixel is exempted.
 **Global periphery dim.** Finally the whole periphery, ROG included, is multiplied down by
 `_PopPeriphDim` (0.85), so that the focus window also wins on plain luminance — the strongest single
 guidance channel in the attention literature. Net outside-ROG brightness at defaults is therefore
-≈ 0.8 × 0.85 ≈ 0.68 of natural.
+≈ 0.65 × 0.85 ≈ 0.55 of natural.
 
 Because a colour/grey boundary reads perceptually harsher than a blur or darkness boundary, ColorPop
 uses a widened window edge: `m_popSoftEdgeDeg` = **32°** against the global default of 20°.
@@ -287,7 +288,7 @@ Gaussian blur and delayed desaturation, and is retained in the codebase though n
 implementation is more sophisticated than the project's early documentation suggests (the docs'
 "9-tap kernel" describes a superseded version): the current path is a two-ring Gaussian
 (centre + 8 taps at radius r + 8 taps at 2r, σ = r) whose fine/coarse difference doubles as a local
-Laplacian estimate driving a **perceptual noise term** (after Tariq et al., 2022 [VERIFY]): world-
+Laplacian estimate driving a **perceptual noise term** (after Tariq, Tursun & Didyk, 2022): world-
 anchored luminance noise, amplitude-scaled by local variance (capped at 0.2 to prevent marbling at
 hard night-scene boundaries), reintroducing "detectable but not resolvable" high-frequency content
 that blur otherwise strips. A **contrast-restoration** term (after Patney et al., 2016) re-amplifies
@@ -330,11 +331,27 @@ static noise grains with eccentricity-ramped density, after Cao et al., 2021), *
 (near-blackout with luminance edges restored, after Cheng et al., 2022's finding that context-
 preserving outlines reduce anxiety), and **SpotLift** (focus brightness lift over a soft peripheral
 dim — video mode only, since OS passthrough cannot be brightened). They are reported as explored
-design points; none carries evaluation claims. The video test scene's mode cycle was deliberately
-trimmed to the three evaluated modes (`k_modeCycle = {ColorPop, SoftDark, HardDark}`) on 2026-07-04,
-with the shader branches kept intact for the passthrough scene.
+design points; none carries evaluation claims. The video test scene's free-play mode cycle
+(`k_modeCycle`, the A-button cycle) walks the entire eleven-entry enum in enum order — matching the
+passthrough scene's cycle — rather than being restricted to the evaluated set; a 2026-07-04 change
+had briefly trimmed it to the three evaluated modes, but the cycle was subsequently widened back to
+the full enum so free play and demos can reach every mode, while the study proper still only ever
+programmatically selects ColorPop, Soft Dark, and Hard Dark (Chapter 6).
 
 [Figure 4.6 — Screenshot triptych of the three evaluated modes on the same video frame.]
+
+### 4.5.6 SignPop (video-only, detection-gated)
+
+**SignPop** is an eleventh mode, live only in the video test scene: the same grading pipeline as
+ColorPop, but the "pop" boost is gated by the offline oracle detection track of Section 4.8.2 rather
+than by colour class alone. Only pixels inside an actual detected traffic-light/stop-sign box get
+the full pop treatment; other red/orange/green-ish pixels (neon signage, brake lights, advertising)
+fall back to a partial dim (`m_signRogFallback`, default 0.35) rather than full grey — a "graceful
+miss" so a gap in the bake dims a real signal rather than hiding it outright. A short hold
+(`m_signDetHoldSec`, default 0.5 s) keeps a detection alive after it drops out of the bake so pops do
+not blink between samples. SignPop is not an evaluated mode; it exists as a free-play/demo
+illustration of what detection-conditioned grading looks like, and is used by one condition of the
+harness's `TestModeSequencer`.
 
 ## 4.6 Motion-Based Suppression
 
@@ -412,8 +429,9 @@ plus the mode toast.]
 
 ### 4.8.1 Live detection support
 
-The shader supports up to eight simultaneous **detection islands** (`_DetectionRects[8]`): az/el
-rectangles, fed by an optional `YoloRunner` component, inside which the vignette is cleared
+The live passthrough manager (`CameraSphereVignetteManager`) supports up to eight simultaneous
+**detection islands** (`k_maxDetections = 8`, backed by the shader's `_DetectionRects[16]` array):
+az/el rectangles, fed by an optional `YoloRunner` component, inside which the vignette is cleared
 (`t = min(t, 1 − inside)`) so the detected object shows through undiminished. Each island renders as
 a soft-edged ellipse (feather from `m_detectionSoftEdgeDeg` = 3°) with a **dual modulation** after
 Veas et al. (2011): the object itself receives a mild saturation/brightness lift
@@ -438,9 +456,13 @@ The pipeline exists because its predecessor failed informatively: the original i
 a 640×360 downsample, below the pixel size of distant traffic lights, and silently missed most of
 them (Section 4.10). The full-resolution bake of 2026-07-04 (~30 minutes on CPU for the 180-second
 clip) produced **9,170 traffic-light and stop-sign detections across 720 samples, with 97 % of
-samples containing at least one detection** (median 12 per sample — above the shader's 8-island cap,
-so a priority-then-size ordering decides survival). These figures are the system's preliminary
-oracle-side data and reappear in Chapter 5 as one arm of the planned oracle-versus-live benchmark.
+samples containing at least one detection** (median 12 per sample). Unlike the live manager, the
+video test scene's manager (`VideoTestSceneManager`) draws on the shader's full sixteen-slot
+`_DetectionRects[16]` array (`k_maxDetections = 16`): an earlier eight-slot cap was found to drop
+roughly a third of the median-12-per-sample detections and was raised to sixteen specifically to
+absorb the oracle bake's density, so no ordering or survival policy is needed for the great majority
+of samples. These figures are the system's preliminary oracle-side data and reappear in Chapter 5 as
+one arm of the planned oracle-versus-live benchmark.
 
 [Figure 4.9 — Oracle pipeline: source video → tiled YOLO11 full-res inference → NMS merge → JSON
 track → deterministic playback into shader islands.]
@@ -554,13 +576,13 @@ perception stands from the oracle it is evaluated under are the questions of Cha
 ## References (this chapter)
 
 - Bailey, R., McNamara, A., Sudarsanam, N., & Grimm, C. (2009). Subtle gaze direction. *ACM Transactions on Graphics*, 28(4).
-- Cao, R., Grandi, J., & Kopper, R. (2021). Granulated rest frames as a technique to mitigate cybersickness. *Frontiers in Virtual Reality.* [VERIFY exact title]
+- Cao, Z., Grandi, J., & Kopper, R. (2021). Granulated Rest Frames Outperform Field of View Restrictors on Visual Search Performance. *Frontiers in Virtual Reality*, 2:604889. doi:10.3389/frvir.2021.604889
 - Cheng, Y., Yin, Y., Yan, Y., Gugenheimer, J., & Lindlbauer, D. (2022). Towards Understanding Diminished Reality. *Proc. CHI 2022.* doi:10.1145/3491102.3517452
 - Grogorick, S., Stengel, M., Eisemann, E., & Magnor, M. (2017). Subtle gaze guidance for immersive environments. *Proc. ACM SAP 2017.*
 - Meta (2025). *Passthrough Camera Access.* developers.meta.com/horizon/
-- Norouzi, N., Bruder, G., & Welch, G. (2018). Assessing vignetting as a means to reduce VR sickness during amplified head rotations. *Proc. ACM SAP 2018.* [VERIFY exact title]
+- Norouzi, N., Bruder, G., & Welch, G. (2018). Assessing Vignetting as a Means to Reduce VR Sickness During Amplified Head Rotations. *15th ACM Symposium on Applied Perception (SAP '18).* doi:10.1145/3225153.3225162
 - Patney, A., Salvi, M., Kim, J., et al. (2016). Towards foveated rendering for gaze-tracked virtual reality. *ACM Transactions on Graphics*, 35(6).
 - Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., & Regenbrecht, H. (2022). Look over there! Investigating saliency modulation for visual guidance with augmented reality glasses. *Proc. UIST 2022.* doi:10.1145/3526113.3545633
-- Tariq, T., et al. (2022). Noise-based perceptual enhancement for foveated/peripheral rendering. [VERIFY — source paper is `NoiseBasedEnhancement.pdf` in the repository root]
+- Tariq, T., Tursun, C., & Didyk, P. (2022). Noise-based Enhancement for Foveated Rendering. *ACM Transactions on Graphics.* doi:10.1145/3528223.3530101
 - Veas, E., Mendez, E., Feiner, S., & Schmalstieg, D. (2011). Directing attention and influencing memory with visual saliency modulation. *Proc. CHI 2011.* doi:10.1145/1978942.1979158
-- Waldner, M., Le Muzic, M., Bernhard, M., Purgathofer, W., & Viola, I. (2014). Attractive flicker: Guiding attention in dynamic narrative visualizations. *IEEE TVCG*, 20(12).
+- Waldner, M., Le Muzic, M., Bernhard, M., Purgathofer, W., & Viola, I. (2014). Attractive flicker: Guiding attention in dynamic narrative visualizations. *IEEE TVCG*, 20(12), 2456–2465. doi:10.1109/TVCG.2014.2346352

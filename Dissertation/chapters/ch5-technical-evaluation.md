@@ -141,7 +141,7 @@ in aperture, focus behaviour, and processing, so absolute acuity values from thi
 indicative rather than clinical. The benchmark's claim structure is deliberately *relative* — the
 same camera, same chart, same lighting, same placement across the three conditions — so that the
 window-versus-periphery *gap* is meaningful even where absolute values are not. Where the published
-psychophysical measurements for Quest 3 passthrough (arXiv 2601.02805) overlap with condition (1),
+psychophysical measurements for Quest 3 passthrough (Wang et al., 2026) overlap with condition (1),
 they serve as an external sanity check on the method.
 
 **Criteria.** *Interpretation, not pass/fail:* the architecture is vindicated if the window path
@@ -211,8 +211,9 @@ in Chapter 7 inherits that qualifier. The small-target row exists because the de
 **Claim defended.** The deployability argument of Chapter 3, Section 3.5-adjacent reasoning (and
 testing-strategy §3.5): Soft Dark, the camera-free Tier-2 mode, is claimed to be the only mode
 plausibly wearable for hour-long sessions. The prior expectation comes from the one published
-on-device PCA processing system, which sustained 720p30 segmentation-based compositing for only
-5–10 minutes before thermal throttling (arXiv 2509.18929). The present system's Tier-3 path is
+feasibility study of PCA-based on-device compositing, which projects 720p30 segmentation-based
+compositing for only 5–10 minutes before thermal throttling — a simulation-based estimate, not a
+measured on-device run (Laghari et al., 2025, arXiv:2509.18929). The present system's Tier-3 path is
 shader-only — lighter than segmentation — so the outcome is genuinely uncertain, which is what
 makes the benchmark informative.
 
@@ -279,12 +280,22 @@ stated rather than silently omitted.
 
 ## References (this chapter)
 
-- Meta Horizon OS developer documentation: Perfetto tracing, OVR Metrics Tool, Passthrough Camera
-  Access. developers.meta.com/horizon. [VERIFY exact page titles at citation time]
-- "Native Mixed Reality Compositing on Meta Quest 3." arXiv:2509.18929 (2025).
-  https://arxiv.org/abs/2509.18929
-- "The perceptual gap between video see-through displays and natural human vision." arXiv:2601.02805
-  (2026). https://arxiv.org/pdf/2601.02805
-- Ultralytics. YOLO11 (2024). https://docs.ultralytics.com [VERIFY version/citation format]
-- Unity Technologies. Sentis (on-device inference). https://unity.com/products/sentis [VERIFY]
+- Meta (2025). *How to Take Perfetto Traces with Meta Quest Developer Hub.*
+  developers.meta.com/horizon/documentation/unity/ts-perfettoguide/
+- Meta (2025). *Monitor Performance with OVR Metrics Tool.*
+  developers.meta.com/horizon/documentation/unity/ts-ovrmetricstool/
+- Meta (2025). *Getting Started with Passthrough Camera API in Unity.*
+  developers.meta.com/horizon/documentation/unity/unity-pca-documentation/
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). Native Mixed Reality Compositing
+  on Meta Quest 3: A Quantitative Feasibility Study of ARM-Based SoCs and Thermal Headroom.
+  arXiv:2509.18929. https://arxiv.org/abs/2509.18929
+- Wang, J., Ping, S., Xu, K., Li, Y., & Liang, H.-N. (2026). The perceptual gap between video
+  see-through displays and natural human vision. arXiv:2601.02805. https://arxiv.org/pdf/2601.02805
+- Jocher, G., & Qiu, J. (2024). *Ultralytics YOLO11* (Version 11.0.0) [Computer software]. Ultralytics.
+  https://github.com/ultralytics/ultralytics. Citation per Ultralytics' own CITATION.cff / docs
+  (docs.ultralytics.com/models/yolo11/); DOI not yet assigned by Ultralytics at time of writing.
+- Unity Technologies (2024). *Unity Sentis* (on-device neural network inference package).
+  https://unity.com/products/sentis. Note: Unity has since renamed this package "Unity Inference
+  Engine" (`com.unity.ai.inference`, v2.6 as of 2026); cited here under the "Sentis" name because
+  that is the name under which it was integrated into this dissertation's pipeline.
 - ISO 17488:2016 is cited in Chapter 6 for the detection-response paradigm; not used here.

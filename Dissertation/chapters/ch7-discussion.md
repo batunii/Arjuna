@@ -85,11 +85,11 @@ signal-level subtraction and forces synthesis by overlay.
 
 No statement about whether the system *works* — in the sense of H1, H2a, or H2b — is available, and
 none is made here. The literature gives reason to take both outcomes seriously: peripheral
-distractors reliably impose sustained-attention costs in headsets (Frontiers in Human Neuroscience,
-2025), and DR-style attenuation reduced workload in VR simulation (McLaughlin et al., 2025); but
+distractors reliably impose sustained-attention costs in headsets (Ai et al., 2025), and DR-style
+attenuation reduced workload in VR simulation (McLaughlin et al., 2025); but
 area darkening's guidance effects come mostly from immersive video contexts, desaturation alone has
-shown weak effects, and awareness costs are documented wherever attenuation succeeds (Murphy et al.,
-2021 [VERIFY]). The design space contains both a working system and a placebo; only Chapter 6's
+shown weak effects (Wang, Gan & Li, 2020), and awareness costs are documented wherever attenuation
+succeeds (Murph et al., 2021). The design space contains both a working system and a placebo; only Chapter 6's
 data can say which this is.
 
 ## 7.2 The pre-registered interpretation frame
@@ -107,7 +107,7 @@ scope, this row would be the first performance-based demonstration of DR distrac
 consumer passthrough hardware rather than in VR simulation.
 
 **Row 2 — H1 supported, H2b fails.** The focus–awareness trade-off documented in simulated DR
-(McLaughlin et al., 2025; Murphy et al., 2021 [VERIFY]) would have been reproduced and *quantified*
+(McLaughlin et al., 2025; Murph et al., 2021) would have been reproduced and *quantified*
 on real hardware: the periphery's protection is bought with a measured awareness cost exceeding ten
 percentage points of peripheral hit rate. This is not a failure row. It is arguably the most
 design-relevant outcome, because it converts "mode choice" from aesthetics into a safety-relevant
@@ -169,7 +169,7 @@ variables, different modes — and no ratio between them will be interpreted.
 work because a VST display is an opaque screen under full render control; additive OST optics
 cannot darken the world. What transfers is the taxonomy and the question. On OST hardware the
 taxonomy collapses toward display-side attenuation — of which segmented dimming hardware (e.g.
-Magic Leap 2's dimmer panel [VERIFY capability details]) is the nearest existing analogue of a
+Magic Leap 2's segmented dimmer, a dedicated low-resolution panel that locally attenuates light behind masked virtual content) is the nearest existing analogue of a
 Tier-2 windowed dim — and toward the additive salience modulation demonstrated by Sutton et al.
 (2022). Whatever Chapter 6 finds about *what peripheral diminishment does to attention* transfers
 as a human-factors result to any hardware that can implement an equivalent stimulus; the
@@ -267,25 +267,38 @@ this dissertation set out to meet.
 
 - Cheng, Y., Yin, H., Yan, Y., Gugenheimer, J., & Lindlbauer, D. (2022). Towards Understanding
   Diminished Reality. *CHI 2022*. https://dl.acm.org/doi/10.1145/3491102.3517452
-- McLaughlin, et al. (2025). Cognitive Aid Design Using Diminished Reality to Support Selective
-  Attention by Reducing Distraction. *Human Factors*. doi:10.1177/00187208251325169
-- Murphy, et al. (2021). Diminishing Reality: Potential Benefits and Risks. *HFES 2021*. [VERIFY
-  full author list and venue details against the collected PDF]
-- Norouzi, N., et al. (2018). [Head-coupled field-of-view restriction and simulator sickness.]
-  *ACM SAP 2018*. [VERIFY exact title]
+- McLaughlin, A. C., et al. (2025). Cognitive Aid Design Using Diminished Reality to Support
+  Selective Attention by Reducing Distraction. *Human Factors*, 67(9), 937–961.
+  doi:10.1177/00187208251325169
+- Murph, I., McDonald, M., Richardson, K., Wilkinson, M., Robertson, S., Karunakaran, A., Gandy
+  Coleman, M., Byrne, V., & McLaughlin, A. C. (2021). Diminishing Reality: Potential Benefits and
+  Risks. *Proceedings of the Human Factors and Ergonomics Society Annual Meeting*, 65(1), 164–168.
+  doi:10.1177/1071181321651103
+- Norouzi, N., Bruder, G., & Welch, G. (2018). Assessing Vignetting as a Means to Reduce VR Sickness
+  During Amplified Head Rotations. *15th ACM Symposium on Applied Perception (SAP '18)*.
+  doi:10.1145/3225153.3225162
 - Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., & Regenbrecht, H. (2022). Look
   over there! Investigating Saliency Modulation for Visual Guidance with Augmented Reality Glasses.
   *UIST 2022*. https://dl.acm.org/doi/10.1145/3526113.3545633
-- Impact of visual distractors in VR on sustained attention. *Frontiers in Human Neuroscience*
-  (2025). https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/
-- Higgins, et al. (2022). Head Pose as a Proxy for Gaze in Virtual Reality. *VAM-HRI 2022*.
-  https://iral.cs.umbc.edu/Pubs/Higgins2022VAM-HRI.pdf
-- Sitzmann, V., et al. (2018). How do people explore virtual environments? arXiv:1612.04335.
+- Ai, X., Wang, Y., Wang, P., & Wang, S. (2025). Impact of Visual Distractors in Virtual Reality
+  Environments on Sustained Attention Behavioral Performance and EEG Characteristics. *Frontiers in
+  Human Neuroscience*. https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/
+- Higgins, P., Barron, R., & Matuszek, C. (2022). Head Pose as a Proxy for Gaze in Virtual Reality.
+  *VAM-HRI 2022*. https://iral.cs.umbc.edu/Pubs/Higgins2022VAM-HRI.pdf
+- Sitzmann, V., Serrano, A., Pavel, A., Agrawala, M., Gutierrez, D., Masia, B., & Wetzstein, G.
+  (2018). Saliency in VR: How Do People Explore Virtual Environments? *IEEE TVCG*, 24(4), 1633–1642.
+  (arXiv:1612.04335)
 - Fernandes, A. S., & Feiner, S. K. (2016). Combating VR sickness through subtle dynamic
   field-of-view modification. *IEEE 3DUI 2016*. [Context for FOV-restriction lineage]
-- Magic Leap 2 segmented dimming — Magic Leap developer documentation. [VERIFY]
-- Meta Passthrough Styling API; Meta MR Motifs "Passthrough Transitioning"; Passthrough Windows —
-  Meta Horizon OS developer documentation. [VERIFY page titles]
-- "Native Mixed Reality Compositing on Meta Quest 3." arXiv:2509.18929 (2025).
+- Magic Leap (2024). *Global/Segmented Dimmer.* Magic Leap Developer Documentation.
+  developer-docs.magicleap.cloud/docs/guides/features/dimmer-feature/
+- Meta (2024). *Customize Passthrough Color Mapping*; *Passthrough Transitioning Motif*;
+  *Passthrough Windows.* Meta Horizon OS developer documentation.
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). "Native Mixed Reality Compositing
+  on Meta Quest 3: A Quantitative Feasibility Study of ARM-Based SoCs and Thermal Headroom."
+  arXiv:2509.18929.
 - Lakens, D. (2017). Equivalence Tests. *Social Psychological and Personality Science*.
   doi:10.1177/1948550617697177
+- Wang, G., Gan, Q., & Li, Y. (2020). Research on Attention-guiding Methods in Cinematic Virtual
+  Reality Based on Eye Tracking Analysis. *2020 International Conference on Innovation Design and
+  Digital Technology (ICIDDT)*. doi:10.1109/ICIDDT52279.2020.00020

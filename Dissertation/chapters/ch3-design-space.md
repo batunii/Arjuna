@@ -42,7 +42,7 @@ is a global, non-spatial surroundings dimming effect (Apple, 2024). On true opti
 glasses the constraint is harsher still and physical rather than administrative: an additive display
 can only *add* light to the optical path. It can superimpose brightness but cannot remove photons
 arriving from the world; darkening is physically unavailable without auxiliary hardware such as
-per-pixel dimming layers (Itoh et al., 2021 [VERIFY]).
+per-pixel dimming layers (Itoh et al., 2021).
 
 It is worth being clear about *why* the boundary exists, because its motivation predicts its
 persistence. The passthrough image is a continuous camera view of the user's home, workplace, and
@@ -142,9 +142,10 @@ The price is paid in four currencies:
    non-trivial, and the naive approach measurably fails (the double-vision failure and its
    world-direction sampling solution are detailed in Chapter 4).
 4. **Thermal budget.** Sustained on-device processing of the camera stream is bounded: the only
-   published system that renders and processes the PCA feed as a live view reports 720p30 operation
-   with thermal throttling after 5–10 minutes (Bajireanu et al., 2025 [VERIFY author list]). Tier-3
-   modes are, on today's hardware, modes for *sessions*, not workdays.
+   published work to quantify this class of hardware for PCA-style live compositing is a
+   simulation-based feasibility study, which projects 720p30 operation with thermal throttling after
+   5–10 minutes (Laghari et al., 2025) — a projected, not measured, figure, since no benchmark ran on
+   physical hardware. Tier-3 modes are, on today's hardware, modes for *sessions*, not workdays.
 
 ### 3.3.4 The hybrid: composing Tier 2 and Tier 3
 
@@ -171,7 +172,7 @@ everything above:
 - **No read access, at any tier, to the pixels the user actually sees.** Even Tier 3 supplies a
   *different, lower-grade copy* of reality, not the passthrough image itself. Any effect that must
   respond to what the user sees (content-adaptive dimming, saliency-weighted attenuation as proposed
-  by Lu et al. [VERIFY]) can respond only to the camera proxy.
+  by Lu, Duh and Feiner, 2012) can respond only to the camera proxy.
 - **No spatial modulation of the native layer.** The full-quality view can be revealed or hidden
   (Tier 2) but never *partially processed*. A "blur the real passthrough periphery" mode — arguably
   the perceptually gentlest DR primitive, per the foveated-rendering literature (Patney et al.,
@@ -219,7 +220,7 @@ a categorically different object with categorically different failure modes. Thi
 mode **plausibly deployable for extended sessions** on present hardware, given the Tier-3 thermal
 envelope. Fourth, it is the **awareness-preserving midpoint** on the suppression axis between
 unmodified vision and Hard Dark's blackout — the point at which the focus-versus-awareness trade-off
-documented in the DR literature (Murphy et al., 2021 [VERIFY]; McLaughlin et al., 2025) is actually
+documented in the DR literature (Murph et al., 2021; McLaughlin et al., 2025) is actually
 negotiable rather than decided.
 
 Together, off → Soft Dark → Hard Dark forms a clean single-variable intensity ladder (overlay alpha
@@ -311,20 +312,27 @@ Chapter 4 descends from this map into the machine.
 ## References (this chapter)
 
 - Apple (2024). *Accessing the main camera — visionOS enterprise APIs.* developer.apple.com/documentation/visionOS/accessing-the-main-camera
-- Bajireanu, R., et al. (2025). *Native Mixed Reality Compositing on Meta Quest 3.* arXiv:2509.18929. [VERIFY author list]
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). *Native Mixed Reality Compositing
+  on Meta Quest 3: A Quantitative Feasibility Study of ARM-Based SoCs and Thermal Headroom.*
+  arXiv:2509.18929.
 - Cheng, Y., Yin, Y., Yan, Y., Gugenheimer, J., & Lindlbauer, D. (2022). Towards Understanding Diminished Reality. *Proc. CHI 2022.* doi:10.1145/3491102.3517452
 - Immersed (2022). *Passthrough Portals.* uploadvr.com/immersed-adds-passthrough-portals-tracked-keyboards/
-- Itoh, Y., et al. (2021). Optical see-through head-mounted displays with occlusion capability. [VERIFY — occlusion-capable OST survey]
-- Lu, W., et al. Subtle cues for visual search in AR. [VERIFY — full citation from author's paper collection]
-- McLaughlin, A. C., et al. (2025). Cognitive Aid Design Using Diminished Reality to Support Selective Attention by Reducing Distraction. *Human Factors.* doi:10.1177/00187208251325169
+- Itoh, Y., Langlotz, T., Sutton, J., & Plopski, A. (2021). Towards Indistinguishable Augmented Reality: A Survey on Optical See-Through Head-Mounted Displays. *ACM Computing Surveys*, 54(6), 1–36. doi:10.1145/3453157
+- Lu, W., Duh, B.-L. H., & Feiner, S. (2012). Subtle cueing for visual search in augmented reality. *2012 IEEE International Symposium on Mixed and Augmented Reality (ISMAR)*, 161–166. doi:10.1109/ISMAR.2012.6402553
+- McLaughlin, A. C., et al. (2025). Cognitive Aid Design Using Diminished Reality to Support Selective Attention by Reducing Distraction. *Human Factors*, 67(9), 937–961. doi:10.1177/00187208251325169
 - Meta (2024a). *Passthrough Styling (colour mapping / LUTs).* developers.meta.com/horizon/documentation/unity/unity-customize-passthrough-color-mapping/
 - Meta (2024b). *Passthrough Windows (punch-through).* developers.meta.com/horizon/documentation/unity/unity-customize-passthrough-passthrough-windows/
 - Meta (2024c). *MR Motifs: Passthrough Transitioning.* developers.meta.com/horizon/documentation/unity/unity-mrmotifs-passthrough-transitioning/
-- Meta (2024d). Quest software update v67: Theatre View. [VERIFY exact release note]
+- Meta (2025). *Meta Quest build v67 release notes: Theatre View.* Meta Community Forums. communityforums.atmeta.com/blog/AnnouncementsBlog/meta-quest-build-v67-release-notes/1215574
 - Meta (2025). *Passthrough Camera Access (PCA).* developers.meta.com/horizon/ (Unity PCA documentation)
 - Mori, S., Ikeda, S., & Saito, H. (2017). A survey of diminished reality. *IPSJ Trans. Computer Vision and Applications*, 9(17). doi:10.1186/s41074-017-0028-1
-- Murphy, D., et al. (2021). Diminishing Reality: Potential Benefits and Risks. *Proc. HFES 2021.* [VERIFY]
+- Murph, I., McDonald, M., Richardson, K., Wilkinson, M., Robertson, S., Karunakaran, A., Gandy Coleman, M., Byrne, V., & McLaughlin, A. C. (2021). Diminishing Reality: Potential Benefits and Risks. *Proceedings of the Human Factors and Ergonomics Society Annual Meeting*, 65(1), 164–168. doi:10.1177/1071181321651103
 - Patney, A., et al. (2016). Towards foveated rendering for gaze-tracked virtual reality. *ACM TOG*, 35(6).
 - Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., & Regenbrecht, H. (2022). Look over there! Investigating saliency modulation for visual guidance with augmented reality glasses. *Proc. UIST 2022.* doi:10.1145/3526113.3545633
-- US Patent 12548271: Attention control in multi-user environments. US Patent 12524072: External video feed rendered with blur in VR. [Claim-level adjacency only]
-- xrdevrob (2025). *QuestCameraKit.* github.com/xrdevrob/QuestCameraKit
+- US Patent 12548271 B2 (Apple Inc., 2026): "Attention control in multi-user environments" (title
+  confirmed verbatim via Google Patents). US Patent 12524072 B2 (Samsung Electronics, 2026):
+  "Providing a pass-through view of a real-world environment for a virtual reality headset for a user
+  interaction with real world objects", paraphrased here as "External video feed rendered with blur
+  in VR". Both numbers confirmed valid; claim-level adjacency only.
+- Coviello, R. [xrdevrob] (2025). *QuestCameraKit* [software]. GitHub.
+  https://github.com/xrdevrob/QuestCameraKit

@@ -119,8 +119,10 @@ people actually own.
 
 ## References (this chapter)
 
-- Native mixed reality compositing on Meta Quest 3 (2025). *arXiv 2509.18929*.
-  https://arxiv.org/abs/2509.18929 [VERIFY author list — thermal throttling figures]
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). Native mixed reality compositing
+  on Meta Quest 3: a quantitative feasibility study of ARM-based SoCs and thermal headroom. *arXiv
+  2509.18929*. https://arxiv.org/abs/2509.18929
 - Cheng, Y., et al. (2022). Towards understanding diminished reality. *Proc. CHI 2022*.
-- McLaughlin, A. C., et al. (2025). Cognitive aid design using diminished reality. *Human Factors*.
+- McLaughlin, A. C., et al. (2025). Cognitive aid design using diminished reality to support
+  selective attention by reducing distraction. *Human Factors*, 67(9), 937–961.
   doi:10.1177/00187208251325169

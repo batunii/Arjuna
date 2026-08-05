@@ -274,7 +274,7 @@
     </table>
     <p class="sub" style="margin-top:16px">Tier 1's precision matters: it is not “nothing can be done” — it is <b>the absence of <i>spatial</i> control</b>. Attention guidance is definitionally spatial, so Tier 1 alone cannot implement any mode. <b>The absence is the finding.</b></p>
   </div>
-  <div class="cite"><b>Backing:</b> ch3 Table 3.1 · Meta styling/PCA docs · thermal bound: Bajireanu et al., arXiv 2509.18929 (720p30, throttle at 5–10 min) · characterised empirically, not speculatively.</div>
+  <div class="cite"><b>Backing:</b> ch3 Table 3.1 · Meta styling/PCA docs · thermal bound: Laghari et al. 2025, arXiv:2509.18929 (720p30, throttle at 5–10 min — a simulation-based projection, not a measured on-device run).</div>
 </section>
 
 <!-- ================= 9 · WALLS ================= -->
@@ -364,7 +364,7 @@
     <div class="cols c2">
       <div class="card">
         <h3>Why this is a result, not a convenience</h3>
-        <p>Every tier of the taxonomy is reachable from one fragment program: alpha 0 = Tier-2 absence · alpha 1 black = Tier-2 blackout · alpha 1 camera-fed = Tier-3 re-render. Adding a mode = adding a per-fragment policy, which is why <b>ten modes</b> could be designed and compared cheaply.</p>
+        <p>Every tier of the taxonomy is reachable from one fragment program: alpha 0 = Tier-2 absence · alpha 1 black = Tier-2 blackout · alpha 1 camera-fed = Tier-3 re-render. Adding a mode = adding a per-fragment policy, which is why <b>eleven modes</b> could be designed and compared cheaply.</p>
       </div>
       <div class="card">
         <h3>World-locked by construction</h3>
@@ -421,8 +421,8 @@
       </div>
     </div>
     <div class="card">
-      <h3>Selection was an on-device decision with a recorded date</h3>
-      <p>After on-device comparison across the family, the cycle was trimmed to the three evaluated modes (<code>k_modeCycle</code>, 2026-07-04); shader branches for the rest are kept intact. ColorPop was the standout and became the dynamic-scenario mode. The six exploratory modes are reported as explored design points — <b>none carries evaluation claims</b>.</p>
+      <h3>Selection was an on-device decision with a recorded date; an 11th mode exists outside the design space</h3>
+      <p>After on-device comparison across the ten literature-derived modes, ColorPop was the standout and became the dynamic-scenario mode; the study proper only ever selects ColorPop, Soft Dark, and Hard Dark. The free-play A-button cycle (<code>k_modeCycle</code>) was briefly trimmed to those three on 2026-07-04, then widened back to walk the whole enum so every mode stays reachable for demos; shader branches for the six exploratory modes are kept intact and none carries evaluation claims. A separate <b>eleventh mode, SignPop</b>, is a video-only demo that gates ColorPop's boost by the offline detection track (slide 19) rather than by a literature-derived design decision — it is not part of this ten-mode design space.</p>
     </div>
   </div>
   <div class="cite"><b>Source:</b> ch4 §4.5 · every mode = a per-fragment colour/alpha policy over the same window geometry, so comparisons isolate the treatment.</div>
@@ -446,7 +446,7 @@
       <div class="card"><h3>Formation as transition</h3><p>On window lock, strength animates 0→1 over a <b>3 s SmoothStep</b> — an instantaneous blackout is startling; the gradual close doubles as lock confirmation. Temporal mechanics like this are <b>unstudied in DR</b> (gap 3) → all exposed as tunable.</p></div>
     </div>
   </div>
-  <div class="cite"><b>Backing:</b> ch4 §4.5.1–4.5.2 · Hard Dark chosen for Block A as the strongest manipulation — maximises probability of detecting the mechanism if it exists (ch6 §6.4.2) · thermal: arXiv 2509.18929.</div>
+  <div class="cite"><b>Backing:</b> ch4 §4.5.1–4.5.2 · Hard Dark chosen for Block A as the strongest manipulation — maximises probability of detecting the mechanism if it exists (ch6 §6.4.2) · thermal: Laghari et al. 2025, arXiv:2509.18929 (projected, not measured).</div>
 </section>
 
 <!-- ================= 16 · COLORPOP ================= -->
@@ -461,7 +461,7 @@
         <ul class="small" style="margin-top:10px;font-size:14px">
           <li><b>ROG classification</b>: red/orange/green hue bands gated by saturation floors — warm floor 0.35 keeps warm-<i>white</i> headlights out of the “orange” class while real lamps (sat &gt; 0.5) stay in</li>
           <li><b>Inside-ROG</b>: saturation ×1.7 · Sutton et al.'s sigmoid contrast recipe (α=10, β=0.5, strength 0.6) · brightness ×1.15</li>
-          <li><b>Outside-ROG</b>: natural colour, dimmed ×0.8 — <b>a peripheral traffic light must never become invisible</b></li>
+          <li><b>Outside-ROG</b>: natural colour, dimmed ×0.65 — <b>a peripheral traffic light must never become invisible</b></li>
         </ul>
       </div>
       <div class="card">
@@ -469,7 +469,7 @@
         <ul class="small" style="font-size:14px">
           <li><b>Glare compression</b>: bright + unsaturated + non-ROG (= headlight glare) compressed toward a visible dim spot, never black (0.35 inside / 0.85 outside)</li>
           <li><b>Blown-core guard</b>: Gaussian surround check exempts the clipped white centre of a saturated signal lamp from the glare mask</li>
-          <li><b>Global periphery dim ×0.85</b>: the window also wins on plain luminance — the strongest single channel in the attention literature. Net periphery ≈ 0.68 of natural</li>
+          <li><b>Global periphery dim ×0.85</b>: the window also wins on plain luminance — the strongest single channel in the attention literature. Net periphery ≈ 0.55 of natural</li>
           <li>Colour/grey boundaries read harsher than darkness → soft edge widened <b>20° → 32°</b></li>
         </ul>
       </div>
@@ -789,7 +789,7 @@
       <div>
         <table class="small" style="font-size:13.5px">
           <tr><td><b>C1</b></td><td>Design space: the three-tier taxonomy of DR under compositing constraints, characterised <b>empirically</b> — including its walls</td><td class="muted">Ch. 3</td></tr>
-          <tr><td><b>C2</b></td><td>Reference implementation: window-as-absence, the hybrid composite, world-direction fusion sampling, motion-coupled comfort, 10-mode family + failure museum — open and checkable</td><td class="muted">Ch. 4</td></tr>
+          <tr><td><b>C2</b></td><td>Reference implementation: window-as-absence, the hybrid composite, world-direction fusion sampling, motion-coupled comfort, three evaluated modes (ColorPop, Soft Dark, Hard Dark) drawn from a ten-mode literature-derived design space + failure museum — open and checkable</td><td class="muted">Ch. 4</td></tr>
           <tr><td><b>C3</b></td><td>Technical benchmarks: falsifiable T1–T5 with pre-stated criteria; oracle side already fixed (9,170 / 97%)</td><td class="muted">Ch. 5</td></tr>
           <tr><td><b>C4</b></td><td>Pre-registered study: within-subjects N=20, one powered primary hypothesis, equivalence-bounded safety, pilot gates, pre-committed decision table</td><td class="muted">Ch. 6</td></tr>
         </table>

@@ -8,6 +8,15 @@
 > This document supersedes `dissertation-study-methodology.md` (v1), which is retained for reference.
 > The dissertation's overall two-part structure (technical design-space + concept evaluation) and
 > claim-scoping rules are fixed in the companion document `framing.md`.
+>
+> **Update (2026-08-04):** §4.1's task description, measures table, participant script, and gate G2
+> have been updated to the forced-choice 1-back actually decided on 2026-07-22 (see
+> `PilotTools/README.md`), replacing the stale "pilot chooses Go/No-go panel (Option V) vs
+> digit-cancellation (Option P)" framing. That framing still appears elsewhere in this document
+> (the stats-plan formulas, exclusion-rule thresholds, ethics-amendment note, and the tooling
+> appendix around `CPTPanel.cs`) and has not been swept everywhere — treat any remaining "Option V"
+> / "Option P" / "Go/No-go" language outside §4.1 as referring to the superseded design until it is
+> updated.
 
 ---
 
@@ -188,11 +197,14 @@ reduce the cost of real peripheral distractors on a focal task?
 
 #### Physical layout
 
-- A4/A3 task surface flat on the desk directly ahead (Option P) **or** a virtual task panel
-  world-locked at the same position, ~0.6 m from the eyes (Option V).
+- A virtual task panel world-locked ~0.6 m from the eyes (§4.1 task section above).
 - Two tablets on stands at **±35° azimuth** from the task centre, ~1 m from the participant, screens
   facing them. 35° sits in the near-periphery zone of maximal involuntary capture (UFOV literature, v1
-  §11.5 — rationale retained).
+  §11.5 — rationale retained). **Design target for the formal collection, not yet achieved**: every
+  naive-pilot session to date used the browser prototype's screen-edge `<iframe>` distractors, which
+  typically achieve only 15–25° on a normal monitor — see the eccentricity caveat in
+  `PilotTools/README.md`. No pilot session run that way is informative about the distractor-cost
+  mechanism at the real 35°; that evidence can only come from the physical-tablet apparatus.
 - Tablet content: a prepared **distractor reel** (fast-cut, high-motion, bright video) with
   **scheduled salient event bursts** (hard cuts to full-screen colour flashes + sudden motion) at
   fixed timestamps, ~every 20–30 s, identical across participants. In *Distractors-absent* conditions
@@ -214,50 +226,63 @@ experimenter verifies both tablets fall outside the window and the whole task su
 The **same locked window** persists across all four conditions (re-verified between conditions); only
 `_DrIntensity` toggles.
 
-#### Task — Option V (virtual sustained-attention panel) *(pilot decides V vs P — §6 gate 2)*
+#### Task — forced-choice 1-back *(decided 2026-07-22, superseding the original Go/No-go vs
+digit-cancellation pilot-decides framing below — §6 gate 2 now confirms this task's tuning rather
+than choosing between task forms)*
 
-A world-locked panel inside the focus window shows a **Go/No-go shape stream**: one large shape
-(≥ 3° visual angle) every 1.5 s for 700 ms. Target = circle (press trigger); non-target = square
-(withhold). 80 % go / 20 % no-go, seeded pseudo-random per (participant, condition) — exact no-go count, no
-two consecutive no-gos, go runs capped at 8. ~140 trials per condition. Every stimulus onset and every press is logged to the millisecond.
+A world-locked panel inside the focus window shows one look-alike shape at a time (drawn from a set
+of six, ≥ 3° visual angle); the participant answers YES/NO on every shape — "same as the previous
+shape?" — by trigger press. This is **forced-choice, not Go/No-go**: the original Go/No-go spec
+(below, retained as the superseded design) let naive pilots ceiling out at 96–100 % accuracy
+regardless of distractor condition, which would have floored the block's ability to detect any
+vignette effect; forced-choice 1-back adds a working-memory component and its harder, memoryless
+50 %-repeat sequence keeps performance off ceiling. Current frozen-for-study timing (v4, tuned
+2026-07-27 against pilot RT data): 140 trials per condition, 2.0 s stimulus onset asynchrony, 1.7 s
+answer window; the first shape of each run is memorise-only. Every stimulus onset and every response
+is logged to the millisecond. No per-trial correctness feedback is given during scored runs, only
+pacing feedback.
 
-- **Errors:** commission (press on square) + omission (no press on circle).
-- **RT:** correct go-trial presses.
+- **Errors:** miss (repeat missed, wrong answer or timeout) + commission (YES on a non-repeat).
+- **RT:** correct-trial responses.
+- **Implementation status:** validated and adopted via the standalone browser prototype
+  (`PilotTools/block-a-cpt.html`); the in-VR harness's `ConditionSequencer`/`CPTPanel` still only
+  wire up the superseded Go/No-go panel below. Porting the browser prototype's trial logic into the
+  VR harness is outstanding and a precondition for formal in-headset collection.
 
-#### Task — Option P (large-print digit cancellation, as ethics-approved)
+#### Task — superseded designs (retained for the design-evolution record only)
 
-The v1 digit-cancellation task, with two changes: **large-print digits** (pilot-verified legible
-through passthrough at working distance — expected ≥ 24 pt equivalent) and **four matched sheets**
-(same digit count, same target frequency, order shuffled) assigned to conditions via the Latin square.
-Target digit differs per sheet (7, 4, 2, 9) to prevent target-specific learning; targets equated for
-visual confusability. Scored after the session: hits, misses, false alarms, digits reached.
+**Go/No-go shape stream (original spec, dropped 2026-07-22).** One large shape (≥ 3° visual angle)
+every 1.5 s for 700 ms. Target = circle (press trigger); non-target = square (withhold). 80 % go /
+20 % no-go, seeded pseudo-random per (participant, condition) — exact no-go count, no two
+consecutive no-gos, go runs capped at 8. ~140 trials per condition.
 
-- **Errors:** misses + false alarms, normalised per digit scanned.
-- **Throughput:** digits scanned in 3.5 min.
+**Option P — large-print digit cancellation (dropped 2026-07-22).** The v1 digit-cancellation task,
+with two changes: **large-print digits** (pilot-verified legible through passthrough at working
+distance — expected ≥ 24 pt equivalent) and **four matched sheets** (same digit count, same target
+frequency, order shuffled) assigned to conditions via the Latin square. Target digit differs per
+sheet (7, 4, 2, 9) to prevent target-specific learning; targets equated for visual confusability.
+Scored after the session: hits, misses, false alarms, digits reached. Dropped once the virtual
+panel's legibility and difficulty were confirmed, removing the need for a paper fallback.
 
 #### Measures
 
 | Measure | Instrument / ground truth |
 |---|---|
-| Error rate per condition (primary DV input) | StudyLogger event log (V) / scored sheets (P) |
+| Error rate per condition (primary DV input) | StudyLogger event log |
 | **Distractor cost** = errors(A2) − errors(A1), and errors(A4) − errors(A3) | Derived per participant |
-| **H1 statistic** = cost(Off) − cost(On) | Derived per participant; also modelled trial-level (V) |
-| RT (Option V only) | StudyLogger, ms |
+| **H1 statistic** = cost(Off) − cost(On) | Derived per participant; also modelled trial-level |
+| RT | StudyLogger, ms |
 | Head-turns toward tablets (> 30° yaw from task centre): count + dwell | Head-pose telemetry, 60 Hz |
 | Raw NASA-TLX | Tablet form after **each** of A1–A4 — the distractor-absent administrations give a workload baseline and a workload analogue of the H1 interaction |
 | Noticing check | One question after Block A: "Did anything make the side screens easier or harder to ignore?" (open) |
 
 #### Participant script (verbatim)
 
-> *(Option V)* "A panel in front of you will show one shape at a time. **When you see a circle, pull
-> the trigger. When you see a square, do nothing.** Respond as fast as you can without guessing.
-> Ignore everything else in the room — only the panel matters. Each round lasts about three and a half
-> minutes; there are four rounds. Some rounds may look different from others; just do the same thing
-> every round."
->
-> *(Option P)* "Cross out every **[target digit]** on this sheet, working left to right, row by row,
-> as quickly and accurately as you can. Don't skip rows. Only the sheet matters — ignore everything
-> else in the room. You have three and a half minutes; I'll tell you when to stop."
+> "A panel in front of you will show one shape at a time. **After the first shape, answer whether
+> each new shape is the same as the one before it** — one controller trigger for yes, the other for
+> no. Respond as fast as you can without guessing. Ignore everything else in the room — only the
+> panel matters. Each round lasts about three and a half minutes; there are four rounds. Some rounds
+> may look different from others; just do the same thing every round."
 
 Participants are never told which rounds are "ours" or what the vignette is expected to do
 (instructions say "compare display modes" — demand-characteristics defense, §9).
@@ -408,7 +433,7 @@ analyses may not.
 | Gate | Test | Pass criterion | On fail |
 |---|---|---|---|
 | **G1 — distractors distract** | Run A1 vs A2 (vignette Off) on pilot participants | Visible error-rate increase under distractors for all but at most one pilot participant (direction, not significance) | Increase distractor salience: louder motion bursts, brighter flashes, closer/larger tablets, add audio? (audio would need ethics check) — then re-test |
-| **G2 — task form** | Both task options tried through passthrough | Option V: panel fully legible, go-accuracy 75–95 % (off ceiling & floor). Option P: every pilot reads the large-print digits without leaning in; miss rate off floor | Choose the option that passes; if both pass, choose **V** (finer measurement); if only P passes, use P; if neither, redesign task before proceeding |
+| **G2 — task form** | The already-selected forced-choice 1-back tried through passthrough (task-form choice was resolved ahead of the formal pilot by informal iteration — §4.1) | Panel fully legible; accuracy off both ceiling and floor across pilot participants | Retune timing/difficulty (SOA, answer window, lure ratio) against pilot data, then re-test; redesign the task only if retuning cannot bring it off ceiling or floor |
 | **G3 — probe calibration** | Block B with candidate probe sizes/contrasts | Baseline (vignette-off) hit rate 70–90 % for both eccentricity bands; RT distribution unimodal | Adjust probe size/duration/contrast per band; re-test |
 | **G4 — protocol dry run ×2** | Two full end-to-end sessions with the final configuration | Timeline within ±5 min; zero log gaps (validator clean); battery ≥ 20 % at end; no sickness terminations; TLX/questionnaire flow smooth | Fix the specific failure (checklist §10), re-run one dry run |
 
@@ -498,7 +523,8 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 |---|---|
 | VR-sickness termination | Session ends (§7.2); all partial data retained but participant excluded from confirmatory analysis; replaced from spares |
 | App crash / restart during a condition | That condition void; re-run once at the end of its block if time allows, else participant contributes remaining conditions to LMM (which tolerates missingness) and is excluded from the paired robustness test |
-| Option V: go-accuracy < 60 % in the *distractor-absent, vignette-off* condition (A1) | Participant did not perform the task; exclude, replace |
+| App crash / restart that spans a **new session launch** (the auto-session ledger assigns a fresh participant ID on relaunch rather than resuming the old one — observed repeatedly during naive piloting) | Pre-crash and post-relaunch IDs are reconciled into one canonical participant record before analysis: retain cleanly-completed blocks under whichever ID the experimenter designates canonical in the incident log, join in completed blocks from the other ID, and keep only the later complete attempt where a block was attempted on both IDs. Reconciliation is logged with both IDs and the ledger timestamps justifying the join, and fixed before analysis — not revisited afterwards |
+| Task accuracy < 60 % in the *distractor-absent, vignette-off* condition (A1) | Participant did not perform the task; exclude, replace |
 | Block B: false-alarm rate > 30 % of presses in either condition | Response strategy invalid (pressing indiscriminately); exclude Block B for that participant |
 | Log integrity failure (validator reports gaps > 1 s or missing condition markers) | Affected condition void; incident log entry; same re-run rule as crashes |
 | Participant recognises the driving footage | Note; exclude only if they report strong familiarity affecting behaviour (v1 rule retained) |

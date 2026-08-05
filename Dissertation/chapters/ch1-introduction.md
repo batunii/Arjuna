@@ -20,7 +20,7 @@ operation: *subtraction*. If the periphery pulls attention away, dim it, mute it
 that it pulls less. In the literature this family of operations is called diminished reality (DR) —
 concealing or attenuating real-world content rather than adding to it (Mori, Ikeda and Saito, 2017;
 Cheng et al., 2022) — and its application to distraction has recently been named *visual noise
-cancellation*, by direct analogy with the acoustic kind (Visual Noise Cancellation, 2024 [VERIFY]).
+cancellation*, by direct analogy with the acoustic kind (Hong et al., 2024).
 
 A video-see-through (VST) headset is, in principle, the ideal instrument for visual noise
 cancellation. Unlike optical see-through (OST) glasses, whose additive light engines physically
@@ -44,7 +44,7 @@ the system layer's full coverage of the headset's approximately 110° display, w
 per-eye reprojection. The one place where full pixel control exists is therefore also the place where
 image quality is worst — and a recent psychophysical study shows the stakes plainly: no current VST
 headset reaches normal human visual acuity through its passthrough, with the Quest 3 degrading
-further in low light (arXiv 2601.02805, 2026).
+further in low light (Wang et al., 2026).
 
 Subtractive attention guidance on this platform is consequently a *compositing-rights problem*. The
 effect one wants — "dim everything except the region that matters, without degrading the region that
@@ -185,22 +185,25 @@ and Part H (pre-registered study), with the workstation block bridging them on r
 
 ## References (this chapter)
 
+- Ai, X., Wang, Y., Wang, P., & Wang, S. (2025). Impact of visual distractors in virtual reality
+  environments on sustained attention behavioral performance and EEG characteristics. *Frontiers in
+  Human Neuroscience*. https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/
 - Biocca, F., Tang, A., Owen, C., & Xiao, F. (2006). Attention funnel: omnidirectional 3D cursor for
   mobile augmented reality platforms. *Proc. CHI 2006*. https://ieeexplore.ieee.org/document/1579336/
 - Cheng, Y., Yin, H., Yan, Y., Gugenheimer, J., & Lindlbauer, D. (2022). Towards understanding
   diminished reality. *Proc. CHI 2022*. https://dl.acm.org/doi/10.1145/3491102.3517452
-- Frontiers in Human Neuroscience (2025). Impact of visual distractors in virtual reality on sustained
-  attention. https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/ [VERIFY author list]
 - Itti, L., Koch, C., & Niebur, E. (1998). A model of saliency-based visual attention for rapid scene
   analysis. *IEEE TPAMI, 20*(11).
 - McLaughlin, A. C., et al. (2025). Cognitive aid design using diminished reality to support selective
-  attention by reducing distraction. *Human Factors*. doi:10.1177/00187208251325169
+  attention by reducing distraction. *Human Factors*, 67(9), 937–961. doi:10.1177/00187208251325169
 - Mori, S., Ikeda, S., & Saito, H. (2017). A survey of diminished reality: techniques for visually
   concealing, eliminating, and seeing through real objects. *IPSJ T-CVA, 9*(17).
   https://link.springer.com/article/10.1186/s41074-017-0028-1
-- The perceptual gap between video see-through displays and natural human vision (2026). *arXiv
-  2601.02805*. https://arxiv.org/pdf/2601.02805 [VERIFY author list]
-- Visual Noise Cancellation (2024). Exploring visual diminishment in head-worn AR. *ACM DL 3634699*.
-  [VERIFY — full bibliographic identity from PDF 3634699.pdf]
-- Native mixed reality compositing on Meta Quest 3 (2025). *arXiv 2509.18929*.
-  https://arxiv.org/abs/2509.18929 [VERIFY author list]
+- Wang, J., Ping, S., Xu, K., Li, Y., & Liang, H.-N. (2026). The perceptual gap between video
+  see-through displays and natural human vision. *arXiv 2601.02805*. https://arxiv.org/pdf/2601.02805
+- Hong, J., Langlotz, T., Sutton, J., & Regenbrecht, H. (2024). Visual Noise Cancellation: Exploring
+  Visual Discomfort and Opportunities for Vision Augmentations. *ACM Transactions on Computer-Human
+  Interaction.* doi:10.1145/3634699
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). Native mixed reality compositing
+  on Meta Quest 3: a quantitative feasibility study of ARM-based SoCs and thermal headroom. *arXiv
+  2509.18929*. https://arxiv.org/abs/2509.18929

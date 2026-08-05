@@ -1,10 +1,19 @@
 # Chapter 6 — User Study Design
 
 > **Status note.** The study described in this chapter is fully designed and pre-registered in
-> substance, but has **not yet been executed**. All protocol elements are therefore written in the
-> future tense. The design is fixed before data collection: the pilot study (Section 6.8.2) may tune
-> stimulus parameters, but hypotheses, margins, and analysis choices may not change once collection
-> begins. The operational source document for this chapter is `testing-strategy-v2.md`; where this
+> substance, but the **formal, frozen-protocol confirmatory collection has not yet run**. All
+> protocol elements are therefore written in the future tense. What has happened instead is
+> extensive iterative piloting — informal ("naive-pilot") sessions across two rounds in late July
+> 2026, well beyond the ~20 numbered pilot participants the design's pass/fail gates alone would
+> require — used to tune stimulus parameters (task form, window size, periphery-dim strength,
+> distractor pool) and surface data-quality issues (session aborts, mislabelled participant IDs,
+> false-alarm-rate outliers) ahead of a single supervisor-agreed protocol freeze. None of this
+> iteration data enters, or is intended to enter, the confirmatory analysis: it is gate/design-
+> motivation evidence only, explicitly never pooled with the formal sample (see the exclusion
+> handling of Section 6.9.4). The design is fixed before that formal collection begins: the
+> pass/fail pilot of Section 6.8.2 may tune stimulus parameters up to the freeze point, but once the
+> protocol is frozen and formal collection starts, hypotheses, margins, and analysis choices may not
+> change. The operational source document for this chapter is `testing-strategy-v2.md`; where this
 > chapter compresses, that document remains normative.
 
 ## 6.1 Rationale and Methodological Positioning
@@ -26,8 +35,7 @@ question around an effect that is already established in the literature. Periphe
 distractors reliably impose a measurable performance cost on a focal sustained-attention task in a
 head-mounted display: in a virtual-classroom Go/No-go study with 66 participants, commission errors
 more than doubled in the presence of peripheral distractor events (1.33 → 3.15, *p* < .001), with
-omission errors showing the same pattern (Impact of Visual Distractors in VR on Sustained Attention,
-2025) [VERIFY author names]. The primary question is therefore not the unconstrained "does the
+omission errors showing the same pattern (Ai et al., 2025). The primary question is therefore not the unconstrained "does the
 vignette make people better?" but the falsifiable:
 
 > *Peripheral distractors impose a measurable cost on a focal task. Does the DR vignette reduce that
@@ -122,8 +130,8 @@ vignette that removes less than half of the distraction cost does not justify we
 obtain it. The pilot converts this proportion into an absolute error-rate margin for the power check
 before the main study commits, and this conversion is recorded in the post-pilot lock-in memo
 (Section 6.8.2). H2b's 10-percentage-point margin reflects the safety framing inherited from the DR
-focus-versus-awareness trade-off documented by McLaughlin et al. (2025) and Murphy et al. (2021)
-[VERIFY exact citation]: in a monitoring context, losing more than one peripheral event in ten to the
+focus-versus-awareness trade-off documented by McLaughlin et al. (2025) and Murph et al. (2021):
+in a monitoring context, losing more than one peripheral event in ten to the
 overlay is an unacceptable awareness cost. Equivalence testing follows Lakens (2017); the earlier
 methodology's bare-null phrasing of this hypothesis is thereby replaced with a test that can fail.
 
@@ -161,15 +169,13 @@ termination the participant rests seated, is offered water, and remains until sy
 collected up to termination are retained per the consent wording, and the participant is replaced
 from the spare pool. The Virtual Reality Sickness Questionnaire (VRSQ; Kim et al., 2018) is
 administered **pre and post** session — pre-administration is essential because post-only sickness
-scores are uninterpretable without a baseline (Frontiers in Virtual Reality SSQ-baseline critique,
-2022) [VERIFY author names].
+scores are uninterpretable without a baseline (Brown, Spronck & Powell, 2022).
 
 ### 6.3.3 Apparatus
 
 All sessions use the same Meta Quest 3 headset with controllers (hand tracking disabled), in the same
 room, with bright constant lighting at a marked setting — Quest 3 passthrough acuity degrades
-markedly in low light (perceptual-gap study, arXiv 2026) [VERIFY author names], so lighting is a
-controlled variable, not a convenience. The participant sits on a fixed chair at a desk. The
+markedly in low light (Wang et al., 2026), so lighting is a controlled variable, not a convenience. The participant sits on a fixed chair at a desk. The
 experimenter monitors the participant's view via an `scrcpy` mirror with screen recording running as
 a redundant data channel. Every stimulus in every block is deterministic and scripted from versioned
 schedule files; no live object detection runs anywhere in the study. Instrumentation (the
@@ -217,8 +223,9 @@ member of the mode family, whereas ColorPop bundles desaturation, salience re-gr
 compression, and dimming into one composite. Second, it is the graded **Tier-2** point in the
 compositing hierarchy of Chapter 3: dimmed *real* passthrough at native quality, rather than a
 re-rendered camera copy. Third, it has **no camera pipeline**, which makes it the only mode plausibly
-deployable for hour-long sessions: published on-device processing of the passthrough camera feed
-reports thermal throttling within five to ten minutes (arXiv 2509.18929) [VERIFY author names].
+deployable for hour-long sessions: the one published feasibility study of on-device processing of the
+passthrough camera feed projects thermal throttling within five to ten minutes (Laghari et al., 2025,
+arXiv:2509.18929) — a simulation-based estimate, not a measured on-device run.
 Fourth, it is the **awareness-preserving** point between full signal and Hard Dark's blackout — the
 region of the design space where the focus-versus-awareness trade-off actually lives. A full
 confirmatory block for Soft Dark does not fit the session budget; it therefore receives sampler-level
@@ -237,14 +244,24 @@ window reduce the cost that real peripheral distractors impose on a focal task?
 
 ### 6.5.1 Physical layout and distractor stimulus
 
-The participant sits at a desk with the task surface directly ahead: either a printed sheet (Option
-P) or a world-locked virtual panel at the same position, approximately 0.6 m from the eyes (Option
-V). Two tablets on stands are placed at **±35° azimuth** from the task centre, approximately 1 m from
-the participant, screens facing them. The 35° eccentricity places the distractors in the
-near-periphery zone of maximal involuntary attentional capture identified by the Useful Field of View
-literature (Ball & Owsley, 1993). Note that Ball & Owsley define and validate the UFOV *test*; the
-≈30° extent used here is the conventional figure from that literature rather than a value stated in
-their paper.
+The participant sits at a desk with the task surface directly ahead: a world-locked virtual panel
+(Section 6.5.3) approximately 0.6 m from the eyes. Two tablets on stands are placed at **±35°
+azimuth** from the task centre, approximately 1 m from the participant, screens facing them. The 35°
+eccentricity places the distractors in the near-periphery zone of maximal involuntary attentional
+capture identified by the Useful Field of View literature (Ball & Owsley, 1993). Note that Ball &
+Owsley define and validate the UFOV *test*; the ≈30° extent used here is the conventional figure from
+that literature rather than a value stated in their paper.
+
+**This is the design target for the formal, in-headset collection; it has not yet been achieved in
+practice.** Every naive-pilot session run to date (Section 6's status note) used the standalone
+browser prototype on a desktop monitor, which approximates the distractors as `<iframe>`s in the
+page's side margins rather than physical tablets — and, as `PilotTools/README.md` documents in
+detail, screen-edge iframes on a normal monitor at a normal viewing distance typically achieve only
+15–25° of eccentricity, not 35° (reaching 35° would require an offset wider than half a 32" monitor).
+This is sufficient for piloting task *feel and timing*, which is all it has been used for, but no
+pilot session run this way is informative about the distractor-cost mechanism at the actual 35°
+manipulation — that evidence can only come from the physical-tablet apparatus once the formal
+collection begins.
 
 [Figure 6.1 — plan-view diagram of the Block A layout: participant, desk, task surface, tablets at
 ±35°, focus-window extent.]
@@ -272,51 +289,61 @@ persists across all four conditions, re-verified between conditions; only `_DrIn
 
 ### 6.5.3 Task
 
-Two task forms are specified; the pilot study selects between them (gate G2, Section 6.8.2). This
-contingency exists because the primary threat to this block is not attentional but optical: Quest 3
-passthrough does not reach normal visual acuity, and a task that participants cannot comfortably
-*see* would floor out in every condition for reasons unrelated to the vignette.
+Two candidate task forms were originally specified for a pilot-time choice (gate G2, Section 6.8.2),
+motivated by a genuinely optical rather than attentional risk: Quest 3 passthrough does not reach
+normal visual acuity, and a task participants cannot comfortably *see* would floor out in every
+condition for reasons unrelated to the vignette. In practice, that choice was resolved ahead of the
+formal pilot by extensive informal iteration (Section 6's status note): a virtual, world-locked panel
+task (decided 2026-07-22) rather than the large-print digit-cancellation alternative, which was
+dropped once the virtual panel's legibility and difficulty were confirmed. Gate G2 in the formal
+small-n pilot (Section 6.8.2) now serves to confirm this already-selected task performs in range
+rather than to choose between two live options.
 
-**Option V — virtual sustained-attention panel.** A world-locked panel inside the focus window
-presents a Go/No-go shape stream: one large shape (≥ 3° visual angle) every 1.5 s, displayed for
-700 ms. The target (circle) requires a trigger press; the non-target (square) requires withholding.
-The stream is 80 % go / 20 % no-go, seeded pseudo-randomly per participant and condition with an
-exact no-go count, no two consecutive no-go stimuli, and go runs capped at eight, yielding ~140
-trials per condition. Every onset and press is logged to the millisecond.
-Errors comprise commissions (press on square) and omissions (no press on circle); reaction time is
-taken from correct go trials.
+**The task — forced-choice 1-back.** A world-locked panel inside the focus window presents one
+look-alike shape at a time (drawn from a set of six, ≥ 3° visual angle), and the participant answers
+YES/NO on every shape — "same as the previous shape?" — via trigger press. This is a forced-choice
+design, not Go/No-go: an iteration in late July 2026 found that a withhold-only non-target response
+(the original Go/No-go spec) felt wrong to participants and, more importantly, that Go/No-go's
+overwhelmingly-target trial stream let naive pilots ceiling out (96–100 % accuracy) regardless of
+distractor condition, which would have floored the block's ability to detect any vignette effect.
+The forced-choice 1-back adds a working-memory/goal-maintenance component atop the reactive
+component alone, and its harder, memoryless 50 %-repeat sequence keeps performance off ceiling. The
+current, frozen-for-study timing (v4, tuned 2026-07-27 against pilot reaction-time data) is 140
+trials per condition at a 2.0 s stimulus onset asynchrony and a 1.7 s answer window; the first shape
+of each run is a memorise-only trial with no scored response. Outcomes are `hit` (YES on a genuine
+repeat), `miss` (a repeat missed, by wrong answer or timeout), `commission` (YES on a non-repeat),
+`correct_reject` (NO on a non-repeat), and `no_response` (timeout on a non-repeat, logged separately
+as an engagement signal). Every onset and response is logged to the millisecond; error rate is
+misses plus commissions, and reaction time is taken from correct trials. No per-trial correctness
+feedback is given during scored runs — only pacing feedback ("too slow") — so trial-by-trial
+feedback cannot shift participants' speed/accuracy strategy mid-run.
 
-**Option P — large-print digit cancellation.** The ethics-approved cancellation task, amended in two
-ways: digits printed large (pilot-verified legible through passthrough at working distance; expected
-≥ 24 pt equivalent), and four matched sheets (same digit count, same target frequency, shuffled
-order) assigned to conditions via the Latin square. The target digit differs per sheet (7, 4, 2, 9)
-to prevent target-specific learning, with targets equated for visual confusability. Sheets are scored
-after the session for hits, misses, false alarms, and digits reached; errors are misses plus false
-alarms normalised per digit scanned, and throughput is digits scanned per condition.
+**Implementation status.** The forced-choice 1-back was validated and adopted through a standalone
+browser prototype (`PilotTools/block-a-cpt.html`) used for rapid, no-headset piloting; the in-VR
+harness's condition sequencer currently still only wires up the earlier Go/No-go panel and the
+dropped paper-cancellation option. Porting the browser prototype's trial logic into the VR harness —
+replacing, not merely toggling alongside, the superseded Go/No-go wiring — is outstanding work and a
+precondition for the formal, in-headset confirmatory collection to begin.
 
 ### 6.5.4 Measures
 
 | Measure | Instrument / ground truth |
 |---|---|
-| Error rate per condition (primary DV input) | StudyLogger event log (V) / scored sheets (P) |
+| Error rate per condition (primary DV input) | StudyLogger event log |
 | Distractor cost = errors(A2) − errors(A1) and errors(A4) − errors(A3) | Derived per participant |
-| H1 statistic = cost(Off) − cost(On) | Derived per participant; also modelled at trial level (V) |
-| Reaction time (Option V only) | StudyLogger, milliseconds |
+| H1 statistic = cost(Off) − cost(On) | Derived per participant; also modelled at trial level |
+| Reaction time | StudyLogger, milliseconds |
 | Head-turns toward tablets (> 30° yaw from task centre): count and dwell | Head-pose telemetry, 60 Hz |
 | Raw NASA-TLX | After each of A1–A4; the distractor-absent administrations provide a workload baseline and a workload analogue of the H1 interaction |
 | Noticing check | One open question after Block A: "Did anything make the side screens easier or harder to ignore?" |
 
 ### 6.5.5 Participant instructions (verbatim)
 
-> *(Option V)* "A panel in front of you will show one shape at a time. **When you see a circle, pull
-> the trigger. When you see a square, do nothing.** Respond as fast as you can without guessing.
-> Ignore everything else in the room — only the panel matters. Each round lasts about three and a half
-> minutes; there are four rounds. Some rounds may look different from others; just do the same thing
-> every round."
-
-> *(Option P)* "Cross out every **[target digit]** on this sheet, working left to right, row by row,
-> as quickly and accurately as you can. Don't skip rows. Only the sheet matters — ignore everything
-> else in the room. You have three and a half minutes; I'll tell you when to stop."
+> "A panel in front of you will show one shape at a time. **After the first shape, answer whether
+> each new shape is the same as the one before it** — one controller trigger for yes, the other for
+> no. Respond as fast as you can without guessing. Ignore everything else in the room — only the
+> panel matters. Each round lasts about three and a half minutes; there are four rounds. Some rounds
+> may look different from others; just do the same thing every round."
 
 Participants are never told which conditions belong to "our system" or what the vignette is expected
 to do; the session framing throughout is that they are "comparing display modes" — a defence against
@@ -472,7 +499,7 @@ between pilot participants, but hypotheses, margins, and analysis choices may no
 | Gate | Test | Pass criterion | On fail |
 |---|---|---|---|
 | **G1 — distractors distract** | Run A1 vs A2 (vignette Off) on pilot participants | Visible error-rate increase under distractors for all but at most one pilot participant (direction, not significance) | Increase distractor salience (brighter/faster bursts, closer or larger tablets; audio would require an ethics check), then re-test |
-| **G2 — task form** | Both task options tried through passthrough | Option V: panel fully legible, go-accuracy 75–95 % (off ceiling and floor). Option P: every pilot reads the large-print digits without leaning in; miss rate off floor | Choose whichever option passes; if both, choose V (finer measurement); if neither, redesign the task before proceeding |
+| **G2 — task form** | The already-selected forced-choice 1-back tried through passthrough (task-form choice itself was resolved ahead of the formal pilot by informal iteration, Section 6's status note) | Panel fully legible; accuracy off both ceiling and floor across pilot participants | Retune timing/difficulty (SOA, answer window, lure ratio) against pilot data, then re-test; redesign the task only if retuning cannot bring it off ceiling or floor |
 | **G3 — probe calibration** | Block B with candidate probe sizes/contrasts | Baseline hit rate 70–90 % in both eccentricity bands; unimodal RT distribution | Adjust probe size/duration/contrast per band; re-test |
 | **G4 — protocol dry run ×2** | Two full end-to-end sessions with the final configuration | Timeline within ±5 minutes; zero log gaps (validator clean); battery ≥ 20 % at end; no sickness terminations; questionnaire flow smooth | Fix the specific failure; re-run one dry run |
 
@@ -499,7 +526,7 @@ equivalence logic applies (the H1 SESOI bound and the H2b TOST).
 
 Mixed-effects modelling at trial level follows the analysis approach of McLaughlin et al. (2025); the
 aligned-rank-transform alternative for nonparametric factorial data (Wobbrock et al., 2011) is noted
-but not preferred, in light of recent critiques of ART's error control [VERIFY critique citation].
+but not preferred, in light of recent critiques of ART's error control (Tsandilas & Casiez, 2024).
 
 **Multiplicity policy.** H1 is the single primary endpoint and receives no correction. H2a, H2b, and
 H3 form the secondary family, Holm-corrected across the three. Everything else — Block C ratings,
@@ -551,7 +578,8 @@ that bounds the generality of Block B's simulated context is quantified in Chapt
 |---|---|
 | VR-sickness termination | Session ends under the stop rule; partial data retained but participant excluded from confirmatory analysis; replaced from spares |
 | App crash / restart during a condition | That condition void; re-run once at the end of its block if time allows; otherwise the participant contributes remaining conditions to the LMM (which tolerates missingness) and is excluded from the paired robustness test |
-| Option V: go-accuracy < 60 % in A1 (distractor-absent, vignette-off) | Task not performed; exclude and replace |
+| App crash / restart that spans a **new session launch** (the auto-session ledger assigns a fresh participant ID on relaunch rather than resuming the old one) | The pre-crash and post-relaunch IDs are reconciled into one canonical participant record before analysis: the block(s) completed cleanly pre-crash are retained under whichever ID the experimenter designates canonical in the incident log, completed blocks from the other ID are joined in, and any block attempted on both IDs keeps only the later, complete attempt. Reconciliation is logged in the incident log with both IDs, the ledger timestamps used to justify the join, and is fixed before any analysis is run — not revisited afterwards |
+| Task accuracy < 60 % in A1 (distractor-absent, vignette-off) | Task not performed; exclude and replace |
 | Block B: false-alarm rate > 30 % of presses in either condition | Response strategy invalid (indiscriminate pressing); exclude Block B for that participant |
 | Log integrity failure (gaps > 1 s or missing condition markers) | Affected condition void; incident log entry; same re-run rule as crashes |
 | Participant recognises the driving footage | Noted; excluded only on reported strong familiarity affecting behaviour |
@@ -617,7 +645,7 @@ materials, forms) is ticked for every session.
   age-related declines in visual function. *Journal of the American Optometric Association, 64*(1),
   71–79. PMID: 8454831.
 - Bourdon, B. (1895). Observations comparatives sur la reconnaissance, la discrimination et
-  l'association. *Revue Philosophique, 40*, 153–185. [VERIFY]
+  l'association. *Revue Philosophique, 40*, 153–185.
 - Byers, J. C., Bittner, A. C., & Hill, S. G. (1989). Traditional and raw task load index (TLX)
   correlations: are paired comparisons necessary? In *Advances in Industrial Ergonomics and Safety I*
   (pp. 481–485). Taylor & Francis.
@@ -626,19 +654,22 @@ materials, forms) is ticked for every session.
 - Cheng, Y., Yin, H., Yan, Y., Gugenheimer, J., & Lindlbauer, D. (2022). Towards understanding
   diminished reality. In *Proceedings of CHI 2022*. ACM.
   https://dl.acm.org/doi/10.1145/3491102.3517452
-- Frontiers in Human Neuroscience (2025). Impact of visual distractors in virtual reality on
-  sustained attention. https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/ [VERIFY author names]
-- Frontiers in Virtual Reality (2022). SSQ zero-baseline critique.
-  https://www.frontiersin.org/journals/virtual-reality/articles/10.3389/frvir.2022.945800/full
-  [VERIFY author names and exact title]
+- Ai, X., Wang, Y., Wang, P., & Wang, S. (2025). Impact of visual distractors in virtual reality
+  environments on sustained attention behavioral performance and EEG characteristics. *Frontiers in
+  Human Neuroscience.* https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/
+- Brown, P., Spronck, P., & Powell, W. (2022). The simulator sickness questionnaire, and the
+  erroneous zero baseline assumption. *Frontiers in Virtual Reality, 3*:945800.
+  https://doi.org/10.3389/frvir.2022.945800
 - Hart, S. G. (2006). NASA-Task Load Index (NASA-TLX); 20 years later. In *Proceedings of the Human
   Factors and Ergonomics Society Annual Meeting, 50*(9), 904–908.
   https://human-factors.arc.nasa.gov/groups/TLX/downloads/HFES_2006_Paper.pdf
 - Hart, S. G., & Staveland, L. E. (1988). Development of NASA-TLX (Task Load Index): results of
   empirical and theoretical research. In *Human Mental Workload* (pp. 139–183). North-Holland.
-- Hatta, T., & Yoshizaki, K. — D-CAT digit cancellation validation. [VERIFY — full reference]
-- Higgins, P., et al. (2022). Head pose as a proxy for gaze in virtual reality. *VAM-HRI 2022*.
-  https://iral.cs.umbc.edu/Pubs/Higgins2022VAM-HRI.pdf [VERIFY co-authors]
+- Hatta, T., Yoshizaki, K., Ito, Y., Mase, M., & Kabasawa, H. (2012). Reliability and validity of the
+  digit cancellation test, a brief screen of attention. *Psychologia, 55*(4), 246–256.
+  doi:10.2117/psysoc.2012.246
+- Higgins, P., Barron, R., & Matuszek, C. (2022). Head pose as a proxy for gaze in virtual reality.
+  *VAM-HRI 2022*. https://iral.cs.umbc.edu/Pubs/Higgins2022VAM-HRI.pdf
 - ISO (2016). *ISO 17488:2016 — Road vehicles — Transport information and control systems —
   Detection-response task (DRT) for assessing attentional effects of cognitive load in driving.*
 - Jahn, G., Oehme, A., Krems, J. F., & Gelau, C. (2005). Peripheral detection as a workload measure in
@@ -651,23 +682,28 @@ materials, forms) is ticked for every session.
   meta-analyses. *Social Psychological and Personality Science, 8*(4), 355–362.
   https://doi.org/10.1177/1948550617697177
 - McLaughlin, A. C., et al. (2025). Cognitive aid design using diminished reality to support selective
-  attention by reducing distraction. *Human Factors*.
-  https://journals.sagepub.com/doi/10.1177/00187208251325169 [VERIFY co-authors]
-- Murphy, et al. (2021). Diminishing reality: potential benefits and risks. *HFES 2021.* [VERIFY —
-  full reference]
-- Perceptual gap between video see-through displays and natural human vision (2026). *arXiv.*
-  https://arxiv.org/pdf/2601.02805 [VERIFY author names and exact title]
-- Native mixed reality compositing on Meta Quest 3 (2025). *arXiv 2509.18929.*
-  https://arxiv.org/abs/2509.18929 [VERIFY author names and exact title]
-- Sitzmann, V., et al. (2018). How do people explore virtual environments? *arXiv 1612.04335 / IEEE
-  TVCG.* [VERIFY final venue]
+  attention by reducing distraction. *Human Factors, 67*(9), 937–961.
+  https://journals.sagepub.com/doi/10.1177/00187208251325169
+- Murph, I., McDonald, M., Richardson, K., Wilkinson, M., Robertson, S., Karunakaran, A., Gandy
+  Coleman, M., Byrne, V., & McLaughlin, A. C. (2021). Diminishing reality: potential benefits and
+  risks. *Proceedings of the Human Factors and Ergonomics Society Annual Meeting, 65*(1), 164–168.
+  doi:10.1177/1071181321651103
+- Wang, J., Ping, S., Xu, K., Li, Y., & Liang, H.-N. (2026). The perceptual gap between video
+  see-through displays and natural human vision. *arXiv:2601.02805.* https://arxiv.org/pdf/2601.02805
+- Laghari, M. K., Shaikh, A. A., Khan, F., & Siddiqui, A. G. (2025). Native mixed reality compositing
+  on Meta Quest 3: a quantitative feasibility study of ARM-based SoCs and thermal headroom. *arXiv
+  2509.18929.* https://arxiv.org/abs/2509.18929
+- Sitzmann, V., Serrano, A., Pavel, A., Agrawala, M., Gutierrez, D., Masia, B., & Wetzstein, G.
+  (2018). Saliency in VR: how do people explore virtual environments? *IEEE TVCG, 24*(4), 1633–1642.
+  (arXiv:1612.04335)
 - Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., & Regenbrecht, H. (2022). Look over
   there! Investigating saliency modulation for visual guidance with augmented reality glasses. In
   *Proceedings of UIST 2022*. ACM. https://dl.acm.org/doi/10.1145/3526113.3545633
 - Victor, T. W., Harbluk, J. L., & Engström, J. A. (2005). Sensitivity of eye-movement measures to
   in-vehicle task difficulty. *Transportation Research Part F, 8*(2), 167–190.
   https://doi.org/10.1016/j.trf.2005.04.014
+- Tsandilas, T., & Casiez, G. (2024). The illusory promise of the Aligned Rank Transform. *Journal of
+  Visualization and Interaction* (under review). https://statransform.github.io/jovi/
 - Wobbrock, J. O., Findlater, L., Gergle, D., & Higgins, J. J. (2011). The aligned rank transform for
   nonparametric factorial analyses using only ANOVA procedures. In *Proceedings of CHI 2011* (pp.
-  143–146). ACM. (See also the recent critique of ART: https://statransform.github.io/jovi/
-  [VERIFY authors])
+  143–146). ACM. doi:10.1145/1978942.1978963
