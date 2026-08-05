@@ -14,8 +14,7 @@ entirely by **which layer of the compositing stack an application is permitted t
 these permissions stratify into three discrete tiers with sharply different capabilities and costs.
 The three vignette modes evaluated in this dissertation — ColorPop, Soft Dark, and Hard Dark — were
 not designed as arbitrary aesthetic variants; each occupies a distinct position in this space, and
-together they span it. The taxonomy presented here is Contribution C1; the modes that instantiate it
-are described in implementation detail in Chapter 4.
+together they span it. The taxonomy presented here is Contribution C1; the modes that instantiate it are described in implementation detail in Chapter 4.
 
 The chapter proceeds as follows. Section 3.2 states the compositing constraint precisely.
 Section 3.3 develops the three-tier access taxonomy, the chapter's centrepiece. Section 3.4 makes
@@ -45,14 +44,9 @@ arriving from the world; darkening is physically unavailable without auxiliary h
 per-pixel dimming layers (Itoh et al., 2021).
 
 It is worth being clear about *why* the boundary exists, because its motivation predicts its
-persistence. The passthrough image is a continuous camera view of the user's home, workplace, and
-bystanders; granting arbitrary applications read access to it is a privacy exposure, and granting
+persistence. The passthrough image is a continuous camera view of the user's home, workplace, and bystanders; granting arbitrary applications read access to it is a privacy exposure, and granting
 write access is a safety exposure (an application could imperceptibly alter the user's view of the
-physical world they are walking through). Both concerns strengthen rather than weaken over time, so
-research that assumes future read–modify–write access to system passthrough is betting against the
-platform vendors' incentives. This dissertation makes the opposite bet: it treats the constraint as
-permanent and asks what can be built *inside* it — which is what gives the resulting design space its
-claim to durability.
+physical world they are walking through). Both concerns strengthen rather than weaken over time, so research that assumes future read–modify–write access to system passthrough is betting against the platform vendors' incentives. This dissertation makes the opposite bet: it treats the constraint as permanent and asks what can be built *inside* it — which is what gives the resulting design space its claim to durability.
 
 Subtractive attention guidance — dimming, muting, or blacking out the visual periphery — must
 therefore be *synthesized* on consumer VST hardware through whatever compositing rights the platform
@@ -128,8 +122,7 @@ Tier 3 is the Passthrough Camera Access (PCA) API (Meta, 2025), which since earl
 headset's forward RGB camera feed to applications as a GPU texture together with camera intrinsics
 and pose. At Tier 3 the application is no longer manipulating a proxy for reality; it holds the
 camera pixels themselves and can apply arbitrary per-pixel computation: Gaussian blur, luminance-
-weighted desaturation, hue-selective salience re-grading, glare compression — everything the ColorPop
-mode does (Chapter 4).
+weighted desaturation, hue-selective salience re-grading, glare compression — everything the ColorPop mode does (Chapter 4).
 
 The price is paid in four currencies:
 
