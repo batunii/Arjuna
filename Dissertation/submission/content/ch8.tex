@@ -1,0 +1,127 @@
+\chapter{Conclusion and Future Work}
+
+\section{The question, revisited}
+
+This dissertation asked one question with two halves: \textit{can subtractive attention guidance be
+delivered on consumer XR hardware, and when it is delivered, does it actually help human attention?}
+
+The first half has been answered in the affirmative, with precision about what "delivered" means. On
+the Meta Quest 3 the question reduces to a compositing-rights problem, and the access an application
+has stratifies into three tiers: colour-only styling of the OS-owned passthrough layer, overlay
+compositing on top of it, and full pixel control over a lower-quality camera feed (Chapter 3). That
+narrow space turns out to be sufficient for a working multi-mode system, built around an
+architectural inversion in which the focus region is rendered as an \textit{absence} in an overlay, so
+native passthrough at full quality serves the region that matters while the treatments occupy the
+periphery around it (Chapter 4). The hybrid composite at the heart of the most capable mode survived
+a structured prior-art search with no published or shipped precedent found (Chapter 2).
+
+The second half has an interim answer and a confirmatory one still pending. The pre-registered design
+carries one properly powered primary hypothesis, that peripheral dimming reduces the cost distractors
+impose on a focal task, and an equivalence-bounded safety hypothesis, that salience re-grading must
+not degrade peripheral awareness beyond a stated margin. Fourteen Block A pairs and thirteen Block B
+pairs exist today, and they show a 3.34-point workstation accuracy gain, peripheral awareness that
+was not lost, and a detection benefit concentrated exactly in the eccentricity band the system's own
+detection-gated design predicts. Every part of that is qualified by the sample it comes from, at
+roughly 60\% achieved power, well short of the pre-registered target. But "inconclusive" is still not among the reachable
+outcomes. The interim data point in a specific, mechanistically coherent direction, and the remaining
+collection will either confirm that direction with tighter intervals or correct it.
+
+\section{Contributions, honestly stated}
+
+Four contributions were claimed in Chapter 1; their standing at the time of writing is as follows.
+
+\textbf{C1: the design space} (Chapter 3) is complete as an analytical contribution and is grounded in
+implementation experience rather than speculation. Its quantitative columns (frame cost, latency,
+legibility per tier) await the Chapter 5 benchmark campaign.
+
+\textbf{C2: the reference implementation} (Chapter 4) is complete and running on target hardware: the
+world-locked focus-window architecture, world-direction fusion sampling for the monocular feed,
+motion-coupled suppression, and ten peripheral treatments spanning the design space, of which two,
+SignPop and Hard Dark, are carried to confirmatory evaluation, together with an engineering record
+that reports dead ends, screen-space sampling double vision, a deprecated surface-projection API,
+shader stripping on Android, as reusable knowledge.
+
+\textbf{C3: the technical evaluation} exists as a specified plan with preliminary results (the offline
+full-resolution detection bake: 13,939 detections across 1,040 sampled frames, 99.5\% of samples with
+at least one detection). The benchmark campaign itself, frame timing, latency, legibility, thermal
+endurance, and the oracle-versus-live gap, remains to be run.
+
+\textbf{C4: the pre-registered study design} is complete, ethics-mapped against the approved protocol,
+and instrumented on paper down to verbatim participant scripts and exclusion rules. Data collection is
+underway. Eleven of the target twenty participant pairs are in, with interim results reported in
+Chapter 6, Section 6.11 and discussed in Chapter 7, Section 7.2. Recruitment continues toward the
+full sample, and the confirmatory analysis and decision table of Chapter 6, Section 6.9.3 apply once
+it is reached.
+
+An examiner should read C3 and C4 as what they are: the empirical programme of this dissertation, in
+a state where every analytical decision has been made and committed to in advance of the data. That
+is precisely the state in which such decisions carry evidential weight.
+
+\section{Future work}
+
+Seven directions follow directly from the material.
+
+\textbf{Separating the bundle.} The interim 20–30\textdegree{} finding (Chapter 6, Section 6.11) is
+the clearest reason this item leads the list. A confirmed detection switches on six effects at once:
+colour pop, window carve-out, saturation lift, brightness lift, contrast expansion, and darkened
+surround. So nothing in this dissertation attributes the +16.5-point gain to any one of them. A
+three-arm design, no filter, filter with the detection gate off, filter with it on, would need no new
+code, since the gate already has a toggle. It would directly separate "dimming helped" from "passing
+the signal through helped."
+
+\textbf{Closing the oracle gap.} SignPop, one of the two evaluated modes, is detector-dependent today,
+on offline, oracle-quality detection, not a live pipeline, and Chapter 5's benchmark quantifies how
+far live on-device detection currently falls short of that oracle. The engineering programme this
+implies, quantised detectors, region-of-interest second passes, temporally amortised inference, is
+well charted. The natural next system iteration replaces SignPop's offline oracle gate with a live
+detector and re-runs Block B to test whether the measured benefit survives the live-detection
+accuracy and coverage gap this dissertation deliberately left unclosed.
+
+\textbf{Transfer to optical see-through hardware.} The Tier-2 dark overlay does not transfer to OST
+glasses, whose additive optics cannot darken the world. This was stated in Chapter 7 and bears
+repeating as a boundary, not a defect. What does transfer is the taxonomy itself, on OST hardware
+the design space collapses towards display-side dimming layers and segment attenuation, and,
+critically, the human-factors findings, which concern peripheral diminishment as a perceptual
+manipulation rather than any one rendering path. A replication of the Chapter 6 paradigm on a
+dimming-capable OST device would be the cleanest possible test of that transfer.
+
+\textbf{Adaptive introduction of diminishment.} An idea raised and deliberately deferred during study
+design: rather than switching the effect on, a deployed system might introduce it gradually as focus
+wanes. As a validation instrument a ramp confounds time with intensity and was excluded from the
+study. As an \textit{adaptive-system UX question}, when and how fast should a focus aid fade in, and should
+the user or the system control it, it is a well-formed research problem, seeded by the system's
+existing formation animation and motion-coupled fade mechanics, and by the pre-registered
+time-on-task analysis in the study, which will show whether the vignette's benefit grows as boredom
+sets in.
+
+\textbf{Dose–response.} The study tests only the extreme of the attenuation axis (Hard Dark). The
+midpoint, Soft Dark, was built but never tested with participants, so the middle of the axis has no
+data behind it. A discrete-levels design, off, partial,
+full attenuation, counterbalanced, would establish the shape of the benefit curve and answer the
+deployment question this dissertation cannot: how much diminishment buys how much focus, at what
+comfort cost.
+
+\textbf{Hour-long deployment.} The published thermal ceiling on continuous on-device camera processing
+(throttling within five to ten minutes) makes the dark modes, which have no camera pipeline, the
+only plausible basis for session-length deployment today. A longitudinal study of real work sessions
+under one of them, with the study's workload and comfort instruments administered across days rather
+than minutes, is the necessary bridge between this dissertation's controlled findings and any claim
+about practice.
+
+\textbf{Saliency-weighted diminishment.} The literature review identified the combination of channels
+(desaturation with blur; dimming weighted by computed scene saliency) as unstudied in AR attention
+guidance. The system's shader architecture already computes per-fragment treatment. Driving its
+intensity from a saliency model of the periphery, dimming most where the periphery pulls hardest,
+is a natural composition of the Tier-3 rendering path with the saliency-modulation literature, and a
+candidate for the strongest version of the guidance concept.
+
+\section{Closing}
+
+The premise of this work was that a consumer headset can be an instrument for \textit{removing} the world as
+well as adding to it, and that both halves of that proposition deserve rigour: the systems half,
+where an OS-owned display layer had to be subtracted from by purely additive means, and the human
+half, where "it helps you focus" had to be converted from a hope into a hypothesis that could fail.
+The system exists and runs on target hardware. The hypothesis has moved past waiting: eleven
+participant pairs have already tested it, and the interim direction is favourable, though the
+confirmatory answer at the full N = 20 sample is still being collected. Whichever way the final data
+fall, the question will have been asked properly, on the hardware people actually own.

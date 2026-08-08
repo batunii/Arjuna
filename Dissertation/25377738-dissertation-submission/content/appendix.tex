@@ -1,0 +1,309 @@
+\chapter{Study Protocol Artefacts}
+
+This appendix holds the operational material of the Chapter 5 protocol: the verbatim scripts read to
+participants, the pass/fail gates the pilot had to clear before the main study launched, the session
+timeline, the analysis plan and decision table, the operational protocol, the threats to validity,
+and the pre-registered exclusion rules. It is separated from Chapter 5 so the chapter can argue the
+design while the artefacts that make it reproducible remain available in full.
+
+
+\section{Block A participant instructions (verbatim)}
+
+\begin{quote}
+"A panel in front of you will show one shape at a time. \textbf{After the first shape, answer whether
+each new shape is the same as the one before it}, one controller trigger for yes, the other for
+no. Respond as fast as you can without guessing. Ignore everything else in the room, only the
+panel matters. Each round lasts about four and a half minutes. There are two rounds. The rounds
+may look different from each other. Just do the same thing every round."
+\end{quote}
+
+Participants are never told which conditions belong to "our system" or what the vignette is expected
+to do. The session framing throughout is that they are "comparing display modes", a defence against
+demand characteristics (Section A.8).
+
+
+\section{Block B participant instructions (verbatim)}
+
+\begin{quote}
+"You'll watch a driving scene. Small \textbf{ring markers will appear briefly} on things in the
+scene, sometimes in front of you, sometimes off to the side. \textbf{Press the trigger as soon as
+you notice one. That's the only thing you need to do.} Don't press for anything else. Keep watching
+the road ahead as if you were the driver, and stay seated."
+\end{quote}
+
+
+\section{Pilot study with pass/fail gates}
+
+A pilot with n = 3–5 participants (excluded from the main sample) runs in the first week. Its purpose
+is structural: to make an inconclusive main study impossible. The main study does not launch until
+all three gates pass. Pilot data never enters the main analysis. Stimulus parameters may be tuned
+between pilot participants, but hypotheses, margins, and analysis choices may not.
+
+\begin{longtable}{p{0.13\textwidth}|p{0.21\textwidth}|p{0.29\textwidth}|p{0.25\textwidth}}
+\caption{Pilot study pass/fail gates, tests, criteria, and actions on failure.}\\
+\hline
+\textbf{Gate} & \textbf{Test} & \textbf{Pass criterion} & \textbf{On fail} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Gate} & \textbf{Test} & \textbf{Pass criterion} & \textbf{On fail} \\
+\hline
+\endhead
+\hline
+\textbf{G1: task form} & The forced-choice 1-back tried through passthrough & Panel fully legible; accuracy off both ceiling and floor across pilot participants & Retune timing/difficulty (SOA, answer window, lure ratio) against pilot data, then re-test. Redesign the task only if retuning cannot bring it off ceiling or floor \\
+\textbf{G2: marker calibration} & Block B with candidate marker fade timing and size & Baseline hit rate 70–90\% across the sample; unimodal RT distribution & Adjust marker timing/size, then re-test \\
+\textbf{G3: protocol dry run $\times$2} & Two full end-to-end sessions with the final configuration & Timeline within $\pm$5 minutes; zero log gaps (validator clean); battery $\geq$ 20\% at end; no sickness terminations; questionnaire flow smooth & Fix the specific failure, then re-run one dry run \\
+\hline
+\end{longtable}
+
+The pilot concludes with a one-page \textbf{lock-in memo} to the supervisor recording the chosen task
+form, the tuned stimulus parameters, and the finalised absolute SESOI for H1. After this memo,
+nothing changes until data collection ends.
+
+
+\section{Pre-registered exclusion and data-quality rules}
+
+\begin{longtable}{p{0.42\textwidth}|p{0.48\textwidth}}
+\caption{Pre-registered exclusion and data-quality rules.}\\
+\hline
+\textbf{Rule} & \textbf{Action} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Rule} & \textbf{Action} \\
+\hline
+\endhead
+\hline
+VR-sickness termination & Session ends under the stop rule; partial data retained but participant excluded from confirmatory analysis; replaced from spares \\
+App crash / restart during a condition & That condition void; re-run once at the end of its block if time allows; otherwise the participant contributes remaining conditions to the LMM (which tolerates missingness) and is excluded from the paired robustness test \\
+App crash / restart spanning a \textbf{new session launch}, since the ledger assigns a fresh participant ID on relaunch rather than resuming & The two IDs are reconciled into one canonical participant record before any analysis is run. Cleanly completed blocks are joined under the canonical ID, and a block attempted under both keeps only the later complete attempt. The join, both IDs, and the ledger timestamps justifying it are recorded in the incident log and not revisited afterwards \\
+Task accuracy < 60\% in NoFilter & Task not performed; exclude and replace \\
+Block B: false-alarm rate > 30\% of presses in either condition & Response strategy invalid (indiscriminate pressing); exclude Block B for that participant \\
+Log integrity failure (gaps > 1 s or missing condition markers) & Affected condition void; incident log entry; same re-run rule as crashes \\
+Participant recognises the driving footage & Noted; excluded only on reported strong familiarity affecting behaviour \\
+\hline
+\end{longtable}
+
+
+\section{Session timeline}
+
+The full session runs $\sim$48.5 minutes, inside the 40–60-minute tolerance window participants
+typically accept. Headset-on time is $\sim$35 minutes of that. The information sheet is sent in
+advance, and the closing questionnaires are done with the headset off.
+
+\begin{longtable}{p{0.12\textwidth}|p{0.13\textwidth}|p{0.65\textwidth}}
+\caption{Session timeline: clock time, duration, and activity for the full $\sim$48.5-minute session.}\\
+\hline
+\textbf{Clock} & \textbf{Duration} & \textbf{Activity} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Clock} & \textbf{Duration} & \textbf{Activity} \\
+\hline
+\endhead
+\hline
+00:00 & 4 min & Welcome; written consent (information sheet pre-read); demographics + VR-experience form; VRSQ (pre) \\
+04:00 & 4.5 min & Headset fitting and comfort check; tutorial: paint/lock a practice window; practice to criterion ($\geq$ 90\% accuracy on a 1-minute practice stream; marker practice: 6 markers, $\geq$ 4 hits). One repeat allowed. \\
+08:30 & 1 min & \textbf{Block A}: paint and lock focus window; experimenter verifies geometry \\
+09:30 & 4 min 40 s & Condition i (Filter or NoFilter, order counterbalanced) \\
+14:10 & 1 min & Reset (distractor reel re-cued, window geometry re-verified) \\
+15:10 & 4 min 40 s & Condition ii \\
+19:50 & 0.5 min & Noticing question \\
+20:20 & 1.5 min & Headset-off break; verbal comfort check (stop rule applies throughout); water offered \\
+21:50 & 8 min 39 s & \textbf{Block B}: condition i (Filter or NoFilter, order counterbalanced), the study clip in full \\
+30:30 & 0.5 min & Reset \\
+31:00 & 8 min 39 s & Condition ii, the same clip in full with the other marker set \\
+39:39 & 0.5 min & Fatigue and comfort check; headset off \\
+40:09 & 1 min & VRSQ (post) \\
+41:09 & 5 min & \textbf{Block C}: end-of-session questionnaire (ESQ), self-completed \\
+46:09 & 2.5 min & Study-aims debrief; thanks \\
+48:39 & n/a & Experimenter runs the session validator \textbf{before the participant leaves}. Incident log entry if anything deviated \\
+\hline
+\end{longtable}
+
+Arithmetic: opening 8.5; Block A 11.8 (1 + 2$\times$4.67 + 1 + 0.5); break 1.5; Block B 18.3
+(2$\times$8.66 + 2$\times$0.5); close 8.5 (1 VRSQ + 5 ESQ + 2.5 debrief). Total 48.6 minutes.
+
+The practice-to-criterion tutorial serves a specific validity function beyond familiarisation: the
+practice includes the vignette itself, so its first appearance is never during a measured trial,
+neutralising first-exposure novelty effects at the point where they would otherwise contaminate data.
+
+
+\section{Analysis plan and decision table}
+
+All analysis will be performed in Python (pandas, pingouin, statsmodels) or R, with scripts written
+and dry-run on pilot data before main collection begins. $\alpha$ = .05 throughout. Effect sizes and
+confidence intervals are reported for every test: 95\% two-sided by default, 90\% where one-sided or
+equivalence logic applies (the H1 SESOI bound and the H2b TOST).
+
+\subsection{Confirmatory analyses}
+
+\begin{longtable}{p{0.08\textwidth}|p{0.35\textwidth}|p{0.29\textwidth}|p{0.16\textwidth}}
+\caption{Confirmatory analysis plan: primary test, robustness check, and effect size per hypothesis.}\\
+\hline
+\textbf{Hypothesis} & \textbf{Primary test} & \textbf{Robustness check} & \textbf{Effect size} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Hypothesis} & \textbf{Primary test} & \textbf{Robustness check} & \textbf{Effect size} \\
+\hline
+\endhead
+\hline
+\textbf{H1} & Linear mixed model on trial-level errors (logistic LMM: error $\sim$ vignette + (1 $\mid$ participant)); the vignette term is the test & Paired t-test on per-participant error rate, NoFilter vs Filter; Wilcoxon signed-rank if Shapiro–Wilk rejects normality & dz on the paired difference; odds ratio from the LMM \\
+\textbf{H2a} & Paired t-test (Wilcoxon fallback) on per-participant hit rate in the 20–30$^{\circ}$ eccentricity band, Filter vs NoFilter & LMM on trial-level hit/miss within the band (logistic) & dz \\
+\textbf{H2b} & TOST on hit rate pooled across the whole field of view (paired), margin $\Delta$ = 10 pp \citep{lakens2017} & Bayesian paired test as an optional sensitivity check & Mean difference with 90\% CI against the margin \\
+\hline
+\end{longtable}
+
+Mixed-effects modelling at trial level follows the analysis approach of \citet{mclaughlin2025}. The
+aligned-rank-transform alternative for nonparametric factorial data \citep{wobbrock2011} is noted
+but not preferred, in light of recent critiques of ART's error control \citep{tsandilas2024}.
+
+\textbf{Multiplicity policy.} H1 is the single primary endpoint and receives no correction. H2a and H2b
+form the secondary family, Holm-corrected across the two. Everything else, the end-of-session
+questionnaire and the head-turn telemetry, is labelled exploratory and is never quoted as a
+confirmatory finding.
+
+\textbf{Power.} For the primary contrast, computed per participant as a paired difference in error rate
+between NoFilter and Filter, a paired t-test at $\alpha$ = .05 (two-tailed) with N = 20 achieves 80\%
+power for dz $\approx$ 0.65. The distractor-driven error rate underlying this comparison is large in the
+source literature (commission errors more than doubling at N = 66), so a vignette recovering half of
+it is plausibly detectable at this N. The pilot verifies the locally achievable error rate before the
+main study commits, and if it proves small, the SESOI conversation with the supervisor happens
+\textit{before} data collection rather than after. Trial-level mixed models over $\sim$5,600 Block A
+trials provide additional sensitivity beyond the aggregate-level power figure.
+
+\subsection{Exploratory analyses}
+
+End-of-session questionnaire items are reported per construct as
+medians with interquartile ranges, with the open answers quoted rather than coded, since a
+single end-of-session opinion per participant supports description and not testing. Head-turn counts and dwell toward the distractor panels (Block A) and head angular
+speed (Block B) are analysed descriptively with paired tests, flagged exploratory. Interview responses
+are thematically coded into a compact table (mode $\rightarrow$ recurring likes and concerns), with quotes
+used to illustrate the quantitative findings. H1 is re-estimated within VR-experienced and VR-naïve
+subgroups as a robustness description, not a test.
+
+\subsection{Decision table}
+
+The following table was pre-committed before data collection. Collection ended at seventeen
+workstation and fifteen driving pairs, two short of the pre-registered twenty (the deviation is
+reported in Chapter 5, Sections 5.3 and 5.7), and the table is applied to that final sample.
+\textbf{The row that occurred is row 4} for the primary hypothesis: the estimate is positive,
+significant, and adequately powered, but its 90\% interval spans both the smallest effect size of
+interest and smaller values, so the benefit is reported as a bounded estimate rather than claimed at
+the pre-set size. On the safety side, H2b's refuting observation did not occur and the
+non-inferiority reading passes decisively; the formal two-sided equivalence statistic is not
+established, for the one-directional reason set out in Chapter 5, Section 5.7.2. H2a is supported in
+its pre-registered band.
+
+\begin{longtable}{p{0.05\textwidth}|p{0.40\textwidth}|p{0.45\textwidth}}
+\caption{Pre-committed decision table mapping outcome patterns to dissertation conclusions.}\\
+\hline
+\textbf{\#} & \textbf{Outcome pattern} & \textbf{Dissertation conclusion} \\
+\hline
+\endfirsthead
+\hline
+\textbf{\#} & \textbf{Outcome pattern} & \textbf{Dissertation conclusion} \\
+\hline
+\endhead
+\hline
+1 & H1 supported (paired difference in predicted direction, $\geq$ SESOI) \textbf{and} H2b passes equivalence & \textbf{The system works}: peripheral DR dimming reduces distraction cost, and the salience mode does not measurably harm peripheral awareness. \\
+2 & H1 supported, H2b \textbf{fails} (drop > 10 pp) & The system works \textbf{for focus, at a quantified situational-awareness cost}, a conclusive, qualified result with a design implication (mode choice by context). \\
+3 & H1 \textbf{refuted} (90\% CI on the paired error-rate difference excludes the SESOI from below) & \textbf{The system does not deliver a meaningful benefit} in its core use case, a conclusive negative. The dissertation reports the bounded estimate ("the vignette reduces the error rate by at most X\%"). \\
+4 & H1 estimate positive but CI spans both SESOI and smaller values & The benefit is real-signed but \textbf{cannot be claimed at the pre-set size}. Report the estimate with its CI as a bounded conclusion. (Made unlikely by the pilot gate and trial counts. If it occurs, it is reported as such, not spun.) \\
+5 & Pilot gates fail after tuning & \textbf{The main study does not launch}. The paradigm is redesigned with the supervisor. Inconclusive main-study data is prevented, not explained. \\
+\hline
+\end{longtable}
+
+Interpretation of whichever row occurs, including the transfer limits of a positive result and the
+design implications of a negative one, is developed in Chapter 6.
+
+\section{Operational protocol}
+
+Three properties of the running protocol bear on whether the data can be trusted.
+
+\textbf{The session is deterministic.} Every distractor clip, marker onset, and task trial derives
+from versioned schedule files in the repository, and condition order derives from the participant ID,
+so a session is reproducible from those two facts alone. No experimenter arithmetic happens
+mid-session and no live machine learning runs anywhere. The sequencer asserts the required scene
+configuration at start and refuses to run on mismatch, which matters because two settings that Block
+B depends on are off in the stock scene: motion suppression, and baked-detection playback, without
+which SignPop's colour pop, window, and saliency boost do nothing at all.
+
+\textbf{Logging is redundant.} Telemetry writes one CSV row per frame at roughly 60 Hz, flushed every
+frame, so an unbroken timestamp chain is itself evidence of integrity and a crash costs under a
+second of data. Every event is a labelled row. A \verb|scrcpy| screen recording gives a second channel
+against which any disputed trial can be re-checked.
+
+\textbf{Data are validated before the participant leaves.} A validator checks timestamp continuity,
+condition counts and durations, and per-condition event counts, for example exactly 40 scored markers
+per Block B condition, returning PASS/FAIL while the participant is still in the room, so a voided
+condition can be re-run under the pre-registered rule rather than discovered a week later. Every
+deviation goes to an incident log with the rule that applied, and those are reported rather than
+hidden.
+
+\section{Threats to validity}
+
+\begin{longtable}{p{0.32\textwidth}|p{0.58\textwidth}}
+\caption{Threats to validity and their mitigations.}\\
+\hline
+\textbf{Threat} & \textbf{Mitigation} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Threat} & \textbf{Mitigation} \\
+\hline
+\endhead
+\hline
+Passthrough acuity confound (Quest 3 VST below normal acuity, worse in low light) & No fine-text reading through passthrough anywhere; the task uses large look-alike shapes ($\geq$ 3$^{\circ}$) seen through the window's untouched native passthrough; legibility confirmed at G1; bright constant lighting on the checklist \\
+Novelty effect & Practice-to-criterion tutorial including the vignette before any measured trial; counterbalancing distributes residual novelty \\
+Order and learning effects & Parity counterbalance in both Block A and Block B; matched sheets/segments; equal trial counts. Fixed A$\rightarrow$B block order is a limitation: B is always second, acceptable because B's comparison is internal to the block and counterbalanced within it \\
+Coverage limits from the session budget & The three-mode sampler was cut, so Soft Dark was never shown to a participant and no participant saw two modes on a common stimulus (Chapter 5, Section 5.6); the mode $\times$ scenario confound is therefore unmitigated, and subjective data is one end-of-session opinion per participant rather than a per-mode comparison \\
+No workload measure & A per-condition NASA-TLX was specified but never administered, so the study has no subjective workload data and cannot say whether the vignette made the task feel easier as well as produce fewer errors. The end-of-session questionnaire asks about perceived focus benefit, which is adjacent but not the same construct, and it is answered once for the whole session rather than per condition \\
+Demand characteristics & Objective primary DVs (errors, millisecond RT, telemetry); neutral "comparing display modes" framing; the noticing question follows Block A data collection \\
+Distractor floor (distractors fail to distract) & Relies on the established distractor-cost literature cited in Chapter 5, Section 5.1 \citep[N = 66]{ai2025} rather than an internal manipulation check; not independently verified within this study \\
+Simulator sickness and dropout & Seated, no locomotion, $\sim$35 min headset time, mid-session break, VRSQ pre/post, stop rule, N + 4 recruitment \\
+Small-N insensitivity & Within-subjects design, high trial counts, mixed models; single primary endpoint; SESOI and equivalence margins make null results informative; effect sizes and CIs always reported \\
+Experimenter variability & One experimenter; verbatim scripts; printed per-session checklist \\
+Ecological validity (driving is a video; workstation distractors are on-screen video panels) & The claim tested concerns attention mechanisms under controlled distraction, with driving footage as stimulus context, explicitly not a road-safety claim (Chapter 1 scoping rules); developed further in Chapter 6 \\
+Stereo comfort of camera-fed effects & The dark modes are overlay-only (no camera repaint); SignPop runs in the video scene (no live camera fusion, and its detection gate is driven by the offline oracle track, never a live model); head motion is moderate by task design \\
+SignPop's manipulation is a bundle & A confirmed detection switches on six effects at once: colour pop, window carve-out, saturation lift, brightness lift, contrast expansion, and darkened surround (Chapter 4, Section 4.5.5). So H2a and H2b cannot attribute any measured effect to one component. This is not mitigated in the current design. Chapter 6 proposes a three-arm follow-up (no filter, filter with detection off, filter with detection on) to separate them \\
+\hline
+\end{longtable}
+
+\section{Ethics artefacts}
+\label{sec:ethics-artefacts}
+
+The study was approved through the School of Computer Science and Statistics research ethics process
+(REAMS) on 27 May 2026, under the application title \textit{Enhance user focus in real world using
+XR}, reference number 6061, with the author as principal investigator and John Dingliana as primary
+supervisor. The blank participant
+information leaflet (version 2.0, dated 13 May 2026) and the blank informed consent form are
+reproduced below exactly as given to participants. Signed originals carry personal data and are
+retained by the supervisor under the School's retention policy rather than submitted with this
+dissertation.
+
+\begin{figure}[htbp]
+\centering
+\fbox{\includegraphics[width=0.44\textwidth,page=1]{content/ethics/consent-form.pdf}}
+\hfill
+\fbox{\includegraphics[width=0.44\textwidth,page=2]{content/ethics/consent-form.pdf}}
+\caption{The blank informed consent form.}
+\label{fig:consent}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\fbox{\includegraphics[width=0.44\textwidth,page=1]{content/ethics/information-leaflet.pdf}}
+\hfill
+\fbox{\includegraphics[width=0.44\textwidth,page=2]{content/ethics/information-leaflet.pdf}}
+
+\vspace{2mm}
+\fbox{\includegraphics[width=0.44\textwidth,page=3]{content/ethics/information-leaflet.pdf}}
+\hfill
+\fbox{\includegraphics[width=0.44\textwidth,page=4]{content/ethics/information-leaflet.pdf}}
+\caption{The blank participant information leaflet, pages 1--4 (page 5 carries only contact details
+and version information).}
+\label{fig:pil}
+\end{figure}
+

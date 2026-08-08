@@ -1,0 +1,865 @@
+\chapter{User Study Design}
+
+\begin{quote}
+\textbf{Status note.} This study targets N = 20 analysed participants, run to a frozen protocol after a
+formal pass/fail pilot. That collection is \textbf{still running} at the time of writing, not finished.
+Fifteen people have been tested across an initial pilot day and four further collection days,
+preceded by informal, naive-pilot iteration used to tune stimulus parameters and task form ahead of
+the frozen protocol. Fourteen usable pairs exist for Block A and thirteen for Block B. Section 6.11
+reports the interim results from those pairs, explicitly as interim: recruitment continues toward the
+N = 20 target, and nothing in Section 6.11 is the pre-registered confirmatory analysis this chapter
+specifies.
+\end{quote}
+
+\section{Rationale and Methodological Positioning}
+
+\subsection{What the study must be able to conclude}
+
+The purpose of this study is to determine whether the diminished-reality (DR) attention-guidance
+system described in Chapters 3 and 4 \textit{works}, and, just as importantly, to be able to determine that
+it \textit{does not} work, if that is what the data show. This dual requirement shapes every design decision
+in the chapter. A study that can only confirm is not an experiment. It is a demonstration. Two design
+choices in particular produce that defect: an underpowered between-subjects comparison, and safety
+hypotheses phrased as bare nulls ("peripheral detection holds steady", "accuracy is maintained or
+improves"). A non-significant difference in a small sample is evidence of nothing, so a design
+resting on bare nulls has no way to fail informatively.
+
+The present design removes the possibility of an inconclusive outcome by reframing the research
+question around an effect that is already established in the literature. Peripheral visual
+distractors reliably impose a measurable performance cost on a focal sustained-attention task in a
+head-mounted display: in a virtual-classroom Go/No-go study with 66 participants, commission errors
+more than doubled in the presence of peripheral distractor events (1.33 $\rightarrow$ 3.15, \textit{p} < .001), with
+omission errors showing the same pattern \citep{ai2025}. The primary question is therefore not the unconstrained "does the
+vignette make people better?" but the falsifiable:
+
+\begin{quote}
+\textit{Peripheral distractors impose a measurable cost on a focal task. Does the DR vignette reduce that
+cost?}
+\end{quote}
+
+Under this framing, every outcome is informative. If the vignette works, the error rate under Filter
+is lower than under NoFilter. If the vignette does nothing, the two error rates are indistinguishable,
+a bounded, conclusive negative. The design relies on the established literature cited above (Ai et
+al., 2025, N = 66) for confidence that the distractor reel imposes a real cost to begin with, rather
+than on an internal manipulation check. There is no configuration of results that yields
+"inconclusive".
+
+\subsection{Simulation-based evaluation and the oracle-perception assumption}
+
+The study occupies a deliberate position between concept evaluation and artefact evaluation, mirroring
+the dissertation's two-part structure (Chapter 1). Two named methodological commitments govern this
+position.
+
+First, the dynamic (driving) block is a \textbf{simulation-based evaluation}. Participants view
+pre-recorded equirectangular driving footage rendered on the system's sphere rather than a live street
+scene, in the tradition established by \citet{cheng2022}, who evaluated DR concepts entirely inside
+VR simulations because live DR was not feasible. Simulation gives every participant identical,
+repeatable, event-dense stimuli, something no real environment provides, at a known cost to
+ecological validity that is declared rather than obscured: no claim in this dissertation concerns
+driving, drivers, or road safety. The driving footage is a dynamic, high-event-rate monitoring
+stimulus, nothing more (see the claim-scoping rules in Chapter 1).
+
+Second, the perception problem is \textbf{decoupled from the attention question, but from
+\textit{live, on-device} detection specifically, not from detection itself}. SignPop is not
+detector-free. Its colour pop, its detection aperture, and its saliency lift are all gated on one
+detection signal (Chapter 4, Section 4.5.5), and that signal comes from an oracle, the offline
+full-resolution bake, computed once in advance rather than by a model running during a session. This
+lets the study ask whether an effect built on excellent detection helps attention, without first
+building excellent detection on-device. The finding therefore does not depend on today's on-device
+detection quality, but it does depend on oracle-quality coverage, and Chapter 5's oracle-versus-live
+benchmark measures that gap. Nor does the design distinguish which of the gated effects is
+responsible for any measured benefit, which Section 6.10.2 carries forward as a stated limitation.
+
+Critically, the two confirmatory blocks sit at opposite ends of this spectrum. Block A (workstation)
+runs on \textbf{real passthrough with real physical distractors}. It evaluates the actual artefact as
+built. Block B (driving) runs on the simulated video scene. It evaluates the concept under the
+ideal-context assumption. Convergence between them strengthens both. Divergence is itself a
+reportable finding about what simulation-based XR evaluation misses.
+
+\subsection{Why within-subjects with repeated trials}
+
+The design is fully within-subjects, with no between-subjects factors, targeting \textbf{N = 20 analysed
+participants} and a high trial count per condition. Three considerations justify this choice over the
+superficially more ambitious alternative of a larger between-groups design.
+
+First, precedent: the two closest published DR evaluations are within-subject, at N = 16 and N = 12
+\citep{cheng2022} and as two mixed-model experiments \citep{mclaughlin2025}. Second, field
+norms: \citet{caine2016} found the modal CHI sample size to be 12, with in-person studies drawing their
+power from repeated measures rather than headcount. Third, arithmetic: each participant contributes
+140 scored task events per Block A condition and 40 marker events per Block B condition, so twenty
+participants yield on the order of 5,600 Block A trials, which trial-level mixed models can exploit
+fully while per-participant aggregates feed classical paired tests as robustness checks. A
+between-subjects design at feasible recruitment numbers would discard exactly the within-person
+variance control that makes small-N studies conclusive.
+
+\section{Research Questions and Pre-Registered Hypotheses}
+
+\textbf{RQ1 (primary).} Does peripheral DR dimming (Hard Dark, world-locked window) reduce the performance
+cost that peripheral visual distractors impose on a focal workstation task?
+
+\textbf{RQ2 (secondary).} Does SignPop's detection-gated salience re-grading improve detection of
+gated objects specifically where the gate has room to act? That is the band that is neither so close
+to the focus centre that the object is already fully visible, nor so far into the periphery that it
+falls outside useful glance range. And does it do so \textit{without} degrading detection pooled
+across the whole field of view beyond an acceptable margin?
+
+\textbf{RQ3 (exploratory).} After experiencing the system, what do participants report about perceived
+focus benefit, perceived awareness cost, and visual comfort?
+
+Every hypothesis below is stated with the observation that would refute it. A hypothesis without a
+refuting observation is not admitted to the design.
+
+\begin{longtable}{p{0.07\textwidth}|p{0.36\textwidth}|p{0.33\textwidth}|p{0.12\textwidth}}
+\caption{Pre-registered research hypotheses, their refuting observations, and confirmatory status.}\\
+\hline
+\textbf{ID} & \textbf{Hypothesis (directional, falsifiable)} & \textbf{Refuting observation} & \textbf{Status} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Hypothesis (directional, falsifiable)} & \textbf{Refuting observation} & \textbf{Status} \\
+\hline
+\endhead
+\hline
+\textbf{H1} & Error rate on the Block A task, run with distractors present throughout, is lower with the vignette On than Off, by at least the smallest effect size of interest (SESOI; default $\geq$ 50\% reduction from the vignette-off error rate, finalised from pilot data). & The paired difference's 90\% CI excludes the SESOI (benefit too small to matter), or the difference is absent or reversed. & Primary confirmatory \\
+\textbf{H2a} & With SignPop On, marker-detection hit rate in the 20–30$^{\circ}$ eccentricity band is higher than with the vignette Off. This is the band where the colour-pop gate has visible room to act but the target is still within useful glance range (Section 6.6.3). & Band-level difference's CI includes 0 or favours Off. & Secondary confirmatory \\
+\textbf{H2b} & With SignPop On, marker-detection hit rate pooled across the whole field of view is \textit{equivalent} to Off within a margin of $\Delta$ = 10 percentage points (two one-sided tests, TOST). & Equivalence not established and the point estimate shows a drop > 10 pp. A conclusive finding that the mode harms situational awareness. & Secondary confirmatory (safety) \\
+\textbf{EQ1–EQ3} (exploratory) & End-of-session questionnaire responses favour the effects on perceived focus benefit (EQ1), perceived awareness cost (EQ2), and visual comfort (EQ3). & n/a (exploratory, no confirmatory claim attaches) & Exploratory \\
+\hline
+\end{longtable}
+
+\textbf{SESOI rationale.} H1's smallest effect of interest is expressed as a \textit{proportion of the
+vignette-off error rate} rather than as a raw error count, because the raw error rate depends on
+stimulus tuning that the pilot legitimately adjusts. The 50\% default embodies a defensible practical
+judgement: a vignette that removes less than half of the distraction-laden error rate does not justify
+wearing a headset to obtain it. The pilot converts this proportion into an absolute error-rate margin
+for the power check before the main study commits, and this conversion is recorded in the post-pilot
+lock-in memo (Appendix~A). H2b's 10-percentage-point margin reflects the safety framing inherited
+from the DR focus-versus-awareness trade-off documented by \citet{mclaughlin2025} and \citet{murph2021}: in a monitoring context, losing more than one detection event in ten to the overlay,
+pooled across the whole scene, is an unacceptable awareness cost. Equivalence testing follows \citet{lakens2017}, which gives the safety hypothesis a form that can fail rather than a bare null.
+
+\section{Participants, Ethics, and Apparatus}
+
+\subsection{Participants}
+
+Twenty-four adults will be recruited (target: 20 analysed, with four spares against dropouts and
+pre-registered exclusions). Inclusion criteria follow the approved ethics protocol: aged 18 or over,
+normal or corrected-to-normal vision, no self-reported vestibular disorders. Prior VR experience is
+recorded on a four-level scale (never / a few times / monthly / weekly or more) and used as a
+robustness covariate rather than a selection criterion, since the deployed system must serve VR-naïve
+users.
+
+\subsection{Ethics and safety}
+
+The study runs under the ethics approval obtained for the protocol, with every difference between the
+approved protocol and the design as run classified and reviewed with the supervisor beforehand. The
+substantive task classes, seated video viewing, button presses, and tablets as distractors, are
+unchanged from what was approved.
+
+Sickness risk is managed by design and by rule. By design, all tasks are seated, there is no
+artificial locomotion, total headset time is approximately 35 minutes, and a headset-off break
+separates the two confirmatory blocks. By rule, a written \textbf{stop rule} is applied without
+discussion: the VR portion terminates immediately if the participant reports nausea or dizziness at a
+moderate or worse level, at a scheduled comfort check or spontaneously, or if the experimenter
+observes distress. Comfort checks fall at the break after Block A and mandatorily after Block B
+before headset removal, with additional checks on request. After termination the participant rests
+seated, is offered water, and remains until symptoms subside. Data collected up to that point are
+retained per the consent wording and the participant is replaced from the spare pool. The Virtual
+Reality Sickness Questionnaire (VRSQ; \citealp{kim2018}) is administered \textbf{pre and post} session,
+because post-only sickness scores are uninterpretable without a baseline \citep{brown2022}.
+
+\subsection{Apparatus}
+
+All sessions use the same Meta Quest 3 headset with controllers (hand tracking disabled), in the same
+room, with bright constant lighting at a marked setting. Quest 3 passthrough acuity degrades
+markedly in low light \citep{wang2026}, so lighting is a controlled variable, not a convenience.
+The participant sits on a fixed chair at a desk. The experimenter monitors the participant's view via
+an \verb|scrcpy| mirror with screen recording running as a redundant data channel. Every stimulus in
+every block is deterministic and scripted from versioned schedule files. No live object detection
+runs anywhere in the study. The instrumentation, a telemetry component, a condition sequencer, a
+marker scheduler, and a post-session validator, is described in Section 6.10.1.
+
+\section{Design Overview}
+
+\subsection{Structure}
+
+\begin{longtable}{p{0.20\textwidth}|p{0.70\textwidth}}
+\caption{Overview of the within-subjects design: participants, session length, blocks, and
+counterbalancing.}\\
+\hline
+\textbf{Property} & \textbf{Value} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Property} & \textbf{Value} \\
+\hline
+\endhead
+\hline
+Design & Fully within-subjects, no between-subjects factors \\
+N & 20 analysed (24 recruited) \\
+Session length & $\sim$48.5 minutes including consent and debrief \\
+Blocks & A, workstation, Filter vs NoFilter (primary); B, driving marker detection, Filter vs NoFilter (secondary); C, end-of-session questionnaire, headset off (exploratory) \\
+Counterbalancing & Block A: condition order alternated by participant parity (Filter-first / NoFilter-first). Block B: condition order alternated by participant parity (10 SignPop-first, 10 Off-first), with the two marker sets alternated against condition. Block C carries no conditions to counterbalance. \\
+Block order & Fixed A$\rightarrow$B$\rightarrow$C for all participants: A is primary and must come freshest. C is a headset-off questionnaire and comes last. Acknowledged as a limitation (Section 6.10.2). \\
+\hline
+\end{longtable}
+
+Within each block, the stimulus material, seating, lighting, controller, and task are identical
+across conditions. Only the shader state differs. In vignette-off conditions the focus window is
+still painted and locked by the participant, so the motor and procedural experience is identical
+across conditions. The vignette is isolated as the sole independent variable.
+
+\subsection{Why these modes, and why these pairings}
+
+Ten peripheral treatments exist in the codebase (Chapter 4). Two of them, Hard Dark and SignPop, were
+carried to confirmatory testing in Blocks A and B. This section explains that split before it explains
+why each tested mode was paired with its block.
+
+\textbf{The tested modes have data behind them.} Hard Dark and SignPop were run on real participants,
+and Chapters 5 to 7 report what happened. Every claim this dissertation makes about them is a claim
+about measured behaviour, not a design argument.
+
+\textbf{The other eight modes were set aside for one of four reasons, not one.} First, two are ruled
+out by prior literature. Blur was the most noticed and most disliked of five peripheral techniques in
+its own source study, actively irritating 59 of 102 participants \citep{grogorick2018}, and it also
+carries the heaviest shader cost of any mode (Chapter 4). ChromaticCool loses to luminance-only
+modulation in its own source study \citep{bailey2009}. Testing either again here would repeat a
+result the field already has. Second, informal piloting narrowed a larger candidate set down to the
+two modes early testers found most comfortable and effective, and four modes lost that comparison for
+reasons specific to each. ConspicuitySqueeze brightened the periphery instead of squeezing its
+contrast toward the local mean, the opposite of what it was meant to do, confirmed by inspecting the
+shader directly. OutlinedDark's surviving edges read as a comic-book style that testers found more
+interesting than the task itself. GranulatedPeriphery's grains occlude fine detail, which is exactly
+the wrong failure mode for a driving scene where the detail is the target. SpotLift could not even be
+built on the passthrough path: it would brighten the focus window rather than darken the rest, and the
+OS passthrough layer cannot be brightened, so it exists only in the video path. All four are reported
+in Chapter 4 as design points, not as tested claims. Third, ColorPop is
+not itself set aside so much as superseded: SignPop is built directly
+on ColorPop's grading pipeline with a detection gate added, so ColorPop was never a candidate for
+independent testing alongside its own extension. Fourth, one mode's expected effect was judged too
+small to detect with the session budget and sample size this study can afford: attenuating the
+periphery to 75\% opacity is a smaller, harder-to-power claim than removing it completely. Soft Dark
+is therefore not tested, and this dissertation reports no participant data on it of any kind
+(Section 6.7).
+
+\textbf{Hard Dark is assigned to Block A} because dark modes \textit{remove} peripheral signal, and the
+workstation paradigm measures precisely what removal should buy: a reduced distractor cost. Hard Dark
+is preferred for the confirmatory test because it is the strongest manipulation in the family,
+maximising the probability of detecting the mechanism if it exists.
+
+\textbf{SignPop is assigned to Block B} because it does not primarily remove signal. It \textit{re-grades
+salience}, gated on a detected object rather than colour class alone. The marker-detection paradigm
+measures what re-grading should buy, a detection benefit concentrated where the gate fires (H2a), and
+what it must not cost, peripheral awareness overall (H2b).
+
+\textbf{The mode $\times$ scenario confound is stated plainly.} Hard Dark is tested only at the workstation and
+SignPop only in the driving scene. All confirmatory claims in this dissertation are therefore
+\textit{mode-in-context} claims ("Hard Dark reduces distractor cost in a workstation task"), never
+mode-generalised claims ("dark vignettes work"). Nothing in the study softens this confound, because
+no participant ever saw two modes on a common stimulus.
+
+\section{Block A: Primary, Workstation Focus (Hard Dark, real passthrough)}
+
+Block A answers the primary question: does blacking out the periphery around a world-locked focus
+window reduce the errors that real peripheral distractors impose on a focal task?
+
+\subsection{Design}
+
+The comparison is \textbf{Filter on vs Filter off}, with the distractor reel present throughout, run as a
+direct paired comparison of error rate. H1 is evaluated on this comparison.
+
+\subsection{Physical layout and distractor stimulus}
+
+The participant sits at a desk with the task surface directly ahead: a world-locked virtual panel
+(Section 6.5.4) approximately 0.6 m from the eyes. Two tablets on stands are placed at \textbf{$\pm$35$^{\circ}$
+azimuth} from the task centre, approximately 1 m from the participant, screens facing them. The 35$^{\circ}$
+eccentricity places the distractors in the near-periphery zone of maximal involuntary attentional
+capture identified by the Useful Field of View literature \citep{ball1993}. Note that Ball \&
+Owsley define and validate the UFOV \textit{test}; the $\approx$30$^{\circ}$ extent used here is the conventional figure
+from that literature rather than a value stated in their paper.
+
+All fifteen people tested (Section 6.11) were run in-headset on this apparatus. Task feel and timing
+were tuned beforehand on a browser prototype (this chapter's status note), which placed its
+distractors at only 15–25$^{\circ}$ of eccentricity and so was used for timing alone. Hard Dark's job in
+this block is to occlude the tablets from view entirely, not merely dim them at a distance.
+Figure~\ref{fig:blockalayout} gives the plan view.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_block_a_layout.png}
+\caption{Plan view of the Block A apparatus and distractor placement.}
+\label{fig:blockalayout}
+\end{figure}
+
+The tablets play a prepared \textbf{distractor reel}: fast-cut, high-motion, bright video with scheduled
+salient event bursts, hard cuts to full-screen colour flashes with sudden motion, at fixed
+timestamps approximately every 20–30 seconds, identical across participants. It runs continuously, in
+every condition, for every participant.
+
+\subsection{Conditions}
+
+The two conditions are \textbf{NoFilter} (\verb|_DrIntensity = 0|, so the window is painted but
+invisible) and \textbf{Filter} (Hard Dark on, window live). The distractor reel plays on both tablets
+throughout each.
+
+Each condition lasts 4 minutes 40 seconds, which is 140 trials at the 2.0 s stimulus onset
+asynchrony fixed in Section 6.5.4. The two conditions, Filter and NoFilter, run once each per
+participant, in counterbalanced order. Before the first condition the participant paints the focus
+window around the task surface with the right trigger, the system's normal interaction, and releases
+to lock it. The experimenter verifies that both tablets fall outside the window and the entire task
+surface falls inside it. The same locked window persists across both conditions, re-verified between
+them. Only \verb|_DrIntensity| toggles.
+
+\subsection{Task}
+
+The task form answers a genuinely optical rather than attentional risk: Quest 3 passthrough does not
+reach normal visual acuity, and a task participants cannot comfortably \textit{see} would floor out in
+every condition for reasons unrelated to the vignette. The task is therefore rendered on a virtual,
+world-locked panel rather than read through passthrough. Gate G1 (Appendix~A) confirms it performs
+in range.
+
+\textbf{The task, forced-choice 1-back.} A world-locked panel inside the focus window presents one
+look-alike shape at a time (drawn from a set of six, $\geq$ 3$^{\circ}$ visual angle), and the participant
+answers YES/NO on every shape, "same as the previous shape?", via trigger press. This is a
+forced-choice design rather than Go/No-go, because a Go/No-go stream is overwhelmingly targets and
+ceilings out (96–100\% accuracy in piloting) regardless of distractor condition, which would leave
+the block unable to detect any vignette effect at all. The forced-choice 1-back adds a
+working-memory and goal-maintenance component on top of the reactive one, and its memoryless
+50\%-repeat sequence keeps performance off ceiling. Timing is frozen for the study at 140 trials per
+condition, a 2.0 s stimulus onset asynchrony, and a 1.7 s answer window. The first
+shape of each run is a memorise-only trial with no scored response. Outcomes are \verb|hit| (YES on a
+genuine repeat), \verb|miss| (a repeat missed, by wrong answer or timeout), \verb|commission| (YES on a
+non-repeat), \verb|correct_reject| (NO on a non-repeat), and \verb|no_response| (timeout on a non-repeat,
+logged separately as an engagement signal). Every onset and response is logged to the millisecond.
+Error rate is misses plus commissions, and reaction time is taken from correct trials. No per-trial
+correctness feedback is given during scored runs, only pacing feedback ("too slow"), so
+trial-by-trial feedback cannot shift participants' speed/accuracy strategy mid-run.
+
+\textbf{Implementation.} The task runs in the in-headset panel, ported from a standalone browser
+prototype (\verb|PilotTools/block-a-cpt.html|) used for no-headset timing work. The window itself
+uses room-geometry anchoring for this block specifically, not the
+bearing-and-elevation direction-lock that is the system's default and that Block B uses (Chapter 4).
+Four corner rays are captured when the participant releases the paint trigger and remembered as
+physical points in the room, so the window stays put as the participant leans toward or away from the
+desk.
+
+\subsection{Measures}
+
+\begin{longtable}{p{0.42\textwidth}|p{0.48\textwidth}}
+\caption{Block A measures and their instruments or ground truth.}\\
+\hline
+\textbf{Measure} & \textbf{Instrument / ground truth} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Measure} & \textbf{Instrument / ground truth} \\
+\hline
+\endhead
+\hline
+Error rate per condition (primary DV input) & StudyLogger event log \\
+H1 statistic = errors(NoFilter) $-$ errors(Filter) & Derived per participant. Also modelled at trial level \\
+Reaction time & StudyLogger, milliseconds \\
+Head-turns toward tablets (> 30$^{\circ}$ yaw from task centre): count and dwell & Head-pose telemetry, 60 Hz \\
+Noticing check & One open question after Block A: "Did anything make the side screens easier or harder to ignore?" \\
+\hline
+\end{longtable}
+
+\section{Block B: Secondary, Driving Marker Detection (SignPop, video scene)}
+
+Block B answers the secondary pair: does SignPop improve detection specifically where its
+detection-gated re-grading has room to act (H2a), without degrading detection pooled across the whole
+scene beyond the safety margin (H2b)?
+
+\subsection{Design}
+
+The comparison is \textbf{Filter on vs Filter off}, and the task uses the driving footage's own
+content as the target. A ring marker is authored onto each real traffic-light or pedestrian
+("person") object as it appears in the footage, and the participant presses the trigger on noticing
+it. Putting the target on a real object, rather than on an abstract probe overlaid on the scene, is
+what makes the measurement direct. The object under the marker is exactly the kind of object
+SignPop's detection gate is built to reveal, so the task measures detection of the thing the filter
+actually acts on. H2a and H2b are both evaluated on this comparison.
+
+\subsection{Stimulus and conditions}
+
+The block uses the system's video test scene: equirectangular urban driving footage rendered on the
+display sphere. Both conditions play the \textit{same} clip, \verb|study_video.mp4|, in full, running
+8 minutes 39 seconds each. Holding the footage fixed means the two conditions differ only in shader
+state and in which marker set is scored, never in what the participant is looking at. The focus
+window is pre-set to the windscreen region, direction-locked in azimuth/elevation for all
+participants (Chapter 4). There is no window painting in this block, so the guided region stays
+constant across the sample.
+
+\begin{longtable}{p{0.15\textwidth}|p{0.75\textwidth}}
+\caption{Block B conditions: shader state for the driving marker-detection task.}\\
+\hline
+\textbf{Condition} & \textbf{Shader state} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Condition} & \textbf{Shader state} \\
+\hline
+\endhead
+\hline
+NoFilter & Vignette Off (raw video) \\
+Filter & SignPop On (motion suppression active, shipping defaults, detection gate enabled) \\
+\hline
+\end{longtable}
+
+Condition order alternates by participant parity, and the two marker sets are paired with the two
+conditions in alternation as well, so neither set is systematically tied to Filter or NoFilter.
+
+\subsection{Marker-detection task}
+
+\textbf{Forty scored markers per condition, drawn from two disjoint sets of forty over the same
+clip.} That is 1,040 marker presentations in total across the thirteen usable pairs collected so far.
+Using a different set in each condition stops a participant meeting the same target twice, which
+would turn the second condition into a memory test. Each marker is a ring authored onto a real
+traffic-light or pedestrian target in the footage. It fades in rather than switching on, because sudden onsets capture
+attention automatically and would swamp the effect being measured \citep{yantis1984}. It also
+modulates the pixels underneath rather than covering them, so it keeps its own internal contrast even
+where the filter has dimmed everything under it \citep{wallis2015}. The marker itself is
+dimmed by the same falloff as the rest of the scene regardless of condition, so a filtered marker is
+never easier to see as a marker. Only the object beneath a detected marker is treated differently
+between conditions. Seventy of the eighty authored targets (88\%) fall inside an active detection
+window while on screen, replicating the runtime's own gates: minimum lifetime 0.6 s, minimum box size
+1.2$^{\circ}$, and a 16-window cap. In the NoFilter condition the detector is suppressed along with the
+rest of the effect, so the same object receives no pass-through there.
+
+A \textbf{hit} is a trigger press while the marker is on screen, within 10$^{\circ}$ of its position at
+that instant. Presses that land on nothing are \textbf{false alarms}. Markers move while visible, by
+17$^{\circ}$ of travel on average, so scoring against a marker's \textit{average} position would
+misassign a meaningful share of presses to the wrong analysis band. Instead every press is scored
+against the marker's reconstructed position, from the recorded scene track, at the exact instant of
+the press. Practice markers, which use ids in a reserved range and run before scored trials, are
+excluded from every analysis.
+
+\textbf{Eccentricity bands.} For the secondary, exploratory analysis behind H2a, each scored marker's
+position at the instant of its catch (or, for misses, its mean on-screen position) is converted to an
+eccentricity from the focus-window centre. It is then assigned to one of four bands, fixed from
+published gaze landmarks rather than chosen after seeing the data.
+
+The bands are placed where the driving literature already locates the safety-critical periphery.
+Driver gaze concentrates in a road-centre region of roughly 8$^{\circ}$ radius \citep{victor2005}, so
+the under-10$^{\circ}$ band covers what a viewer is looking at anyway, and it is the region where a
+guidance effect has least to add. The Peripheral Detection Task, the standard instrument for
+measuring spare attentional capacity under load, deliberately places its probes just outside that
+region, at 11–23$^{\circ}$ horizontal eccentricity \citep{jahn2005}, and the Detection Response Task
+standardises the same logic with a fixed, background-independent stimulus \citep{iso2016}. The
+10–20$^{\circ}$ and 20–30$^{\circ}$ bands bracket that published range. The outer boundary is the
+conventional useful-field-of-view extent of roughly 30$^{\circ}$ \citep{ball1993}, past which a target
+falls outside the radius from which people extract task-relevant information without moving their
+eyes, so a stronger peripheral signal there has little left to buy. H2b's safety check pools hit rate
+across all four bands, that is, across the whole field of view.
+
+One point of fit is worth stating precisely, because the 20--30$^{\circ}$ band carries H2a. The
+published probe range stops at 23$^{\circ}$, so it covers the 10–20$^{\circ}$ band completely but only
+the lower part of 20–30$^{\circ}$. The boundaries here are round numbers chosen to bracket the
+published landmarks, not to reproduce any one study's geometry.
+
+\subsection{Measures}
+
+\begin{longtable}{p{0.45\textwidth}|p{0.45\textwidth}}
+\caption{Block B measures and their instruments.}\\
+\hline
+\textbf{Measure} & \textbf{Instrument} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Measure} & \textbf{Instrument} \\
+\hline
+\endhead
+\hline
+Hit rate pooled across the whole field of view (H2b input) & Authored-marker click log \\
+Hit rate by eccentricity band, esp. 20–30$^{\circ}$ (H2a input) & Authored-marker click log + reconstructed scene track \\
+Reaction time on hits & Authored-marker click log \\
+False alarms per condition & Authored-marker click log \\
+Head yaw/pitch telemetry and angular speed & StudyLogger, 60 Hz \\
+\hline
+\end{longtable}
+
+Head pose serves as the attention proxy in place of eye tracking, which the Quest 3 does not provide.
+Head orientation is a validated gaze surrogate at the eccentricities used here \citep{higgins2022,sitzmann2018}.
+
+\section{Block C: Exploratory, End-of-Session Questionnaire}
+
+Block C answers RQ3: after experiencing the system, what do participants report about it? It carries
+no confirmatory claims.
+
+\textbf{Protocol deviation.} A three-mode sampler was specified here, 75 seconds each of SignPop, Soft
+Dark, and Hard Dark on common footage with Likert items after each. It was cut from the running
+protocol, because the two confirmatory blocks already account for roughly 35 minutes in the headset
+and the sampler would have added two further exposures at the point of maximum fatigue. Two
+consequences follow, and both are carried through this dissertation rather than absorbed quietly.
+Soft Dark was never shown to a participant, so no participant data on it exists. And no participant
+ever saw two modes on a common stimulus, so the mode $\times$ scenario confound of Section 6.4.2 is
+unmitigated.
+
+\textbf{The instrument.} A single end-of-session questionnaire (ESQ), self-completed
+with the headset off, after the post-session VRSQ and before the study-aims debrief. Opinions are
+captured before the hypotheses are revealed, which is the demand-characteristics defence of
+Section 6.10.2. It takes about five minutes: 23 rated items, one ranking, one multi-select, and four
+open questions. The rated items are grouped into three constructs, each mixing positively and
+negatively keyed items to counter acquiescence bias:
+
+\begin{enumerate}
+\item \textbf{Perceived focus benefit} (EQ1): did the effects subjectively help concentration on the
+  task area?
+\item \textbf{Perceived awareness cost} (EQ2): did the effects make the participant feel cut off
+  from, or late to notice, what was around them?
+\item \textbf{Visual comfort} (EQ3): were the effects comfortable to look at over a session, and did
+  the window boundary itself intrude?
+\end{enumerate}
+
+The open questions ask what the participant would change, what would stop them using it for an hour
+of real work, and what the edges of their vision felt like.
+
+\textbf{Caveats, stated honestly.} The questionnaire asks for one considered opinion of the whole
+session, so it cannot separate Hard Dark's contribution from SignPop's. It is a system-level
+instrument, reported as exploratory, with medians and the open answers quoted rather than tested.
+
+\section{Session Procedure and Pilot}
+
+\subsection{Session timeline}
+
+The full session runs $\sim$48.5 minutes, inside the 40–60-minute tolerance window participants
+typically accept. Headset-on time is $\sim$35 minutes of that. The information sheet is sent in
+advance, and the closing questionnaires are done with the headset off.
+
+\begin{longtable}{p{0.12\textwidth}|p{0.13\textwidth}|p{0.65\textwidth}}
+\caption{Session timeline: clock time, duration, and activity for the full $\sim$48.5-minute session.}\\
+\hline
+\textbf{Clock} & \textbf{Duration} & \textbf{Activity} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Clock} & \textbf{Duration} & \textbf{Activity} \\
+\hline
+\endhead
+\hline
+00:00 & 4 min & Welcome; written consent (information sheet pre-read); demographics + VR-experience form; VRSQ (pre) \\
+04:00 & 4.5 min & Headset fitting and comfort check; tutorial: paint/lock a practice window; practice to criterion ($\geq$ 90\% accuracy on a 1-minute practice stream; marker practice: 6 markers, $\geq$ 4 hits). One repeat allowed. \\
+08:30 & 1 min & \textbf{Block A}: paint and lock focus window; experimenter verifies geometry \\
+09:30 & 4 min 40 s & Condition i (Filter or NoFilter, order counterbalanced) \\
+14:10 & 1 min & Reset (tablets re-cued, window geometry re-verified) \\
+15:10 & 4 min 40 s & Condition ii \\
+19:50 & 0.5 min & Noticing question \\
+20:20 & 1.5 min & Headset-off break; verbal comfort check (stop rule applies throughout); water offered \\
+21:50 & 8 min 39 s & \textbf{Block B}: condition i (Filter or NoFilter, order counterbalanced), the study clip in full \\
+30:30 & 0.5 min & Reset \\
+31:00 & 8 min 39 s & Condition ii, the same clip in full with the other marker set \\
+39:39 & 0.5 min & Fatigue and comfort check; headset off \\
+40:09 & 1 min & VRSQ (post) \\
+41:09 & 5 min & \textbf{Block C}: end-of-session questionnaire (ESQ), self-completed \\
+46:09 & 2.5 min & Study-aims debrief; thanks \\
+48:39 & n/a & Experimenter runs the session validator \textbf{before the participant leaves}. Incident log entry if anything deviated \\
+\hline
+\end{longtable}
+
+Arithmetic: opening 8.5; Block A 11.8 (1 + 2$\times$4.67 + 1 + 0.5); break 1.5; Block B 18.3
+(2$\times$8.66 + 2$\times$0.5); close 8.5 (1 VRSQ + 5 ESQ + 2.5 debrief). Total 48.6 minutes.
+
+The practice-to-criterion tutorial serves a specific validity function beyond familiarisation: the
+practice includes the vignette itself, so its first appearance is never during a measured trial,
+neutralising first-exposure novelty effects at the point where they would otherwise contaminate data.
+
+\subsection{Pilot gates}
+
+A pilot of three to five participants, excluded from the main sample, ran before collection opened.
+Its purpose was structural rather than exploratory: to make an uninterpretable main study impossible.
+Three gates had to pass before launch, covering task form, marker calibration, and two full
+end-to-end protocol dry runs, each with a stated pass criterion and a stated action on failure.
+Stimulus parameters could be tuned between pilot participants. Hypotheses, margins, and analysis
+choices could not. The gates are reproduced in full in Appendix~A, together with the pre-registered
+exclusion and data-quality rules and the verbatim participant scripts. The pilot concluded with a
+one-page lock-in memo recording the chosen task form, the tuned parameters, and the finalised SESOI
+for H1, after which nothing changed until collection ended.
+
+\section{Analysis Plan and Decision Table}
+
+All analysis will be performed in Python (pandas, pingouin, statsmodels) or R, with scripts written
+and dry-run on pilot data before main collection begins. $\alpha$ = .05 throughout. Effect sizes and
+confidence intervals are reported for every test: 95\% two-sided by default, 90\% where one-sided or
+equivalence logic applies (the H1 SESOI bound and the H2b TOST).
+
+\subsection{Confirmatory analyses}
+
+\begin{longtable}{p{0.08\textwidth}|p{0.35\textwidth}|p{0.29\textwidth}|p{0.16\textwidth}}
+\caption{Confirmatory analysis plan: primary test, robustness check, and effect size per hypothesis.}\\
+\hline
+\textbf{Hypothesis} & \textbf{Primary test} & \textbf{Robustness check} & \textbf{Effect size} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Hypothesis} & \textbf{Primary test} & \textbf{Robustness check} & \textbf{Effect size} \\
+\hline
+\endhead
+\hline
+\textbf{H1} & Linear mixed model on trial-level errors (logistic LMM: error $\sim$ vignette + (1 $\mid$ participant)); the vignette term is the test & Paired t-test on per-participant error rate, NoFilter vs Filter; Wilcoxon signed-rank if Shapiro–Wilk rejects normality & dz on the paired difference; odds ratio from the LMM \\
+\textbf{H2a} & Paired t-test (Wilcoxon fallback) on per-participant hit rate in the 20–30$^{\circ}$ eccentricity band, Filter vs NoFilter & LMM on trial-level hit/miss within the band (logistic) & dz \\
+\textbf{H2b} & TOST on hit rate pooled across the whole field of view (paired), margin $\Delta$ = 10 pp \citep{lakens2017} & Bayesian paired test as an optional sensitivity check & Mean difference with 90\% CI against the margin \\
+\hline
+\end{longtable}
+
+Mixed-effects modelling at trial level follows the analysis approach of \citet{mclaughlin2025}. The
+aligned-rank-transform alternative for nonparametric factorial data \citep{wobbrock2011} is noted
+but not preferred, in light of recent critiques of ART's error control \citep{tsandilas2024}.
+
+\textbf{Multiplicity policy.} H1 is the single primary endpoint and receives no correction. H2a and H2b
+form the secondary family, Holm-corrected across the two. Everything else, the end-of-session
+questionnaire and the head-turn telemetry, is labelled exploratory and is never quoted as a
+confirmatory finding.
+
+\textbf{Power.} For the primary contrast, computed per participant as a paired difference in error rate
+between NoFilter and Filter, a paired t-test at $\alpha$ = .05 (two-tailed) with N = 20 achieves 80\%
+power for dz $\approx$ 0.65. The distractor-driven error rate underlying this comparison is large in the
+source literature (commission errors more than doubling at N = 66), so a vignette recovering half of
+it is plausibly detectable at this N. The pilot verifies the locally achievable error rate before the
+main study commits, and if it proves small, the SESOI conversation with the supervisor happens
+\textit{before} data collection rather than after. Trial-level mixed models over $\sim$5,600 Block A
+trials provide additional sensitivity beyond the aggregate-level power figure.
+
+\subsection{Exploratory analyses}
+
+End-of-session questionnaire items are reported per construct as
+medians with interquartile ranges, with the open answers quoted rather than coded, since a
+single end-of-session opinion per participant supports description and not testing. Head-turn counts and dwell toward the tablets (Block A) and head angular
+speed (Block B) are analysed descriptively with paired tests, flagged exploratory. Interview responses
+are thematically coded into a compact table (mode $\rightarrow$ recurring likes and concerns), with quotes
+used to illustrate the quantitative findings. H1 is re-estimated within VR-experienced and VR-naïve
+subgroups as a robustness description, not a test.
+
+\subsection{Decision table}
+
+The following table is pre-committed, and the dissertation will report whichever row occurred once the
+$N = 20$ collection concludes. The interim results of Section 6.11 are consistent with row 1: H1 is supported, and H2b's refuting
+observation did not occur, so no harm to situational awareness is shown. The formal two-sided
+equivalence statistic is not established at the interim $N$, for the one-directional reason set out
+in Section 6.11.2. These are not this table's confirmatory trigger. The
+table maps outcomes of the final, fully powered collection, not an interim analysis run partway
+through recruitment.
+
+\begin{longtable}{p{0.05\textwidth}|p{0.40\textwidth}|p{0.45\textwidth}}
+\caption{Pre-committed decision table mapping outcome patterns to dissertation conclusions.}\\
+\hline
+\textbf{\#} & \textbf{Outcome pattern} & \textbf{Dissertation conclusion} \\
+\hline
+\endfirsthead
+\hline
+\textbf{\#} & \textbf{Outcome pattern} & \textbf{Dissertation conclusion} \\
+\hline
+\endhead
+\hline
+1 & H1 supported (paired difference in predicted direction, $\geq$ SESOI) \textbf{and} H2b passes equivalence & \textbf{The system works}: peripheral DR dimming reduces distraction cost, and the salience mode does not measurably harm peripheral awareness. \\
+2 & H1 supported, H2b \textbf{fails} (drop > 10 pp) & The system works \textbf{for focus, at a quantified situational-awareness cost}, a conclusive, qualified result with a design implication (mode choice by context). \\
+3 & H1 \textbf{refuted} (90\% CI on the paired error-rate difference excludes the SESOI from below) & \textbf{The system does not deliver a meaningful benefit} in its core use case, a conclusive negative. The dissertation reports the bounded estimate ("the vignette reduces the error rate by at most X\%"). \\
+4 & H1 estimate positive but CI spans both SESOI and smaller values & The benefit is real-signed but \textbf{cannot be claimed at the pre-set size}. Report the estimate with its CI as a bounded conclusion. (Made unlikely by the pilot gate and trial counts. If it occurs, it is reported as such, not spun.) \\
+5 & Pilot gates fail after tuning & \textbf{The main study does not launch}. The paradigm is redesigned with the supervisor. Inconclusive main-study data is prevented, not explained. \\
+\hline
+\end{longtable}
+
+Interpretation of whichever row occurs, including the transfer limits of a positive result and the
+design implications of a negative one, is developed in Chapter 7. The oracle-vs-live perception gap
+that bounds the generality of Block B's simulated context is quantified in Chapter 5.
+
+\section{Operational Protocol and Threats to Validity}
+
+\subsection{Operational protocol}
+
+Three properties of the running protocol bear on whether the data can be trusted.
+
+\textbf{The session is deterministic.} Every distractor burst, marker onset, and task trial derives
+from versioned schedule files in the repository, and condition order derives from the participant ID,
+so a session is reproducible from those two facts alone. No experimenter arithmetic happens
+mid-session and no live machine learning runs anywhere. The sequencer asserts the required scene
+configuration at start and refuses to run on mismatch, which matters because two settings that Block
+B depends on are off in the stock scene: motion suppression, and baked-detection playback, without
+which SignPop's colour pop, window, and saliency boost do nothing at all.
+
+\textbf{Logging is redundant.} Telemetry writes one CSV row per frame at roughly 60 Hz, flushed every
+frame, so an unbroken timestamp chain is itself evidence of integrity and a crash costs under a
+second of data. Every event is a labelled row. A \verb|scrcpy| screen recording gives a second channel
+against which any disputed trial can be re-checked.
+
+\textbf{Data are validated before the participant leaves.} A validator checks timestamp continuity,
+condition counts and durations, and per-condition event counts, for example exactly 40 scored markers
+per Block B condition, returning PASS/FAIL while the participant is still in the room, so a voided
+condition can be re-run under the pre-registered rule rather than discovered a week later. Every
+deviation goes to an incident log with the rule that applied, and those are reported rather than
+hidden.
+
+\subsection{Threats to validity}
+
+\begin{longtable}{p{0.32\textwidth}|p{0.58\textwidth}}
+\caption{Threats to validity and their mitigations.}\\
+\hline
+\textbf{Threat} & \textbf{Mitigation} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Threat} & \textbf{Mitigation} \\
+\hline
+\endhead
+\hline
+Passthrough acuity confound (Quest 3 VST below normal acuity, worse in low light) & No fine-text reading through passthrough anywhere; the task is rendered on a virtual panel rather than read through passthrough; legibility confirmed at G1; bright constant lighting on the checklist \\
+Novelty effect & Practice-to-criterion tutorial including the vignette before any measured trial; counterbalancing distributes residual novelty \\
+Order and learning effects & Parity counterbalance in both Block A and Block B; matched sheets/segments; equal trial counts. Fixed A$\rightarrow$B block order is a limitation: B is always second, acceptable because B's comparison is internal to the block and counterbalanced within it \\
+Coverage limits from the session budget & The three-mode sampler was cut, so Soft Dark was never shown to a participant and no participant saw two modes on a common stimulus (Section 6.7); the mode $\times$ scenario confound is therefore unmitigated, and subjective data is one end-of-session opinion per participant rather than a per-mode comparison \\
+No workload measure & A per-condition NASA-TLX was specified but never administered, so the study has no subjective workload data and cannot say whether the vignette made the task feel easier as well as produce fewer errors. The end-of-session questionnaire asks about perceived focus benefit, which is adjacent but not the same construct, and it is answered once for the whole session rather than per condition \\
+Demand characteristics & Objective primary DVs (errors, millisecond RT, telemetry); neutral "comparing display modes" framing; the noticing question follows Block A data collection \\
+Distractor floor (distractors fail to distract) & Relies on the established distractor-cost literature cited in Section 6.1.1 \citep[N = 66]{ai2025} rather than an internal manipulation check; not independently verified within this study \\
+Simulator sickness and dropout & Seated, no locomotion, $\sim$35 min headset time, mid-session break, VRSQ pre/post, stop rule, N + 4 recruitment \\
+Small-N insensitivity & Within-subjects design, high trial counts, mixed models; single primary endpoint; SESOI and equivalence margins make null results informative; effect sizes and CIs always reported \\
+Experimenter variability & One experimenter; verbatim scripts; printed per-session checklist \\
+Ecological validity (driving is a video; workstation distractors are tablets) & The claim tested concerns attention mechanisms under controlled distraction, with driving footage as stimulus context, explicitly not a road-safety claim (Chapter 1 scoping rules); developed further in Chapter 7 \\
+Stereo comfort of camera-fed effects & The dark modes are overlay-only (no camera repaint); SignPop runs in the video scene (no live camera fusion, and its detection gate is driven by the offline oracle track, never a live model); head motion is moderate by task design \\
+SignPop's manipulation is a bundle & A confirmed detection switches on six effects at once: colour pop, window carve-out, saturation lift, brightness lift, contrast expansion, and darkened surround (Chapter 4, Section 4.5.5). So H2a and H2b cannot attribute any measured effect to one component. This is not mitigated in the current design. Chapter 8 proposes a three-arm follow-up (no filter, filter with detection off, filter with detection on) to separate them \\
+\hline
+\end{longtable}
+
+\section{Interim Results (N = 14 Block A, N = 13 Block B)}
+
+Recruitment continues toward the N = 20 target of Section 6.1.3. Fifteen people have been tested
+across an initial pilot day and four further collection days. Block A yields \textbf{fourteen} usable
+paired participants and Block B \textbf{thirteen}, the two sets overlapping but not identical because
+some participants contributed a usable result to one block and not the other. What follows is the
+interim analysis of those pairs. It is reported as interim for three reasons: it is not the
+pre-registered confirmatory analysis of Section 6.9, achieved power sits near 60\% rather than 80\%,
+and recruitment is still open.
+
+\textbf{Two provenance facts belong with the numbers rather than in a footnote.} First, Block A is
+pooled across the four task versions used during the study, following the analysis decision of
+2026-08-06. The versions differ, and a Kruskal-Wallis test across them is significant
+($H = 13.59$, $p = .0035$), but the difference is the deliberate v4 change that added lures and
+switched the distractor reel in response to a 95--100\% ceiling on v3. Within the test versions the
+only timing difference is a 1.8\,s against a 2.0\,s stimulus onset asynchrony, and median correct
+reaction time across every run sits between 630 and 950\,ms, so no participant is response-limited
+under either and a 200\,ms difference cannot plausibly drive an accuracy gap. Second, and less
+comfortably, \textbf{one of the 28 Block A values is experimenter-reported rather than measured}:
+P4's no-filter accuracy (98.4\%) has no exported CSV. It is retained because the assignment is
+documented, but it is the only such value in the analysis and every figure below inherits that
+qualification.
+
+Three participants are excluded from Block B under documented rules, never inferred ones: P3 for 539
+false alarms on the filter run with provably looser hits (Mann-Whitney $p = .0301$), P9 by
+experimenter decision on the day, and P15 for 206 false alarms across 246 presses. Block A is
+retained for P3 and P9, since the exclusions concern the marker task alone.
+
+\subsection{H1: Block A, workstation focus}
+
+Accuracy on the memory task rose from 92.19\% (SD 7.13) with the vignette off to 95.53\% (SD 4.58)
+with Hard Dark on. That is a gain of \textbf{+3.34 percentage points} (SD 5.21, median +2.28; 95\% CI
++0.33 to +6.34, paired $t(13) = 2.40$, $p = .032$; Wilcoxon $W = 19.0$, $p = .035$; $d_z = 0.641$).
+Ten of fourteen participants improved. The interval excludes zero on both tests, which is the
+strongest statement this sample supports.
+
+Achieved power at this $N$ and effect size is 60\%, and roughly 22 participants would be needed for
+the conventional 80\%. \textbf{H1 is supported at the interim $N$}, with the caveat that the lower
+confidence bound sits at +0.33 points, close enough to zero that the effect's true size remains
+unpinned. Figure~\ref{fig:h1} shows every participant's pair.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_slopegraph_h1.png}
+\caption{Block A per-participant accuracy, vignette off versus
+Hard Dark on (N = 14).}
+\label{fig:h1}
+\end{figure}
+
+\subsection{H2b: Block B, pooled safety check}
+
+Hit rate pooled across the whole field of view rose by \textbf{+5.58 percentage points} with SignPop
+on, from 50.00\% (SD 17.02) to 55.58\% (SD 9.02), with seven of thirteen participants improving. The
+paired difference test does not reach significance ($t(12) = 1.51$, $p = .156$; Wilcoxon $W = 21.0$,
+$p = .175$; $d_z = 0.420$), which is beside the point, because H2b was never a difference test.
+
+\textbf{H2b's refuting observation did not occur, so the safety claim stands.} Section 6.2 committed
+in advance to what would refute H2b: equivalence not established \textit{and} a point estimate showing
+a drop greater than 10 points. The estimate is a rise of 5.58 points, so the second condition is not
+met and the mode is not shown to harm situational awareness. The 90\% confidence interval runs
+$-0.98$ to $+12.14$, which bounds the worst case the data support at about a one-point loss, far
+inside the ten-point margin. Peripheral awareness was not degraded.
+Figure~\ref{fig:h2b} places the estimate against the margin.
+
+\textbf{The pre-registered statistic is nonetheless worth reporting exactly.} The two one-sided tests
+return $p = .0006$ on the lower bound and $p = .126$ on the upper, so formal equivalence within
+$\pm$10 points is not established at this $N$. The reason is entirely one-directional: the data
+cannot exclude a \textit{benefit} larger than ten points. That is a specification issue rather than a
+result. H2b asks a one-sided question, whether re-grading costs peripheral awareness, and a two-sided
+equivalence procedure additionally requires ruling out a large gain, which the safety framing never
+cared about. The instrument matched to the question is a non-inferiority test against a $-10$-point
+margin, which is the lower one-sided test above, and it passes decisively. Both numbers are given
+here so the reader can see the pre-registered procedure and the question it was meant to serve, and
+Chapter 7 returns to the lesson. What the dissertation does not do is quietly substitute the
+non-inferiority reading for the pre-registered one after seeing the data.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_equivalence_h2b.png}
+\caption{Block B pooled hit rate against
+the safety margin (H2b, N = 13).}
+\label{fig:h2b}
+\end{figure}
+
+\subsection{H2a: Block B, the 20--30\textdegree{} band}
+
+Hit rate broken out by eccentricity band shows a pattern rather than a uniform shift. Every band
+moves in the same direction, but only one moves reliably. Below 10\textdegree{} the change is +5.36
+points ($p = .753$), where the colour-pop gate is near zero strength and has little to lift. From
+10--20\textdegree{} it is +4.61 points ($p = .403$), with the gate at roughly 20\% strength.
+\textbf{From 20--30\textdegree{} the change is +16.53 points} (38.6\% to 55.1\%, $t$ $p = .034$,
+Wilcoxon $p = .049$, $d_z \approx 0.66$, achieved power 59\%). Beyond 30\textdegree{} it is +1.92
+points ($p = .692$), where the gate is at full strength but the target sits far enough into the
+periphery that a stronger signal buys almost nothing.
+
+The 20--30\textdegree{} band is the only one individually reliable on either test, and it is between
+three and eight times larger than any other band. \textbf{H2a is supported at the interim $N$,
+specifically and only in the band the mechanism predicts}, as a secondary, exploratory analysis
+rather than a substitute for a confirmatory test at the final $N$.
+
+Two limits belong beside that finding. Band membership uses each target's mid-lifetime position,
+which is a weak proxy: targets move, the median lifetime swing is 17.2\textdegree{}, and roughly 31\%
+of catches land in a different band from the one the mid position assigns. And with all four bands
+now pointing the same way, the honest reading is a general positive trend with one band carrying
+almost all of the signal, not three null bands and one live one.
+Figure~\ref{fig:h2a} shows the four bands against the gate strength that predicts them.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_eccentricity_h2a.png}
+\caption{Block B hit rate by eccentricity band, with gate strength and the useful-field boundary
+overlaid (H2a, N = 13). The upper panel pools every marker presentation in a band. The lower panel
+gives the paired per-participant difference with its 90\% interval, which is the estimator the tests
+use, and which for the $<$10\textdegree{} band differs in sign from the pooled figure because
+participants contribute unequal numbers of markers to a band.}
+\label{fig:h2a}
+\end{figure}
+
+\subsection{What this interim result does and does not show}
+
+The manipulation-is-a-bundle limitation (Section 6.10.2) applies in full. Nothing above attributes the
+20--30\textdegree{} gain to the colour lift, the detection aperture, the saturation boost, or the
+darkened surround individually.
+
+Thirteen end-of-session questionnaires (Section 6.7) show a divergence worth flagging rather than
+resolving here. Perceived focus benefit is strongly positive, 57 of 65 responses favouring the
+effects. Perceived awareness cost splits close to evenly at 38 of 65, so roughly four in ten responses
+report feeling cut off from the surroundings or noticing side events late. Visual comfort sits at 38
+of 52 across its four answered items. The three items on holding attention, looking away, and knowing
+where to look were answered favourably by 12, 11 and 12 of the thirteen respondents. At $N = 10$ these
+three were unanimous and they are no longer, which is a useful reminder of how little weight a
+unanimous result at that sample size could carry.
+
+The subjective impression of lost awareness is not supported by the behavioural hit-rate data, which
+shows no loss at all. Chapter 7 takes up what to make of that gap. Figure~\ref{fig:esq} shows the
+three constructs side by side.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_questionnaire.png}
+\caption{End-of-session questionnaire responses by construct (N = 13).}
+\label{fig:esq}
+\end{figure}
+
+Achieved power throughout this section is 60\% for H1 and 59\% for the 20--30\textdegree{} band, so a
+null result at this $N$ would not have been informative either way. The results reported here cleared
+their thresholds regardless, which is not the same claim as having been powered to find them.

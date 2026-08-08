@@ -62,18 +62,31 @@ el  = asin(dir.y)
 
 and computes a signed distance outside the rectangle, `max(dAz, dEl)`, which a
 `smoothstep(0, _SoftEdge, ·)` converts into the per-fragment vignette coordinate **t**: 0 inside
-the window, rising smoothly through the soft edge (default `m_softEdgeDeg` = 20°, widened to 32°
-for ColorPop, Section 4.5.3), and 1 in the far periphery. Every mode consumes this single scalar:
-the dark modes use it directly as overlay alpha; ColorPop uses it to interpolate each pixel between
-its "inside" and "outside" treatments.
+the window, rising smoothly through the soft edge, and 1 in the far periphery. Every mode consumes
+this single scalar: the dark modes use it directly as overlay alpha, while the re-grading modes use
+it to interpolate each pixel between their "inside" and "outside" treatments. Hard Dark takes a
+deliberately narrow 2° edge, because a dark overlay reads as a hard boundary anyway and a wide
+gradient only makes the transition conspicuous without softening it.
+
+The soft edge is the *dose* of the manipulation, not a cosmetic detail, so the values matter. The
+driving block runs a window of 8° by 6° half-extents with an 18° soft edge, which puts the clear
+core at 8°, half filter strength at 17°, and full strength at 26° (Figure 4.2). The core is sized
+to the road-centre gaze region reported for drivers, and the half-strength point falls at the
+outer edge of the useful field of view, so the gradient spans the region where peripheral capture
+actually happens rather than starting beyond it.
 
 Because azimuth and elevation are computed from world direction, the window is **world-locked**: it
 stays fixed to the room — to the desk, the doorway, the whiteboard — as the head rotates, rather
 than travelling with the gaze. Direction is computed per-fragment from `worldPos` rather than
 interpolated from vertices, which avoids interpolation error at the sphere's poles.
 
-[Figure 4.2 — The az/el window geometry: sphere cross-section with the focus rectangle drawn on it,
-the soft-edge band, and the t-profile plotted along one axis.]
+![Figure 4.2](figures/fig4-2-window-falloff.png)
+
+**Figure 4.2 —** Filter strength against angle from the window centre, for the geometry used in the
+driving block. The curve is the shader's `smoothstep` applied to the signed distance outside the
+window rectangle. Nothing is drawn inside the clear core, so the region the participant is working
+in passes through at native passthrough quality; the manipulation is spent entirely on the
+periphery.
 
 ### 4.2.3 The window as absence
 
@@ -187,11 +200,11 @@ camera pixels, double image) versus world-direction sampling (one camera pixel, 
 
 ## 4.5 The Modes
 
-The mode enumeration in the codebase (`VignetteMode`) contains eleven entries; three are evaluated
-in this dissertation, one is their superseded ancestor, six are retained design-exploration
-variants, and one is a video-only, detection-gated demo mode (Section 4.5.6). All share the
-geometry, window, and t-coordinate of Section 4.2 — a mode is, in implementation terms, a
-per-fragment colour/alpha policy.
+The mode enumeration in the codebase (`VignetteMode`) contains eleven entries. Two are carried to
+confirmatory evaluation — Hard Dark in the workstation block and SignPop in the driving block — one
+more, Soft Dark, is evaluated subjectively only, and the rest span the design space without being
+tested. All share the geometry, window, and t-coordinate of Section 4.2: a mode is, in
+implementation terms, a per-fragment colour/alpha policy.
 
 ### 4.5.1 Hard Dark
 
@@ -226,8 +239,8 @@ settles.
 ColorPop is the Tier-3 mode: a salience re-grading of the camera feed that implements the
 literature's strongest guidance channel — luminance and saturation contrast, with no hue shifts
 (Bailey et al., 2009; Grogorick et al., 2017; Sutton et al., 2022) — as a *standing property of the
-whole visual field* rather than a transient cue. After on-device comparison across the mode family,
-ColorPop was the standout and became the dissertation's dynamic-scenario mode (user-study Block B).
+whole visual field* rather than a transient cue. It is the base on which SignPop, the mode evaluated
+in the driving block, is built (Section 4.5.6).
 
 Its grading is a **four-level hierarchy** on two tracks, gated by colour class and interpolated by
 the window coordinate t:
@@ -336,22 +349,63 @@ design points; none carries evaluation claims. The video test scene's free-play 
 passthrough scene's cycle — rather than being restricted to the evaluated set; a 2026-07-04 change
 had briefly trimmed it to the three evaluated modes, but the cycle was subsequently widened back to
 the full enum so free play and demos can reach every mode, while the study proper still only ever
-programmatically selects ColorPop, Soft Dark, and Hard Dark (Chapter 6).
+programmatically selects SignPop, Soft Dark, and Hard Dark (Chapter 6).
 
 [Figure 4.6 — Screenshot triptych of the three evaluated modes on the same video frame.]
 
-### 4.5.6 SignPop (video-only, detection-gated)
+### 4.5.6 SignPop (video-only, detection-gated) — evaluated, Block B
 
-**SignPop** is an eleventh mode, live only in the video test scene: the same grading pipeline as
-ColorPop, but the "pop" boost is gated by the offline oracle detection track of Section 4.8.2 rather
-than by colour class alone. Only pixels inside an actual detected traffic-light/stop-sign box get
-the full pop treatment; other red/orange/green-ish pixels (neon signage, brake lights, advertising)
-fall back to a partial dim (`m_signRogFallback`, default 0.35) rather than full grey — a "graceful
-miss" so a gap in the bake dims a real signal rather than hiding it outright. A short hold
-(`m_signDetHoldSec`, default 0.5 s) keeps a detection alive after it drops out of the bake so pops do
-not blink between samples. SignPop is not an evaluated mode; it exists as a free-play/demo
-illustration of what detection-conditioned grading looks like, and is used by one condition of the
-harness's `TestModeSequencer`.
+**SignPop** is an eleventh mode, live only in the video test scene, and it is the mode placed in
+front of participants in Block B (Chapter 6). It shares ColorPop's four-level ROG grading pipeline
+(Section 4.5.5),
+but a confirmed detection from the offline oracle track (Section 4.8.2) gates a bundle of effects,
+not colour alone.
+
+**The colour gate.** ColorPop already keeps red/orange/green hues partly visible in the periphery
+without any detection (Section 4.5.5's outside-ROG track). SignPop restricts the *full* vivid
+treatment to pixels inside a confirmed detected traffic-light/stop-sign box (`_PopDetGate`); an
+undetected ROG pixel — neon signage, brake lights, advertising, or a genuine bake miss — falls back
+to a partial keep (`m_signRogFallback` / `_PopDetFallback`, default 0.35) rather than full grey, a
+"graceful miss" so a missed real signal is dimmed, never hidden. A short hold (`m_signDetHoldSec`,
+default 0.5 s) keeps a detection alive after it drops out of the bake so pops do not blink between
+samples.
+
+**An independent detection-zone system.** Beyond the colour gate, every confirmed detection drives
+three further, colour-independent effects computed from soft elliptical zones around each detection
+box (`CameraSphereVignette.shader:610–665`):
+
+- **A second window.** The vignette itself is carved away directly over the object
+  (`t = min(t, 1 − windowClear)`) — a dynamically placed absence, independent of the main focus
+  rectangle and of the colour logic, appearing wherever a detection is confirmed, inside or outside
+  the user-placed window.
+- **A saliency lift.** Saturation, brightness, and local contrast around the object are boosted
+  (`detHighlight`), scaled down when the object already sits inside the main focus window
+  (`_DetectionOutsideScale`) since the standing absence already reveals it there, and left at full
+  strength in the periphery where the lift is doing the work.
+- **A darkened surround.** A soft annulus just outside the object's boundary is dimmed slightly
+  (`detSurround`), raising the object's centre–surround contrast from both sides (Veas et al.,
+  2011's dual modulation — the same source cited for ConspicuitySqueeze, Section 4.10).
+
+This entire detection-zone system is suppressed for Hard Dark (`_SuppressDetectionWindows`): once
+the user-placed window is locked, no detected object anywhere gets a carve-out, however salient.
+
+**A breathing pulse.** The saliency lift additionally oscillates at approximately 1 Hz
+(`_DetectionPulseAmp` modulating `_Time.y`, `CameraSphereVignette.shader:909–912`), following
+Waldner et al. (2014) `[VERIFY]` on low-frequency, low-amplitude temporal modulation attracting
+attention with low annoyance.
+
+**Two gates on what counts as a detection at all.** The offline bake (`Tools/bake_detections.py`)
+considers only the forward view by default — azimuth ±85°, elevation ±50° around video-centre — so a
+detection behind the participant never enters the track. At runtime, a detection's window and boost
+stay suppressed until its apparent size clears a minimum threshold (~1.2°, `VideoTestSceneManager.cs:200`);
+33 of 246 post-debounce traffic-light lifetimes in the current bake never clear it, so a distant,
+still-small light does not open a window over what is still, perceptually, a speck.
+
+**What a confirmed detection actually switches on.** Six effects fire together on the same gate —
+the colour-pop upgrade, the window carve-out, the saturation lift, the brightness lift, the contrast
+expansion, and the darkened surround — layered on the ~1 Hz pulse. None of the six is isolable in
+the current build; Chapter 6's threats-to-validity section and Chapter 7 return to this as a
+limitation on what any measured effect can be attributed to.
 
 ## 4.6 Motion-Based Suppression
 
@@ -455,7 +509,7 @@ a JSON track (`DebugVideo.detections.json`) keyed by video time; the runtime loa
 The pipeline exists because its predecessor failed informatively: the original in-editor bake ran on
 a 640×360 downsample, below the pixel size of distant traffic lights, and silently missed most of
 them (Section 4.10). The full-resolution bake of 2026-07-04 (~30 minutes on CPU for the 180-second
-clip) produced **9,170 traffic-light and stop-sign detections across 720 samples, with 97 % of
+clip) produced the detection set reported in Chapter 5, Section 5.6 — **9,170 detections across 720 samples, with 97 % of
 samples containing at least one detection** (median 12 per sample). Unlike the live manager, the
 video test scene's manager (`VideoTestSceneManager`) draws on the shader's full sixteen-slot
 `_DetectionRects[16]` array (`k_maxDetections = 16`): an earlier eight-slot cap was found to drop
@@ -492,8 +546,8 @@ startup: any stale serialized mode from an older scene save is snapped to the cu
 (ColorPop), and the removed exploratory modes' shader toggles are zeroed once, since nothing drives
 them per-frame any more.
 
-Two harness-specific notes have study consequences. First, in the video scene the ColorPop grading
-covers the full sphere including the window (Section 4.5.3), which is the intended Block B
+Two harness-specific notes have study consequences. First, in the video scene SignPop's grading
+covers the full sphere including the window (Section 4.5.3/4.5.6), which is the intended Block B
 configuration. Second, the video manager's motion-suppression master switch (`m_enableMotion`)
 currently defaults to **false** — study Block B specifies suppression active, so the study
 configuration must set it explicitly (flagged in the study tooling specification, Chapter 6
@@ -543,7 +597,8 @@ outputs outside them.
 screenshot service returned black images whenever the application held the passthrough camera — the
 service and the app contend for the same resource. Replaced by framebuffer capture
 (`screencap`/`screenrecord`), which records the composited display output. Lesson relevant to the
-study protocol: the redundant session recording (Chapter 6) must use the framebuffer path.
+benchmark protocol: any capture of the rendered view — for figures or for the Chapter 5 benchmarks —
+must use the framebuffer path.
 
 **7. Controller input silently dead at session start.** On several occasions the headset booted with
 controllers in the `CONNECTED_INACTIVE` state (asleep, or the OS stuck in hand-tracking mode), so the

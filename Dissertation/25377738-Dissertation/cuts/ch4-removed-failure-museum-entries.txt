@@ -1,0 +1,29 @@
+\textbf{5. Building into a OneDrive-synced folder $\rightarrow$ corrupted builds.} Android builds intermittently
+failed with \verb|IOException: RuntimeActionBindings.json already exists| and related file-lock errors.
+Cause was OneDrive synchronisation locking freshly written build files mid-process (compounded once
+by a stale file from a prior failed build). Fixed by building to a non-synced local folder and
+clearing stale outputs. Lesson: cloud-sync directories are hostile to build systems. Keep build
+outputs outside them.
+
+\textbf{6. Camera-service screenshots $\rightarrow$ black frames.} Capturing evidence via the platform's camera-based
+screenshot service returned black images whenever the application held the passthrough camera. The
+service and the app contend for the same resource. Replaced by framebuffer capture
+(\verb|screencap|/\verb|screenrecord|), which records the composited display output. Lesson relevant to the
+study protocol: the redundant session recording (Chapter 6) must use the framebuffer path.
+
+\textbf{7. Controller input silently dead at session start.} On several occasions the headset booted with
+controllers in the \verb|CONNECTED_INACTIVE| state (asleep, or the OS stuck in hand-tracking mode), so the
+application received no input at all, indistinguishable, from inside the app, from a broken build.
+Mitigations: the study build boots directly into the experiment scene (no menu navigation requiring a
+laser pointer), hand tracking is disabled to remove the ambiguous input mode, and "wake controllers /
+restart headset if input is dead" is a line on the pre-session checklist rather than tribal
+knowledge. Lesson: input liveness is an environmental precondition. Put it in the protocol, not in
+the debugger.
+
+\textbf{8. The magenta floor patch.} During video-scene work a metre-wide error-magenta rectangle
+appeared lying on the floor at the origin. Cause: a leftover \verb|SelectionLine| GameObject from the
+passthrough scene's earlier selection UI, a \verb|LineRenderer| with a null material (Unity renders
+missing materials in error magenta), default width, never wired to the video manager. Deleted from
+the scene. Lesson, minor but real: when a system evolves by scene-cloning, orphaned scene objects are
+a distinct defect class. Audit clones against the components that actually drive them.
+

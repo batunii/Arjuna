@@ -1,0 +1,22 @@
+\section{Summary of criteria and reporting rules}
+
+\begin{longtable}{p{0.12\textwidth}|p{0.20\textwidth}|p{0.34\textwidth}|p{0.28\textwidth}}
+\caption{Summary of pre-stated criteria and reporting rules across benchmarks T1–T5.}\\
+\hline
+\textbf{Benchmark} & \textbf{Metric} & \textbf{Pre-stated criterion / band} & \textbf{On failure} \\
+\hline
+\endhead
+\hline
+T1 GPU cost & p95 frame time; stale \% & Study configs: within budget, stale < 1\% & Optimise or change study config before pilot dry runs. Report the failure \\
+T2 World-locking & Apparent edge drift ($^{\circ}$) at 90$^{\circ}$/s & $\leq$ 1$^{\circ}$, no tearing & Fix before pilot. Benchmark re-run \\
+T3 Legibility & Optotype lines, window vs Tier-3 path & Window $\geq$ 1 line finer at 0.6 m vindicates the architecture & Report that the quality argument fails. FOV/latency arguments stand or fall on their own numbers \\
+T4 Oracle gap & Recall, precision, throughput, latency vs oracle & Bands: $\geq$0.8 recall @ $\geq$10 fps = near-term; $<$0.5 or $<$2 fps = genuine idealisation & No failure mode. The measured gap conditions Chapter 7's detector-dependent statements \\
+T5 Endurance & Throttle-free minutes; battery/45 min & TB1: camera-free modes complete 45 min; study configs sustain block durations & Protocol change if study configs fail. TB1 refutation reported as a finding \\
+\hline
+\end{longtable}
+
+Three reporting rules bind the results revision of this chapter. Results will be reported for every
+benchmark attempted, including failures and anomalies, with trace archives retained. No criterion
+or band stated above will be adjusted after data are seen. And where a benchmark is dropped for
+time (the pre-agreed sacrifice order puts T5 first), the drop is
+stated rather than silently omitted.

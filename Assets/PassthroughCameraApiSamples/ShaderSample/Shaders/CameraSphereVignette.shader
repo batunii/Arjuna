@@ -463,8 +463,11 @@ Shader "Meta/PCA/CameraSphereVignette"
             // az wrap-around handled via atan2(sin,cos). Hit flash tints the core for all styles.
             // One probe's contribution, parameterised so ApplyBlobs can loop over up to MAXBLOBS
             // simultaneous probes. center=(az,el) rad, R=radius rad, s=strength (ramp), flash=hit mix.
+            // tScene = the scene's own filter amount at THIS pixel, i.e. the post-carve-out t
+            // (window falloff already clipped by any YOLO detection window). Passed in rather
+            // than recomputed so the ring is attenuated by exactly what the scene under it is.
             float3 ApplyOneBlob(float3 c, float az, float el, float2 uvSrc, float eqMode,
-                                float2 center, float R, float s, float flash)
+                                float2 center, float R, float s, float flash, float tScene)
             {
                 if (s <= 0.001) return c;
                 float dA = az - center.x; dA = atan2(sin(dA), cos(dA));
@@ -503,10 +506,13 @@ Shader "Meta/PCA/CameraSphereVignette"
                     // (A plain black ring — filter-invariant by construction — was tried on
                     // 2026-07-22 and floored the NO-FILTER baseline: 48% hit, 3.55 s median RT
                     // vs ~60-70%, ~1.8 s with yellow. Chroma is what wins peripheral onsets.)
-                    float dAzW = max(_FocusRect.x - az, az - _FocusRect.y);
-                    float dElW = max(_FocusRect.z - el, el - _FocusRect.w);
-                    float tW   = smoothstep(0.0, _SoftEdge, max(dAzW, dElW)) * _VignetteStrength
-                               * _BlobRingBehindFilter;
+                    //
+                    // tScene is the frag's post-carve-out t, so a YOLO detection window opening
+                    // under the probe un-attenuates the ring by exactly as much as it clears the
+                    // scene: ring inside an open detection window => full colour (it must not sit
+                    // dimmed-grey on top of a cleared, boosted patch); no window formed => tScene
+                    // is the plain window falloff and the ring dims behind the filter as before.
+                    float tW = tScene * _VignetteStrength * _BlobRingBehindFilter;
                     float3 ringBase = _BlobRingColor.rgb;
                     if (_BlobRingSegments > 0.5)
                     {
@@ -583,13 +589,13 @@ Shader "Meta/PCA/CameraSphereVignette"
             }
 
             // Composite every active probe (up to MAXBLOBS) onto the already-filtered colour.
-            float3 ApplyBlobs(float3 c, float az, float el, float2 uvSrc, float eqMode)
+            float3 ApplyBlobs(float3 c, float az, float el, float2 uvSrc, float eqMode, float tScene)
             {
                 [loop]
                 for (int bi = 0; bi < _BlobCount && bi < MAXBLOBS; bi++)
                 {
                     float4 bd = _BlobData[bi];
-                    c = ApplyOneBlob(c, az, el, uvSrc, eqMode, bd.xy, max(bd.z, 1e-4), bd.w, _BlobFlash4[bi].x);
+                    c = ApplyOneBlob(c, az, el, uvSrc, eqMode, bd.xy, max(bd.z, 1e-4), bd.w, _BlobFlash4[bi].x, tScene);
                 }
                 return c;
             }
@@ -952,7 +958,7 @@ Shader "Meta/PCA/CameraSphereVignette"
                     result  = lerp(result, boosted, detHighlight * enh);
                 }
                 result *= (1.0 - surA);
-                result = ApplyBlobs(result, az, el, uvSrc, _EqCamSampling); // scene-pixel probes, after all filtering (Point 3)
+                result = ApplyBlobs(result, az, el, uvSrc, _EqCamSampling, t); // scene-pixel probes, after all filtering (Point 3)
                 return fixed4(saturate(result), 1.0);
             }
             ENDCG

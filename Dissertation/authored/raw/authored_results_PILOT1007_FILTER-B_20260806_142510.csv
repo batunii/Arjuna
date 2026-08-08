@@ -1,0 +1,8 @@
+t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
+1786022710454,1007,Filter,P,0,traffic_light,0.000,2.500,2.500,hit,1.001,0.706
+1786022712305,1007,Filter,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,0.510
+1786022723929,1007,Filter,B,2,traffic_light,10.500,14.000,3.500,hit,2.113,0.592
+1786022732988,1007,Filter,B,-1,,,,,false_alarm,,
+1786022733463,1007,Filter,B,59,person,20.000,33.000,13.000,hit,2.122,0.797
+1786022734079,1007,Filter,B,3,person,20.500,22.000,1.500,miss,,
+1786022744083,1007,Filter,B,4,person,28.000,32.000,4.000,miss,,

@@ -1,0 +1,88 @@
+\section*{\Huge\textcolor{tcd_blue}{Declaration}}
+
+I declare that this dissertation has not been submitted as an exercise for a degree at this or any
+other university and that it is entirely my own work.
+
+I agree to deposit this dissertation in the University's open access institutional repository or
+allow the Library to do so on my behalf, subject to Irish Copyright Legislation and Trinity College
+Library conditions of use and acknowledgement.
+
+I consent / do not consent to the examiner retaining a copy of the dissertation beyond the examining
+period, should they so wish (EU GDPR May 2018).
+
+\textbf{Use of generative artificial intelligence:} \textit{[Complete per TCD's current policy on
+generative-AI use in research writing — state which tools were used, for which purposes (e.g.
+literature-search assistance, drafting support, code assistance), and affirm that the research
+design, system implementation decisions, and intellectual contributions are the author's own.]}
+
+\vspace{3cm}
+
+Signed:~\rule{5cm}{0.3pt}\hfill Date:~\rule{5cm}{0.3pt}
+
+\newpage
+
+\section*{\Huge\textcolor{tcd_blue}{Abstract}}
+
+Extended-reality headsets are conventionally used to \textit{add} information to the world. This
+dissertation investigates the opposite operation: using a consumer video-see-through (VST) headset to
+\textit{subtract} by dimming, muting, or re-grading the visual periphery so that attention is guided towards,
+and held on, to a user-chosen region of the real world. The work asks one question with two halves: can
+subtractive attention guidance be delivered on consumer XR hardware, and, when it is delivered, does
+it actually help human attention?
+
+The technical half confronts a defining constraint of the Meta Quest 3 platform: the operating system
+owns the passthrough layer, which applications may neither read nor spatially modify. The
+dissertation contributes a three-tier design space of diminished reality (DR) under this compositing
+constraint, and a working reference implementation spanning it: a world-locked \textit{focus window} rendered as an absence in an overlay sphere, through which native passthrough passes at full quality, with two peripheral treatments  carried to confirmatory evaluation, SignPop (detection-gated salience re-grading of the camera feed) and Hard Dark (full peripheral occlusion), plus motion-coupled suppression for
+comfort. A structured prior-art search found no published or shipped precedent for the system's
+hybrid composite of native passthrough and a shader-processed camera feed. A technical evaluation
+plan (frame cost, latency, legibility across rendering paths, and the gap between live and oracle
+object detection) is specified.
+
+The human half contributes a pre-registered, fully within-subjects user study (N = 20 target) built
+to be falsifiable rather than merely hopeful: a workstation distractor-suppression paradigm carrying
+the single primary hypothesis, a driving-scene marker-detection paradigm with an equivalence-bounded
+situational-awareness safety test, and a pre-committed decision table under which every outcome,
+positive, negative, or qualified, is a conclusive result. Recruitment is ongoing, and eleven
+participant pairs have been tested so far. Interim results from those eleven show a 3.65-point
+accuracy gain on the workstation task, no loss of peripheral awareness, and a detection benefit
+concentrated in the eccentricity band the system's own detection-gated design predicts. These are
+reported and discussed as interim findings throughout, not as the final confirmatory result.
+
+\newpage
+
+\section*{\Huge\textcolor{tcd_blue}{Acknowledgements}}
+
+\textit{[ACKNOWLEDGEMENTS — supervisor, pilot participants, School of Computer Science and Statistics,
+family/friends, as appropriate.]}
+
+\newpage
+
+\section*{\Huge\textcolor{tcd_blue}{Summary of Contributions}}
+
+This dissertation makes four contributions:
+
+\begin{itemize}
+\item \textbf{C1 — Design space.} A taxonomy of diminished-reality capability under compositing constraints on
+  consumer video-see-through hardware (three access tiers: the OS-owned passthrough layer, overlay
+  compositing, and camera re-render), with the achievable effects, ceilings, and costs of each tier
+  characterised empirically (Chapter 3).
+
+\item \textbf{C2 — Reference implementation.} An open, working multi-mode DR attention-guidance system on
+  Quest 3 passthrough,  the world-locked focus-window-as-absence architecture, world-direction fusion
+  sampling for the monocular camera feed, and motion-coupled comfort suppression, including
+  documented failure modes and dead ends (Chapter 4).
+
+\item \textbf{C3 — Technical evaluation.} A benchmark plan covering per-mode rendering cost, latency,
+  legibility across rendering paths, and the measured distance between live on-device perception and
+  the oracle-perception assumption used in the user study, together with preliminary results from the
+  offline detection pipeline (Chapter 5).
+
+\item \textbf{C4 — Pre-registered user study, with interim results.} A falsifiable, within-subjects
+  evaluation design (N = 20 target) of peripheral diminishment under controlled distraction, with
+  equivalence-bounded safety hypotheses and a pre-committed decision table covering positive,
+  negative, and qualified outcomes, together with an interim analysis of the eleven participant pairs
+  collected so far (Chapter 6).
+\end{itemize}
+
+\newpage

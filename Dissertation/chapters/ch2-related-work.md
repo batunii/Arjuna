@@ -16,12 +16,6 @@ attention systems are evaluated, grounding the methodological choices of Chapter
 synthesises the review into the research gaps this dissertation addresses and positions the work
 against its two nearest published neighbours.
 
-One housekeeping note: this project's modes were renamed during development; where cited
-work motivated an earlier design (Dynamic / Semi-Dynamic / Static, or the superseded Blur mode), the
-text maps it onto the current system (ColorPop, Soft Dark, Hard Dark; see Chapter 4). Every citation's
-bibliographic identity has been confirmed against Crossref, arXiv, the source PDF, or the publisher's
-own page (see `VERIFY-citations.md` for the resolution log); no `[VERIFY]` markers remain.
-
 ---
 
 ## 2.1 Foundations: Attention, Salience, and Cognitive Load
@@ -187,9 +181,7 @@ raised accuracy from 40.97 % to 56.25 % — statistically indistinguishable from
 and Grimm (2012) extended the paradigm to mammography training (accuracy 54.2 % → 64.5–68.8 %), and a
 later SAP paper added automatic target prediction so the cue could terminate before foveal scrutiny
 without an explicit eye-tracker trigger (Sridharan and Bailey, 2015) — temporal termination logic
-that informed this system's transition behaviour. Depth-based variants extended SGD into stereoscopic
-VR, validating angular eccentricity from a reference direction as the operative variable in 3D
-(Sridharan, Pieszala and Bailey, 2015).
+that informed this system's transition behaviour.
 
 Grogorick and colleagues systematised the paradigm for immersive displays. In head-mounted 360°
 environments, Grogorick, Stengel, Eisemann and Magnor (2017) measured peripheral detection thresholds
@@ -201,19 +193,17 @@ terrain: local magnification (*ZoomRect*) achieved the best guidance-per-noticea
 of target saccades within one second; only 3 of 102 participants recognised it), while *SpatialBlur*
 — whole-periphery blur — was the least subtle and actively irritated 59 of 102 participants. Their
 sober conclusion, "no method remains completely unnoticed", together with the blur-irritation
-finding, directly shaped this project: the original whole-periphery Blur mode was demoted and
-ultimately superseded (Chapter 4), and the design accepted noticeability rather than chasing
-imperceptibility. Related stimuli complete the palette: stereo inverse brightness modulation exploits
+finding, sets a design constraint this project accepts: whole-periphery blur is not carried into
+testing, and the design targets noticeable but tolerable rather than imperceptible. Related stimuli complete the palette: stereo inverse brightness modulation exploits
 binocular rivalry (Grogorick et al., 2020) — noteworthy here because it can only ever be implemented
 on content the application renders itself, never on the OS-owned passthrough layer (Chapter 3); and
 flicker exploits the fovea–periphery difference in critical flicker fusion, visible peripherally yet
 invisible foveally at 60–72 Hz (Waldin, Waldner and Viola, 2017), though marginal on passthrough
 hardware whose camera pipeline runs well below those rates. Recent CHI work revisits flicker as a
 practical AR guidance augmentation (Sutton et al., 2024), and its explicit
-subtle-versus-overt framing is adopted in this chapter's organisation. Gaze guidance by *artificial
-colour shifts* — sub-noticeable CMY layer displacements — offers a chromatic-channel alternative
-gentler than desaturation (Azuma and Koike, 2018), and dichoptic colour cues (different hue per eye)
-produce reliable pop-out in optical see-through AR, with Erickson, Bruder and Welch's (2023) parametric
+subtle-versus-overt framing is adopted in this chapter's organisation. Dichoptic colour cues
+(different hue per eye) produce reliable pop-out in optical see-through AR, with Erickson, Bruder
+and Welch's (2023) parametric
 analysis of hue versus saturation versus value informing this project's choice to manipulate saturation
 and luminance rather than hue. Outside the headset entirely, projector-based systems have guided gaze by
 changing the apparent visual appearance of real surfaces, using a pixel-shift blur cheaper than
@@ -294,14 +284,10 @@ choosing where AR labels can sit without occluding what matters (Rakholia, Hegde
 2018) — a technique
 this dissertation notes as repurposable for saliency-weighted dimming (attenuate hardest where the
 periphery is most distracting), as suggested too by Lu, Duh and Feiner's (2012) finding that scene
-clutter should modulate cue intensity. Kruijff, Orlosky, Kishishita, Trepkowski and Kiyokawa's (2019)
-analysis of label legibility in wide-FOV displays identifies which peripheral features most disrupt
-viewing, effectively a priority list for
-what peripheral diminishment should suppress first. Together with the Attention Funnel (Section
-2.3.3), these overt-cue studies establish the baseline this project defines itself against; deep-
-learning attention prediction in VR (Li et al., 2021) points to the eventual automation of
-focus-region selection — this system currently delegates that choice to the user (trigger-painted
-windows) or to pre-baked detections, by design (Chapter 4).
+clutter should modulate cue intensity. Together with the Attention Funnel (Section
+2.3.3), these overt-cue studies establish the baseline this project defines itself against; this
+system currently delegates focus-region selection to the user (trigger-painted windows) or to
+pre-baked detections, by design (Chapter 4).
 
 ---
 
@@ -315,8 +301,7 @@ peripheral–foveal interactions (Stewart et al., 2020) establishes the paramete
 this project: how much degradation the periphery absorbs before scene perception destabilises, and
 which manipulations the periphery notices most (contrast loss and motion change) versus least
 (chromatic detail loss). Foveated rendering — degrading image quality with eccentricity to save
-computation — has mapped this terrain thoroughly. Guenter, Finch, Drucker, Tan and Snyder (2012)
-demonstrated multi-layer compositing with progressive peripheral quality reduction; the
+computation — has mapped this terrain thoroughly. The
 state-of-the-art survey (Wang et al., 2022) catalogues the acceptable-degradation
 mathematics this project reuses for its focus-to-periphery falloffs; and Tursun et al. (2019) showed
 that tolerable degradation is *content-dependent* — a luminance-contrast-aware model permits far more
@@ -329,19 +314,16 @@ blurring doubles the tolerable blur radius. Walton et al. (2021) push further wi
 peripheral images that are structurally different but perceptually indistinguishable, degrading far
 more gracefully than Gaussian blur. Both explain, mechanistically, the irritation finding of
 Grogorick et al. (2018): naive whole-periphery blur announces itself through contrast collapse.
-This chain of evidence is why the present system's superseded Blur mode was retired and why its dark
-modes attenuate luminance (which the periphery tolerates) rather than blurring structure (which it
-resents). Padmanaban et al. (2017) supply the complementary optics baseline — how blur and focal
-depth are perceived in head-mounted displays at all.
+This is why the system's dark modes attenuate luminance, which the periphery tolerates, rather than
+blurring structure, which it resents.
 
 ### 2.4.2 Comfort limits of peripheral restriction
 
 A second literature approaches the periphery from the comfort side: field-of-view restriction as a
 cybersickness countermeasure. Fernandes and Feiner (2016) showed a soft, dynamically applied FOV
 vignette reduces discomfort in VR locomotion without measurable presence loss — the canonical
-demonstration that peripheral occlusion is tolerable when it is soft and situationally applied. Lin
-et al. (2020) found static peripheral blur likewise reduced sickness at no presence cost. Sustained
-use appears benign: Teixeira and Palmisano (2021) report sickness reductions holding over repeated
+demonstration that peripheral occlusion is tolerable when it is soft and situationally applied.
+Sustained use appears benign: Teixeira and Palmisano (2021) report sickness reductions holding over repeated
 10-minute exposures with presence unaffected. But the manner of restriction matters greatly. Norouzi,
 Bruder and Welch (2018) found that vignetting *coupled to the user's own head motion* — strengthening
 as the head turns — actually **increased** sickness relative to no vignette: a directly actionable
@@ -359,7 +341,7 @@ below 2 Hz achieves ≥ 0.9 detection with low annoyance), parameters this proje
 detection-highlighting pulse rather than anything in the 15–25 Hz photosensitivity band.
 
 Collectively this literature draws the corridor the present system must fly through: peripheral
-attenuation is tolerable and even beneficial (Fernandes & Feiner; Lin), *if* it is soft-edged,
+attenuation is tolerable and even beneficial (Fernandes & Feiner), *if* it is soft-edged,
 decoupled from head motion (Norouzi), ideally selective about what it suppresses (Wu; Cao), and
 mindful that total blackout carries a measurable anxiety cost (Barhorst-Cates) and an attention-
 tunnelling risk (Biocca). Those constraints are visible in the final system as Soft Dark's
@@ -423,9 +405,8 @@ educational VR (Rahman, Asish, Khokhar, Kulshreshth & Borst, 2019) and, methodol
 gaze-contingent blur applied to dynamic sports stimuli in VR, whose evaluation apparatus (fixation
 counts, area-of-interest dwell under central versus peripheral blur) validated that blur
 manipulations shift gaze distribution measurably (Limballe, Kulpa, Vu, Mavromatis & Bennett, 2022).
-The present work retains these as design motivation
-and evaluation precedent respectively, while declining to make confirmatory claims in an educational
-context it no longer tests.
+The present work retains these as design motivation and evaluation precedent, and makes no
+confirmatory claim in an educational context.
 
 ---
 
@@ -487,7 +468,7 @@ camera feed in a single view, for any purpose** — and none that implements per
 manipulation for attention guidance on a standalone consumer headset. The nearest systems are the
 five named above, each contributing one ingredient. The hybrid composite itself — native-quality
 passthrough revealed through a world-locked window in an effect-processed camera-feed sphere,
-exploiting the quality and field-of-view asymmetry between the two layers — appears to be novel, and
+exploiting the quality and field-of-view asymmetry between the two layers — was not found in the search, and
 Chapter 3 presents it as such, scoped precisely to that composite rather than to "DR on passthrough"
 in general.
 
@@ -537,8 +518,7 @@ and Sitzmann et al. (2018) showed with concurrent head and eye tracking in 360°
 fixations concentrate at low head velocity — head yaw at rest is a reliable pointer to attention
 beyond roughly 15° eccentricity, with eye tracking adding value only inside the central window.
 Memory probes for attended versus unattended content (recognition of items placed at target versus
-periphery) complete the eye-tracker-free toolkit, with eye-tracked studies of attention distribution
-(Mu, Dohan, Goodyear, Hill, Johns & Mauthe, 2022) indicating what such proxies trade away.
+periphery) complete the eye-tracker-free toolkit.
 
 ### 2.7.3 Subjective instruments and safety
 
@@ -567,7 +547,7 @@ dissertation addresses in whole or part:
 
 | # | Gap | Status in this dissertation |
 |---|---|---|
-| 1 | **No unified multi-mode DR system.** Guidance techniques and diminishment effects have been studied singly; no prior work combines multiple DR guidance modes in one configurable system for comparison within one design. | Addressed: three modes (ColorPop, Soft Dark, Hard Dark) in one system, spanning the design-space tiers of Chapter 3, compared within one study (Chapter 6). |
+| 1 | **No unified multi-mode DR system.** Guidance techniques and diminishment effects have been studied singly; no prior work combines multiple DR guidance modes in one configurable system for comparison within one design. | Addressed: three modes (SignPop, Soft Dark, Hard Dark) in one system, spanning the design-space tiers of Chapter 3, compared within one study (Chapter 6). |
 | 2 | **No hybrid of system passthrough and app-processed camera feed in one view.** Colour-only global restyling of system passthrough exists (Meta Styling API); full pixel control of an inferior camera feed exists (PCA); no prior work composites the two, and no prior work implements peripheral passthrough manipulation for attention on a standalone consumer HMD (documented search, Section 2.6.2). | Addressed: the window-as-absence hybrid architecture (Chapters 3–4) — the dissertation's strongest and most precisely scoped novelty claim. |
 | 3 | **No temporal transition mechanics.** Gradual formation, easing, and motion-contingent suppression of DR effects have not been formally parameterised or studied, despite adjacent evidence that ramps evade noticeability (Hata et al., 2016) and that head-coupled strengthening harms comfort (Norouzi et al., 2018). | Partially addressed: formation ramps and inverted motion-coupling are implemented and parameterised (Chapter 4) and grounded in the cited evidence; their isolated evaluation remains future work. |
 | 4 | **No user-controlled DR intensity.** User-initiated, graded release and re-application of diminishment is unstudied. | Not addressed; groundwork only (the trigger-painted window gives users spatial but not intensity control). Future work. |
@@ -583,8 +563,8 @@ task performance — but likewise inside a virtual task environment, with the di
 by the VR scene itself. Both are simulation studies *of necessity*. This dissertation contributes
 the piece both were missing: a working diminishment system on real consumer passthrough hardware
 (Chapters 3–5), evaluated with a design that deliberately pairs a real-hardware block (the Hard Dark
-workstation task, with physical distractors in the participant's actual room) against a
-simulation block (the ColorPop driving scene under oracle perception) within the same participants
+workstation task, with real moving distractors in the participant's actual room) against a
+simulation block (the SignPop driving scene under oracle perception) within the same participants
 (Chapter 6). If the two blocks agree in direction, the field learns that the simulation methodology
 of Cheng and McLaughlin predicts real-hardware outcomes; if they diverge, the divergence itself is a
 finding about what simulation misses. Either way, the evaluation inherits the field's strongest
@@ -635,8 +615,6 @@ review above, for the first time around a deployable diminished-reality attentio
   doi:10.1145/3613904.3642085
 - Wang, L., Shi, X., & Liu, Y. (2022). Foveated Rendering: A State-of-the-Art Survey.
   arXiv:2211.07969.
-- Azuma, K., & Koike, H. (2018). A Study on Gaze Guidance using Artificial Color Shifts. *AVI 2018*.
-  doi:10.1145/3206505.3206517
 - Miyamoto, J., Koike, H., & Amano, T. (2018). Gaze Navigation in the Real World by Changing Visual
   Appearance of Objects using Projector-Camera System. *VRST 2018*. doi:10.1145/3281505.3281537
 - Grogorick, S., Stengel, M., Eisemann, E., & Magnor, M. (2017). Subtle Gaze Guidance for Immersive
@@ -646,8 +624,6 @@ review above, for the first time around a deployable diminished-reality attentio
   *ACM TAP*, 15(4), 2018. doi:10.1145/3238303
 - Grogorick, S., et al. (2020). Stereo Inverse Brightness Modulation for Guidance in Dynamic
   Panorama Videos in VR. *Computer Graphics Forum*, 39(2).
-- Guenter, B., Finch, M., Drucker, S., Tan, D., & Snyder, J. (2012). Foveated 3D Graphics. *ACM
-  Transactions on Graphics*, 31(6).
 - Hart, S. G. (2006). NASA-Task Load Index (NASA-TLX); 20 Years Later. *HFES Annual Meeting*.
   https://human-factors.arc.nasa.gov/groups/TLX/downloads/HFES_2006_Paper.pdf
 - Hart, S. G., & Staveland, L. E. (1988). Development of NASA-TLX. In *Human Mental Workload*.
@@ -674,19 +650,10 @@ review above, for the first time around a deployable diminished-reality attentio
 - Kim, H. K., Park, J., Choi, Y., & Choe, M. (2018). Virtual Reality Sickness Questionnaire (VRSQ).
   *Applied Ergonomics*, 69, 66–73.
   https://www.sciencedirect.com/science/article/abs/pii/S000368701730282X
-- Kruijff, E., Orlosky, J., Kishishita, N., Trepkowski, C., & Kiyokawa, K. (2019). The Influence of
-  Label Design on Search Performance and Noticeability in Wide Field of View Augmented Reality
-  Displays. *IEEE Transactions on Visualization and Computer Graphics*, 25(9), 2821–2837.
-  doi:10.1109/TVCG.2018.2854737
 - Lakens, D. (2017). Equivalence Tests: A Practical Primer. *Social Psychological and Personality
   Science*, 8(4). doi:10.1177/1948550617697177
 - Lee, J., & Kim, S. (2025). DiminishAR. *CHI 2025*. doi:10.1145/3706598.3713415 (preprint:
   arXiv:2403.03875)
-- Li, X., Shan, Y., Chen, W., Wu, Y., Hansen, P., & Perrault, S. (2021). Predicting User Visual
-  Attention in Virtual Reality with a Deep Learning Model. *Virtual Reality.*
-  doi:10.1007/s10055-021-00512-7
-- Lin, Y.-X., et al. (2020). How the Presence and Size of Static Peripheral Blur Affects
-  Cybersickness. *ACM TAP*, 17(4). doi:10.1145/3419984
 - Lu, W., Duh, B.-L. H., & Feiner, S. (2012). Subtle Cueing for Visual Search in Augmented Reality.
   *2012 IEEE International Symposium on Mixed and Augmented Reality (ISMAR)*, 161–166.
   doi:10.1109/ISMAR.2012.6402553
@@ -723,8 +690,6 @@ review above, for the first time around a deployable diminished-reality attentio
   During Amplified Head Rotations. *ACM SAP 2018*. doi:10.1145/3225153.3225162
 - Obscuring Undesirable Individuals to Alleviate Social Discomfort Using Diminished Reality. *CHI
   2026*. https://dl.acm.org/doi/10.1145/3772318.3790918 [full text to be verified via library]
-- Padmanaban, N., Konrad, R., Stramer, T., Cooper, E. A., & Wetzstein, G. (2017). Optimizing VR for
-  All Users through Gaze-Contingent and Adaptive Focus Displays. *PNAS*, 114(9).
 - Patents US 12548271 B2 (Apple Inc., granted 2026-02-10) — "Attention control in multi-user
   environments" (title confirmed verbatim via Google Patents); US 12524072 B2 (Samsung Electronics,
   granted 2026-01-13) — "Providing a pass-through view of a real-world environment for a virtual
@@ -777,9 +742,6 @@ review above, for the first time around a deployable diminished-reality attentio
   of Visualization and Interaction* (under review). https://statransform.github.io/jovi/
 - Ueda, T., Iwai, D., & Sato, K. (2019). IlluminatedFocus: Vision Augmentation using Spatial
   Defocusing. *SIGGRAPH Asia 2019 Emerging Technologies.* doi:10.1145/3355049.3360530
-- Mu, M., Dohan, M., Goodyear, A., Hill, G., Johns, C., & Mauthe, A. (2022). User Attention and
-  Behaviour in Virtual Reality Art Encounter. *Multimedia Tools and Applications*, 83(15),
-  46595–46624. doi:10.1007/s11042-022-13365-2
 - Veas, E., Mendez, E., Feiner, S., & Schmalstieg, D. (2011). Directing Attention and Influencing
   Memory with Visual Saliency Modulation. *CHI 2011*, 1471–1480. doi:10.1145/1978942.1979158
 - Hong, J., Langlotz, T., Sutton, J., & Regenbrecht, H. (2024). Visual Noise Cancellation: Exploring
@@ -807,11 +769,6 @@ review above, for the first time around a deployable diminished-reality attentio
   doi:10.1145/1978942.1978963
 - Wu, F., & Suma Rosenberg, E. (2022). Adaptive Field-of-view Restriction: Limiting Optical Flow to
   Mitigate Cybersickness in Virtual Reality. *VRST 2022*. doi:10.1145/3562939.3565611
-  (**corrected 2026-08-05**: the title previously given here — "Asymmetric FOV Restriction Using
-  Optic Flow" — does not match this DOI. That title belongs to a different Wu/Suma Rosenberg paper,
-  *Don't Block the Ground: Reducing Discomfort in Virtual Reality with an Asymmetric Field-of-View
-  Restrictor* (SUI 2021, doi:10.1145/3485279.3485284). The DOI was correct; the title has been fixed
-  to match it.)
 - Coviello, R. [xrdevrob] (2025). *QuestCameraKit* [software]. GitHub.
   https://github.com/xrdevrob/QuestCameraKit
 - Yantaç, A. E., Corlu, D., Fjeld, M., & Kunz, A. (2015). Exploring Diminished Reality (DR) Spaces to

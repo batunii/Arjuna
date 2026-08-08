@@ -1,0 +1,476 @@
+\chapter{Background and Related Work}
+
+This chapter argues one line of reasoning end to end, across eight sections, rather than
+surveying eight bodies of literature side by side. In order: is the problem real, what has
+already been tried, has removing things instead of adding them been tried and did it work,
+can any of this be built on hardware people actually own, what does a system built that way
+need to be tested for, and how should that test be run.
+
+Section 2.1 establishes why peripheral events capture attention involuntarily and why that capture
+costs something. Section 2.2 reviews the techniques already used to guide attention in mediated
+views, and what they were found to cost. Section 2.3 asks whether removing things rather than adding
+them has been tried, covering diminished reality (DR) and visual noise cancellation, the conceptual
+home of this work. Section 2.4 asks what a human periphery tolerates and where the comfort limits
+sit. Section 2.5 asks what consumer passthrough hardware actually permits, and reports a documented
+search establishing that this dissertation's architecture has no direct precedent. Sections 2.6 and
+2.7 cover the applied contexts that supply the test scenarios and the methods used to evaluate them.
+Section 2.8 draws out the research gaps and positions this work against its two nearest published
+neighbours.
+
+Throughout, the chapter keeps a specific discipline. A study is reported here when it establishes
+that the problem is real, when it justifies a value this system actually uses, or when it supplies a
+method the evaluation adopts. Work that merely neighbours the topic is left to the surveys that cover
+it.
+
+\section{Foundations: Attention, Salience, and Cognitive Load}
+
+\subsection{Salience and attentional capture}
+
+The computational account of visual attention that underpins this entire dissertation is the
+salience-map model of \citet{itti1998}: attention is drawn to locations whose
+centre–surround contrast, in intensity, colour opponency, or orientation, differs most from their
+neighbourhood. Three consequences of this model recur throughout the design of the present system.
+First, \textit{contrast is the master variable}: any manipulation that raises local contrast attracts gaze,
+and any manipulation that flattens it repels gaze. Second, salience is channel-specific, and the
+channels are not equal. In every head-to-head comparison in the guidance literature, luminance
+manipulations outperform chromatic ones \citep{bailey2009,grogorick2017}. This is why
+every mode in this system dims before it does anything else, and why the one mode that relies on
+colour alone is not the one carried to confirmatory testing. Third, salience operates
+\textit{pre-attentively}: capture by a high-contrast peripheral event happens before, and regardless
+of, the observer's intentions. A periphery whose salience has been flattened stops issuing capture
+events at all, which is the mechanism the dark modes exploit.
+
+\citet{duan2022} extend the account to augmented reality and show that the opacity of AR content
+directly and predictably modulates where attention lands. Opacity is therefore a dose, not a style,
+which is what makes the attenuation axis of Chapter 3 a design axis with a middle rather than an
+on/off switch.
+
+\subsection{Cognitive load}
+
+Where salience explains \textit{how} the periphery captures attention, Cognitive Load Theory explains \textit{why
+that capture is costly}. Extraneous load, processing demanded by information irrelevant to the task,
+competes for the same limited working-memory resources as the task itself. \citet{buchner2022} review the evidence that AR can reduce, not only add, cognitive load when it is used to
+structure or filter what the user must process. This supplies the theoretical justification for the entire
+project: peripheral diminishment is an \textit{extraneous-load intervention}. It does not make the user
+smarter or the task easier. It removes competing processing demands at the perceptual source. The
+dissertation's primary hypothesis (H1, Chapter 6) is this theory operationalised: if peripheral
+distractors impose a measurable performance cost on a focal task, a manipulation that suppresses
+their salience should reduce that cost.
+
+\subsection{The inherent tension}
+
+This dissertation pairs two hypotheses, not one, because of a tension the literature above already
+names. H1 says suppression reduces distraction cost. It says nothing about what suppression might
+cost in return, and the same literature that motivates diminishment also names its central risk.
+Attention capture by
+peripheral events is not a design flaw of the human visual system. It is a safety mechanism.
+Suppressing it trades focus against situational awareness, a tension documented empirically in the
+DR literature \citep{murph2021,mclaughlin2025} and formalised in this
+dissertation as an equivalence-tested safety hypothesis rather than an afterthought (H2b, Chapter 6).
+This tension, which every section of this chapter returns to, is the reason the dissertation's
+evaluation design refuses to measure benefit without simultaneously measuring cost.
+
+\section{Saliency Modulation and Gaze Guidance in Mediated Views}
+
+The techniques for steering attention in a mediated view form a spectrum from imperceptible to overt.
+This section traverses it: subtle gaze direction (2.2.1), saliency modulation of video see-through
+imagery, the direct ancestor of ColorPop (2.2.2), and overt cues with the comparative studies that
+justify combining techniques (2.2.3).
+
+\subsection{Subtle gaze direction}
+
+The subtle gaze direction (SGD) family originates with \citet{bailey2009}:
+a brief luminance modulation ($\pm$9.5\%, $\sim$0.76$^{\circ}$ region, 10 Hz) presented in the viewer's periphery
+attracts a saccade, and the cue is terminated the moment gaze moves toward it, so the viewer never
+foveates the modulation and remains unaware of being steered. Luminance modulation outperformed
+warm–cool chromatic modulation, an early instance of the luminance-dominance law of Section 2.1.
+\citet{mcnamara2008} demonstrated task-level value: in visual search, subtle modulation
+raised accuracy from 40.97\% to 56.25\%, statistically indistinguishable from an \textit{obvious} cue
+(56.94\%), with zero of eighteen participants noticing the manipulation. The paradigm has since been
+extended to clinical training, to automatic target prediction, and to stereo depth, but always as an
+\textit{added} transient cue.
+
+Two results from this family set hard constraints on the present design. \citet{grogorick2018} ran the most complete comparison of the subtlety–effectiveness terrain, five guidance
+methods in an immersive dome with N = 102. Local magnification achieved the best
+guidance-per-noticeability ratio, while \textit{SpatialBlur}, whole-periphery blur, was the least subtle
+and actively irritated 59 of 102 participants. Their conclusion, "no method remains completely
+unnoticed", together with the blur-irritation finding, decided two things here. Whole-periphery blur
+is not among the modes carried forward (Chapter 4), and the design accepts noticeability rather than
+chasing imperceptibility. Second, \citet{erickson2023}'s parametric analysis of hue
+versus saturation versus value found hue shifts the most confusing of the three, which is why every
+mode in this system manipulates saturation and luminance and none of them shifts hue.
+
+Slow ramps constitute the second escape hatch from the noticeability trade-off: \citet{hata2016} showed that blur introduced gradually enough stays below awareness threshold while still
+biasing gaze, because the guidance threshold sits below the awareness threshold. This finding is the
+perceptual justification for this system's formation animation: effects ramp in over seconds rather
+than switching on (Chapter 4).
+
+\subsection{Saliency modulation of see-through video}
+
+Where SGD adds a transient stimulus, saliency \textit{modulation} re-grades the image itself, raising
+conspicuity where attention should go and lowering it elsewhere. This is the direct technical
+lineage of ColorPop.
+
+The foundational demonstration is \citet{veas2011}: using an Itti-style
+conspicuity model, they raised salience in a focus region and suppressed it in context regions of
+video imagery (channel order: luminance first, then red–green, then blue–yellow; algorithm in \citealp{mendez2010}). Modulated video was statistically indistinguishable from unmodulated
+video for naive viewers, yet produced faster first fixations on target regions (t(35) = 2.916,
+p < .01) and improved recall of modulated content (0.19 $\rightarrow$ 0.31, p = .008). This remains the strongest
+evidence that video-mediated reality can be re-graded imperceptibly with measurable attentional
+consequences. And video mediation is exactly what a passthrough headset is. \citet{kalkofen2007} contribute the focus-and-context vocabulary this dissertation uses throughout:
+the design discipline of keeping a focus region maximally legible while context is compressed but
+not destroyed.
+
+The modern anchor is \citet{sutton2022}: saliency
+modulation of the \textit{real world} viewed through AR glasses, implemented as saturation adjustment plus
+sigmoidal contrast remapping ($\alpha$ = 10, $\beta$ = 0.5), deliberately avoiding hue shifts, which participants
+found confusing. Modulation drew significantly more fixations to target regions ($\chi^2$ = 25.57,
+p < .001), but, an honest and important negative, was \textit{not} imperceptible. Against an overt circle
+cue, modulation's advantage was that it preserved natural scene exploration where explicit markers
+"glue" gaze to themselves. This dissertation's ColorPop mode implements Sutton et al.'s exact
+sigmoidal contrast recipe on its salient-colour channel (Chapter 4), inheriting the philosophy:
+accept visibility, preserve exploration, re-grade rather than annotate. The critical difference is
+platform. Sutton et al. built a bench-mounted optical see-through rig whose additive optics can only
+add light. The present system runs on consumer video see-through hardware with full subtractive
+control of its rendered layers (Section 2.5).
+
+An eye-tracked comparison in cinematic VR speaks to which \textit{diminishment} channel works: comparing
+area darkening, context-based darkening, and desaturation for steering attention in 360$^{\circ}$ video, area
+darkening guided attention most effectively while desaturation alone had almost no guidance effect
+\citep{wang2020}. It is a single result from one small-venue study, not a consensus finding,
+but it corroborates this project's mode hierarchy: the dark modes are the guidance workhorses, and
+desaturation appears only as one ingredient inside ColorPop's compound re-grading, never as a mode of
+its own.
+
+\subsection{Overt cues, comparisons, and combinations}
+
+At the overt end of the spectrum, the Attention Funnel \citep{biocca2006}, a 3D
+tunnel of AR rings leading the head to an out-of-view target, improved search speed by 22\% and
+consistency by 65\% while reducing mental workload by 18\%, establishing that aggressive guidance
+pays in speed what it costs in scene engagement. The corresponding failure mode is \textit{attentional
+tunnelling}: excessive allocation of attention to guided content at the cost of neglecting the
+surrounding environment, which handheld-AR work has isolated experimentally as a function of task
+demand \citep{syiem2021}. This is the risk most relevant to this dissertation's Hard Dark mode,
+and the reason its evaluation measures peripheral awareness rather than assuming it (H2b, Chapter 6).
+One further result shapes the architecture. \citet{hein2019} report that
+combining a coarse guidance channel with a fine one significantly outperforms either alone, which is
+the pattern every mode here follows: coarse peripheral attenuation paired with a fine salience lift
+inside the focus window.
+
+\section{Diminished Reality and Visual Noise Cancellation}
+
+\subsection{Definitions and taxonomy}
+
+\citet{mori2017} provide the canonical survey and taxonomy of diminished reality: the
+family of techniques that \textit{conceal, eliminate, or see through} real objects in a mediated view. Their
+survey establishes the field's legitimacy, that mediation of reality can subtract as well as add,
+and its historical centre of gravity: most classical DR work concerns object removal (inpainting a
+region so the object appears gone), which is computationally demanding and semantically targeted.
+The present work sits in a different corner of their taxonomy: it does not remove objects but
+\textit{attenuates regions}, trading semantic precision for robustness, generality, and real-time
+feasibility on mobile hardware.
+
+\citet{cheng2022} supply the field's most direct study of how users
+\textit{want} reality diminished. Across two studies (N = 16 and N = 12, conducted inside VR simulations of
+DR because no deployable DR hardware existed), they found participants preferred partial opacity
+reduction over complete removal, and wanted \textit{context-preserving} diminishment: outlines or residual
+structure indicating that something is there, even when its detail is suppressed. Both findings are
+load-bearing for this dissertation: the preference for partial attenuation motivates the Soft Dark
+mode's deliberately incomplete dimming (maximum opacity $\approx$ 0.75, never a blackout), and the
+context-preservation finding motivates treating Hard Dark's total blackout as the \textit{extreme} of the
+design space rather than its default. Equally load-bearing is Cheng et al.'s method: they could only
+simulate DR inside VR. This dissertation runs on the real passthrough hardware their participants
+could only imagine. The delta is developed in Section 2.8.
+
+\subsection{Visual noise cancellation}
+
+The most recent conceptual frame for this family of systems is \textit{visual noise cancellation} (VNC): by
+analogy with acoustic noise cancellation, a head-worn display actively moderates the visual
+environment, attenuating "noise" while passing "signal" \citep{hong2024}. The analogy is productive
+because it imports an architecture: acoustic ANC requires a
+microphone (sensing the environment), a processing stage, and a speaker (re-emitting a modified
+signal), precisely the camera $\rightarrow$ shader $\rightarrow$ display pipeline of a video-see-through headset. The VNC
+paper is the closest conceptual match to this entire project, and this dissertation can be read as
+the first \textit{software-defined VNC system on consumer video-passthrough hardware}: each mode is a VNC
+profile, and the profiles differ in what they classify as noise and in how aggressively they
+attenuate it. The dark modes treat everything peripheral as noise. SignPop treats everything that is
+not a detected signal object as noise, so its rule is semantic rather than purely spatial. A follow-up line of work has begun evaluating VNC-style workspaces with sustained
+attention and working-memory batteries in mixed-reality settings (see Section 2.7).
+
+\subsection{DR for distraction suppression: the empirical record}
+
+The empirical case that diminishment helps focus is recent but consistent. \citet{mclaughlin2025}
+provide the closest published analogue to this dissertation's primary hypothesis: in two
+within-subject experiments (STEM graduates and NASA Johnson Space Center employees), participants
+performed a demanding assembly task under visual and auditory distraction, with DR-style attenuation
+of the distractors applied either universally or context-sensitively. Universal attenuation, the
+condition structurally closest to this project's peripheral vignette, produced fewer errors
+($\beta = -0.37$, p = .021) and lower subjective workload than context-aware removal. Their analysis
+(linear mixed-effects models over trial-level data) is adopted directly by this dissertation's
+analysis plan. Critically, McLaughlin et al. also measured awareness of off-task objects and events,
+finding the focus/awareness trade-off real but manageable. This is the empirical ancestor of this
+work's H2b.
+
+\citet{lee2025}'s DiminishAR approaches the same goal from the object side: AR-camouflaging a
+single distracting object (a smartphone) restored working-memory performance to a level statistically
+comparable with physically removing it (N = 60). Murph et al. document the same benefit–risk
+structure in a medical assembly context: DR lowered cognitive workload but risked situational
+awareness loss \citep{murph2021}. In later work they describe methods of training users to
+overcome distraction under diminished reality, in which distractions are gradually reintroduced as
+the trainee's tolerance grows \citep{murph2022}. That gradual-reintroduction
+logic is the source of this system's temporal fade transitions: effects ramp rather than switch, and
+they yield to head motion instead of fighting it (Chapter 4).
+
+Two 2026 threads confirm both the demand for DR-for-attention and its immaturity. A co-design study
+with fifteen students with ADHD developed the concept of \textit{attentional diminishment} through diary
+studies and workshops, with blur, desaturation, and removal as user-configurable filters, but built
+no working prototype \citep{exploring}. A CHI 2026 study
+on Apple Vision Pro obscured specific individuals to alleviate social discomfort, which is
+overlay-based diminishment on consumer hardware but targeted occlusion rather than peripheral
+attention guidance \citep{obscuring}. Neither implements peripheral
+diminishment for attention on real passthrough. Further back, FocalSpace \citep{yao2013} demonstrated the 2D ancestor of this project's workstation scenario: synthetic
+background blur in video conferencing, driven by depth and activity tracking, improving memory for
+meeting content and user preference.
+
+\section{Peripheral Vision, Foveated Degradation, and Comfort}
+
+\subsection{What the periphery can lose}
+
+Peripheral vision is not blurry central vision. It is a differently tuned system with its own
+sensitivities, to motion and flicker above all, and its own tolerances. It notices contrast loss and
+motion change most, and chromatic detail loss least. Foveated rendering has mapped this terrain
+thoroughly, and its state-of-the-art survey \citep{wang2022} supplies the acceptable-degradation
+mathematics this project reuses for its focus-to-periphery falloffs. \citet{tursun2019} showed that
+tolerable degradation is \textit{content-dependent}, since a luminance-contrast-aware model permits far
+more degradation in low-contrast regions, which is the basis of the adaptive-intensity proposal in
+Chapter 8.
+
+One perceptual finding is directly responsible for a parameter in this system. \citet{patney2016}
+established that peripheral blur is detected primarily through the \textit{contrast reduction} it
+causes, and that restoring local contrast after blurring roughly doubles the tolerable blur radius.
+This is implemented as \verb|_BlurContrastRestore| (Chapter 4), and it also explains, mechanistically,
+Grogorick et al.'s irritation finding: naive whole-periphery blur announces itself through contrast
+collapse. That chain is why the dark modes attenuate luminance, which the periphery tolerates, rather
+than blurring structure, which it resents.
+
+\subsection{Comfort limits of peripheral restriction}
+
+A second literature approaches the periphery from the comfort side: field-of-view restriction as a
+cybersickness countermeasure. \citet{fernandes2016} showed a soft, dynamically applied FOV
+vignette reduces discomfort in VR locomotion without measurable presence loss. This is the canonical
+demonstration that peripheral occlusion is tolerable when it is soft and situationally applied. But
+the manner of restriction matters greatly. \citet{norouzi2018} found that vignetting \textit{coupled to the user's own head motion}, strengthening
+as the head turns, actually \textbf{increased} sickness relative to no vignette: a directly actionable
+negative result that this system's motion policy inverts (effects fade \textit{out} during head motion and
+restore during stability, Chapter 4), and the citation that justifies that inversion. \citet{wu2022} showed that masking only the high-optic-flow periphery beats symmetric restriction
+on presence: suppress the distracting \textit{signal}, not the region wholesale. \citet{cao2021} found granulated rest frames (sparse static noise grains, 1–7$^{\circ}$, 25–75\% density)
+outperform opaque black restrictors on search performance while preserving peripheral awareness,
+with 15 of 20 participants preferring grains to blackout. \citet{barhorstcates2016} contribute the sobering datum on the far end: spatial learning survives restriction down to
+10$^{\circ}$ FOV, but anxiety is elevated in \textit{all} restricted conditions and rises monotonically as the field
+narrows. \citet{waldner2014} map the comfort envelope for the flicker channel ($\approx \frac{1}{4}$ luminance range
+below 2 Hz achieves $\geq$ 0.9 detection with low annoyance), parameters this project adopts for its
+detection-highlighting pulse rather than anything in the 15–25 Hz photosensitivity band.
+
+Collectively this literature draws the corridor the present system must fly through: peripheral
+attenuation is tolerable and even beneficial (Fernandes \& Feiner), \textit{if} it is soft-edged,
+decoupled from head motion (Norouzi), ideally selective about what it suppresses (Wu; Cao), and
+mindful that total blackout carries a measurable anxiety cost (Barhorst-Cates) and an attention-
+tunnelling risk (Biocca). Those constraints are visible in the final system as the dark modes'
+graduated opacity ceilings, every mode's motion-triggered suppression, and the evaluation's insistence
+on measuring peripheral awareness (H2b) and comfort (VRSQ, ratings) alongside benefit. One honest
+gap remains, inherited rather than resolved: no study to date measures the comfort of peripheral
+\textit{desaturation} specifically over sessions longer than ten minutes, and no head-to-head of blur
+versus black vignette exists within a single design. This dissertation's end-of-session questionnaire collects
+first subjective data on adjacent questions but does not close either gap.
+
+\section{Platform Constraints and Prior Systems on Consumer Passthrough Hardware}
+
+\subsection{The constraint landscape}
+
+Everything in Sections 2.2–2.3 presumes the ability to manipulate what the user sees of reality. On
+consumer hardware in 2026, that ability is narrowly rationed, and the rationing defines this
+dissertation's technical contribution (Chapter 3 develops it as a three-tier design space).
+
+The shape of that rationing is the same across vendors. On Meta Quest 3 the operating system owns the
+passthrough layer, so applications can remap its colour globally but cannot blur it, mask it
+per-pixel, or confine an effect to a world-locked region. Passthrough Camera Access, which arrived in
+early 2025, grants the raw forward camera feed and full pixel control, but of a stream markedly
+inferior to the system layer in resolution, field of view, and latency. Apple Vision Pro is stricter,
+with camera pixels behind an enterprise-only entitlement and a single global surroundings dimmer for
+consumer apps. Chapter 3 develops the consequences as a three-tier taxonomy.
+
+Two literature points attach to that landscape. The one published feasibility study of PCA-based
+on-device compositing projects 720p at 30 fps with thermal throttling within five to ten minutes,
+which is a simulation-based estimate rather than a measured run, and its numbers function as a
+warning about sustained camera processing \citep{laghari2025}. And Varjo's research headsets grant
+full camera control, yet no published study was found that shader-processes their passthrough
+region-selectively for attention. Researchers with the capability have not asked this question, while
+the consumer platforms that provoke it lack the capability.
+
+\subsection{Prior systems and near-precedents}
+
+Every constituent mechanic of this dissertation's architecture has a documented precedent, and none
+of the precedents combine them. Camera-feed-on-geometry rendering with GPU effects exists in
+community samples. QuestCameraKit demonstrates PCA-fed materials with blur and distortion shaders
+applied to virtual panels and objects \citep{coviello2025}, but always as content \textit{within}
+the scene, never as a full-surround treated periphery. A head-centred sphere whose shader-controlled
+transparency reveals system passthrough exists as Meta's own "Passthrough Transitioning" motif, but
+the sphere carries virtual content for scene fades, not a processed camera feed (Meta MR Motifs
+documentation). Alpha punch-through to the passthrough underlay is a documented standard technique
+("Passthrough Windows"), shipped commercially by Immersed's Passthrough Portals in 2022 so desk
+workers could see their keyboards, but the hole is always surrounded by \textit{virtual} workspace, not by
+re-rendered reality. A peripheral dimming vignette shipped in Quest OS v67 as "Theatre View", but it
+explicitly does not operate over passthrough, only in immersive contexts. At the claim level, two
+patents describe adjacent ideas, attenuating external stimuli while preserving spatial awareness
+\citep{patents} and blurred external video feeds composited into VR (US 12524072), with no evidence
+either was implemented.
+
+A structured prior-art search conducted for this dissertation (5 July 2026; 26 web queries and 4
+GitHub API queries across ISMAR, CHI, UIST, IEEE VR, DIS and arXiv 2022–2026, Meta developer
+documentation, all 136 public forks of the PCA samples repository, XR trade press, and platform API
+documentation; the full query protocol is archived in the project record) found \textbf{no publication,
+product, or open-source project that composites system passthrough with a live shader-processed
+camera feed in a single view, for any purpose}, and none that implements peripheral passthrough
+manipulation for attention guidance on a standalone consumer headset. The nearest systems are the
+five named above, each contributing one ingredient. The hybrid composite itself, native-quality
+passthrough revealed through a world-locked window in an effect-processed camera-feed sphere,
+exploiting the quality and field-of-view asymmetry between the two layers, appears to be novel, and
+Chapter 3 presents it as such, scoped precisely to that composite rather than to "DR on passthrough"
+in general.
+
+\subsection{The perceptual ceiling of passthrough}
+
+One further platform datum constrains not the system but its \textit{evaluation}: psychophysical
+measurement shows that no current video see-through headset reaches normal human acuity at any
+light level, with Quest 3 significantly worse in low light \citep{wang2026}. Any evaluation task that
+requires reading fine real-world detail through passthrough therefore confounds the manipulation
+under test with the medium's acuity ceiling. This finding drives two decisions in Chapter 6: task
+stimuli are either virtual or pilot-verified legible at large print, and room lighting is bright and
+constant across sessions.
+
+\section{Attention Guidance in Applied Contexts}
+
+\subsection{Driving-adjacent contexts}
+
+The densest applied literature on guiding attention under peripheral load is automotive, and one
+result from it matters structurally here. AR cueing of roadside hazards improves response time
+\textit{without} degrading detection of non-target objects \citep[N = 27]{rusch2013}. That is an
+early empirical demonstration that guidance benefit and situational-awareness cost are separable,
+which is exactly the separation this dissertation's H2a/H2b pair formalises. The DR-specific studies
+of \citet{murph2021} and \citet{mclaughlin2025}, reviewed in Section 2.3, translate the same
+benefit–risk structure into diminishment terms.
+
+A scoping statement is required here, because this dissertation uses driving \textit{footage} as one of its
+stimulus contexts (Chapter 6). Per the claim-scoping rules of Chapter 1, \textbf{no claims about
+driving, drivers, or road safety are made anywhere in this dissertation}. The
+automotive literature above motivates the \textit{scenario aesthetics}, a dynamic, high-event-rate
+monitoring stimulus with colour-coded semantic anchors (traffic signals), and supplies the
+salience-engineering precedent for ColorPop's red/orange/green hierarchy. A seated participant
+passively watching passenger-perspective footage licenses conclusions about attention mechanics
+under dynamic stimulation, nothing more.
+
+\subsection{Workstation and desk contexts}
+
+The workstation scenario, this dissertation's primary evaluation context, has its clearest
+ancestor in FocalSpace (Yao et al., 2013; Section 2.3), which established that suppressing background
+distraction in a mediated view improves retention of foreground content. The recent VNC-adjacent
+line of mixed-reality workspace studies (Section 2.3.2) brings the same question into headsets with
+sustained-attention and working-memory batteries. What was missing until very recently was the
+distractor-cost baseline in immersive settings. That has now been supplied. Peripheral visual
+distractors in a virtual classroom significantly increase both commission errors (1.33 $\rightarrow$ 3.15,
+p < .001) and omission errors (0.14 $\rightarrow$ 1.18, p < .001) on a Go/No-go continuous performance task
+(N = 66, within-subject), while leaving mean reaction time unchanged \citep{ai2025}. That single result
+does double duty for this dissertation: it establishes that \textit{errors, not latency}, are the sensitive
+currency of distraction cost (fixing the primary dependent variable of Chapter 6), and it quantifies
+the effect the vignette must reduce for the primary hypothesis to be supported.
+
+\section{Evaluating Attention Guidance in XR}
+
+\subsection{Design and sample-size norms}
+
+The evaluation norms of this field are within-subject designs with modest samples and many repeated
+measures. \citet{caine2016}'s census of CHI 2014 found the modal sample size across all user studies to
+be twelve, with in-person studies smaller than remote ones. The nearest-neighbour DR studies ran
+N = 16 and N = 12 \citep{cheng2022} and two within-subject experiments analysed with
+mixed-effects models \citep{mclaughlin2025}. \citet{sutton2022} ran N = 20 within-subject with
+semi-randomised condition order. The methodological lesson codified in Chapter 6 is that small-N XR
+studies derive their power from paired comparisons and trial-level repetition, not headcount, and
+that trial-level linear mixed-effects models (McLaughlin's choice) extract more sensitivity from the
+same sessions than aggregate t-tests. For non-normal aggregates the HCI norm has been the aligned
+rank transform \citep{wobbrock2011}, though recent critique of ART's error properties \citep{tsandilas2024} motivates this dissertation's preference for mixed models with
+Wilcoxon fall-backs, and Friedman tests with Bonferroni-corrected pairwise Wilcoxon comparisons for
+Likert batteries (the Cheng pattern).
+
+\subsection{Objective measures without eye tracking}
+
+Quest 3 carries no eye tracker, so this dissertation's measures must come from behaviour and head
+telemetry. The literature validates both channels. Reaction-time probe detection is standardised as
+the Detection Response Task \citep{iso2016}, where button-press latency to scheduled probe stimuli
+indexes spare attentional capacity. That lineage motivated the driving-scene block of Chapter 6,
+though the task built there is simpler. Participants click on real traffic-light and pedestrian
+markers as they appear in the footage rather than on scripted abstract probes, and onset time,
+position, hit, miss, and false alarm are still machine-timed ground truth. Error rates under
+distraction are the sensitive measure
+for sustained-attention tasks (the Ai et al. result of Section 2.6.2: errors moved, latency did
+not). Head orientation is a validated proxy for gaze at the eccentricities that matter here: \citet{higgins2022} formally validated head pose as a gaze surrogate for object-level attribution in VR,
+and \citet{sitzmann2018} showed with concurrent head and eye tracking in 360$^{\circ}$ environments that
+fixations concentrate at low head velocity. Head yaw at rest is a reliable pointer to attention
+beyond roughly 15$^{\circ}$ eccentricity, with eye tracking adding value only inside the central window.
+Memory probes for attended versus unattended content (recognition of items placed at target versus
+periphery) complete the eye-tracker-free toolkit.
+
+\subsection{Subjective instruments and safety}
+
+The standard subjective battery is stable across this literature. Workload is measured with the
+NASA-TLX \citep{hart1988}. Simulator sickness is measured with the nine-item VRSQ \citep{kim2018}, which suits short mixed-reality sessions, and it must be administered before \textit{and}
+after exposure, because post-only scores are uninterpretable without a baseline \citep{brown2022}.
+Of this battery the present study adopts the VRSQ, pre and post, and adds a single end-of-session
+opinion questionnaire of its own. It administers no per-condition workload instrument, and Chapter 6
+records that decision and what it costs. Equivalence claims, this dissertation's "no meaningful loss
+of peripheral awareness" hypothesis, require dedicated machinery: the two-one-sided-tests procedure
+with a pre-registered margin \citep{lakens2017}, which converts a would-be null result into a falsifiable
+claim.
+
+\section{Synthesis: Research Gaps and Position}
+
+\subsection{Gaps}
+
+Read together, the eight bodies of literature above leave five identifiable gaps, three of which this
+dissertation addresses in whole or part:
+
+\begin{longtable}{|p{0.05\textwidth}|p{0.35\textwidth}|p{0.5\textwidth}|}
+\hline
+\textbf{\#} & \textbf{Gap} & \textbf{Status in this dissertation} \\
+\hline
+\endhead
+1 & \textbf{No unified multi-mode DR system.} Guidance techniques and diminishment effects have been studied singly. No prior work combines multiple DR guidance modes in one configurable system for comparison within one design. & Addressed: ten modes built in one configurable system, spanning the design-space tiers of Chapter 3, of which two, SignPop and Hard Dark, are carried to confirmatory comparison within one study (Chapter 6). \\
+\hline
+2 & \textbf{No hybrid of system passthrough and app-processed camera feed in one view.} Colour-only global restyling of system passthrough exists (Meta Styling API). Full pixel control of an inferior camera feed exists (PCA). No prior work composites the two, and no prior work implements peripheral passthrough manipulation for attention on a standalone consumer HMD (documented search, Section 2.5.2). & Addressed: the window-as-absence hybrid architecture (Chapters 3–4), the dissertation's strongest and most precisely scoped novelty claim. \\
+\hline
+3 & \textbf{No temporal transition mechanics.} Gradual formation, easing, and motion-contingent suppression of DR effects have not been formally parameterised or studied, despite adjacent evidence that ramps evade noticeability \citep{hata2016} and that head-coupled strengthening harms comfort \citep{norouzi2018}. & Partially addressed: formation ramps and inverted motion-coupling are implemented and parameterised (Chapter 4) and grounded in the cited evidence. Their isolated evaluation remains future work. \\
+\hline
+4 & \textbf{No user-controlled DR intensity.} User-initiated, graded release and re-application of diminishment is unstudied. & Not addressed, groundwork only (the trigger-painted window gives users spatial but not intensity control). Future work. \\
+\hline
+5 & \textbf{No dual-channel DR technique.} Desaturation and blur have been studied separately, never combined and parameterised as a compound diminishment channel in AR attention guidance. & Not addressed as a confirmatory question: the compound channel exists inside ColorPop, but the study design deliberately tests the \textit{unconfounded} dark modes confirmatorily and leaves channel decomposition to future work. \\
+\hline
+\end{longtable}
+
+\subsection{Position against the nearest neighbours}
+
+Two published studies stand closest to this dissertation, and the delta from each defines its
+contribution. \textbf{\citet{cheng2022}} established what users want from diminishment, but inside VR
+simulations, because deployable DR did not exist. Their study is a perception-and-preference study
+of imagined systems. \textbf{\citet{mclaughlin2025}} established that distractor attenuation improves
+task performance, but likewise inside a virtual task environment, with the diminishment simulated
+by the VR scene itself. Both are simulation studies \textit{of necessity}. This dissertation contributes
+the piece both were missing: a working diminishment system on real consumer passthrough hardware
+(Chapters 3–5), evaluated with a design that deliberately pairs a real-hardware block (the Hard Dark
+workstation task, with physical distractors in the participant's actual room) against a
+simulation block (the SignPop driving scene, a detection-gated peripheral re-grading, under oracle
+perception) within the same participants
+(Chapter 6). If the two blocks agree in direction, the field learns that the simulation methodology
+of Cheng and McLaughlin predicts real-hardware outcomes. If they diverge, the divergence itself is a
+finding about what simulation misses. Either way, the evaluation inherits the field's strongest
+methodological norms: within-subject design, trial-level mixed models, pre-registered directional
+and equivalence hypotheses, and a decision table that admits failure, assembled here, per the
+review above, for the first time around a deployable diminished-reality attention system.

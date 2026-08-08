@@ -182,6 +182,10 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- shader property IDs ----
         private static readonly int s_mainTexLId           = Shader.PropertyToID("_MainTexL");
+        // T3 benchmark: 0 makes the camera feed cover the whole view (no window),
+        // so the same chart can be captured through the camera path and the native
+        // path without moving the headset. Shader line 779: periAlpha = lerp(1, t, this).
+        private static readonly int s_passthroughModeId    = Shader.PropertyToID("_PassthroughMode");
         private static readonly int s_mainTexRId           = Shader.PropertyToID("_MainTexR");
         private static readonly int s_sphereCenterId       = Shader.PropertyToID("_SphereCenter");
         private static readonly int s_camLFwdId            = Shader.PropertyToID("_CamLFwd");
@@ -197,6 +201,7 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_softEdgeId           = Shader.PropertyToID("_SoftEdge");
         private static readonly int s_maxBlurRadId         = Shader.PropertyToID("_MaxBlurRadius");
         private static readonly int s_blurCurveExpId       = Shader.PropertyToID("_BlurCurveExp");
+        private static readonly int s_noiseAmpId           = Shader.PropertyToID("_NoiseAmp");
         private static readonly int s_blurDelayId          = Shader.PropertyToID("_BlurDelay");
         private static readonly int s_desatDelayId         = Shader.PropertyToID("_DesatDelay");
         private static readonly int s_desatCurveExpId      = Shader.PropertyToID("_DesatCurveExp");
@@ -527,6 +532,24 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_desatCurveExpId,   m_desatCurveExp);
             m_material.SetFloat(s_debugCamOverlayId, m_debugCamOverlay ? 1f : 0f);
 
+            // T3 benchmark (X button). Neutralises every grading step so the periphery is a
+            // plain re-render of the camera feed, making the capture a pure resolution
+            // comparison against native passthrough rather than one confounded by blur,
+            // desaturation or the perceptual noise term. Values are pushed here rather than
+            // set on the material so the study configuration is never modified.
+            if (m_fullCoverTest)
+            {
+                m_material.SetFloat(s_maxBlurRadId,          0f);
+                m_material.SetFloat(s_blurContrastRestoreId, 0f);
+                m_material.SetFloat(s_noiseAmpId,            0f);
+                m_material.SetFloat(s_desatDelayId,          0.9f);
+                m_material.SetFloat(s_desatCurveExpId,       50f);
+            }
+            else
+            {
+                m_material.SetFloat(s_noiseAmpId, 1f);
+            }
+
             if (m_frostTex != null) m_material.SetTexture(s_frostTexId, m_frostTex);
             m_material.SetFloat(s_popGreyDimId,  m_popGreyDim);
             m_material.SetFloat(s_popSatBoostId, m_popSatBoost);
@@ -635,6 +658,8 @@ namespace PassthroughCameraSamples.ShaderSample
         // A mode-cycle and B clear are disabled (controllers only select the window), the mode
         // toast never shows, and debug messages auto-hide a few seconds after they appear.
         private bool m_studyMinimalUi;
+        // T3 benchmark toggle (X button). Off in every normal run and in the study build.
+        private bool m_fullCoverTest;
         private Coroutine m_debugHideCoroutine;
 
         public bool StudyMinimalUi
@@ -729,6 +754,18 @@ namespace PassthroughCameraSamples.ShaderSample
             // cycling, no clearing (a repaint replaces the window anyway).
             bool aPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.A);
             bool bPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.B);
+            // X button: T3 benchmark only. Drops the focus window so the camera feed covers
+            // the whole view, so the acuity chart can be captured through both rendering
+            // paths in one continuous recording without the headset moving between them.
+            if (!m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.X))
+            {
+                m_fullCoverTest = !m_fullCoverTest;
+                // Label the segment on screen so the capture is self-identifying: without it
+                // the two halves of the recording are hard to tell apart when scoring.
+                SetDebug(m_fullCoverTest
+                    ? "T3: CAMERA PATH (PCA feed, whole view, identity grading)"
+                    : "T3: NATIVE PATH (OS passthrough)");
+            }
 
             // A button: cycle through all 11 modes
             if (aPressed)
@@ -931,6 +968,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_grainModeId,        isGrain     ? 1f : 0f);
             m_material.SetFloat(s_outlineModeId,      isOutline   ? 1f : 0f);
             m_material.SetFloat(s_spotLiftModeId,     isSpotLift  ? 1f : 0f);
+            m_material.SetFloat(s_passthroughModeId,  m_fullCoverTest ? 0f : 1f);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
             // Hard Dark: once a selection is locked in, that exact painted rect is the only

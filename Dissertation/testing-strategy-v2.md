@@ -3,7 +3,7 @@
 ### MSc Dissertation — Trinity College Dublin
 
 > **System under test:** Multi-mode Diminished Reality (DR) attention-guidance overlay on Meta Quest 3
-> passthrough. Modes evaluated: **ColorPop** (salience re-grading, driving scenario), **Soft Dark** and
+> passthrough. Modes evaluated: **SignPop** (salience re-grading, driving scenario), **Soft Dark** and
 > **Hard Dark** (peripheral dimming/black-out with a painted, world-locked focus window).
 > This document supersedes `dissertation-study-methodology.md` (v1), which is retained for reference.
 > The dissertation's overall two-part structure (technical design-space + concept evaluation) and
@@ -51,21 +51,23 @@ and a specific fix in v2:
 | 1   | 2×2 **between-subjects** groups with n = 8 per cell                                                                                      | v1 §11.7 itself concedes the power analysis requires 24 per group. With 8, a null result is uninterpretable — no power to detect anything.                            | **Fully within-subjects, N = 20.** Every participant experiences every condition; power comes from paired comparisons and many repeated trials per condition, the standard recipe in the closest published DR studies (Cheng 2022; McLaughlin 2025).                                            |
 | 2   | H1b ("peripheral detection **holds steady**") and H2b ("accuracy **maintained or improves**") were null-result hypotheses with no bounds | A non-significant difference at n = 8 is evidence of nothing. These hypotheses could not fail informatively — the definition of happy-path.                           | Safety hypotheses are now **equivalence tests (TOST) with a pre-registered margin** (H2b: peripheral hit-rate drop ≤ 10 percentage points). Exceeding the margin is a *conclusive negative finding*, not an ambiguous null.                                                                     |
 | 3   | Task instruction: *"press the trigger when you notice anything happening"*, matched to hand-coded video events within ±3 s               | No ground truth: a press cannot be attributed to an event, false alarms are unmeasurable, event coding is subjective. Participants did not know what counted.         | **Scripted, machine-timed stimuli with one unambiguous instruction per task.** Block B probes have exact onset times and known eccentricities; Block A targets are generated (Option V) or printed on matched sheets (Option P). RT, hits, misses, and false alarms are all exactly measurable. |
-| 4   | NASA-TLX administered **once per block**, after both conditions — yet H3c compared TLX *between* conditions                              | The workload hypothesis was untestable as instrumented.                                                                                                               | **Raw TLX after every condition** it is compared across (Blocks A and B), ~1 min each on a tablet.                                                                                                                                                                                              |
+| 4   | NASA-TLX administered **once per block**, after both conditions — yet H3c compared TLX *between* conditions                              | The workload hypothesis was untestable as instrumented.                                                                                                               | **Raw TLX after every condition** it is compared across (Blocks A and B), ~1 min each.                                                                                                                                                                                              |
 | 5   | Primary task = **small printed digits read through passthrough**                                                                         | Quest 3 passthrough does not reach normal visual acuity (arXiv 2026 psychophysics study, §12). Both conditions could floor out for reasons unrelated to the vignette. | Task legibility is a **pilot gate**. Two task forms are specified (virtual panel / large-print paper); the pilot selects whichever is demonstrably legible and off-ceiling.                                                                                                                     |
-| 6   | No sickness measure, no practice block, no pilot, no manipulation check, no failure criteria                                             | Novelty effects, dropouts, and stimulus failures had no defenses; there was no pre-agreed way to say "it does not work".                                              | **VRSQ pre/post with a stop rule; practice-to-criterion tutorial; a gated pilot study (§6); a manipulation check inside the main analysis; and a pre-committed decision table (§8.3)** covering every outcome, including failure.                                                               |
-| 7   | Described the superseded gaze-following system (`FocusVignette.unity`)                                                                   | The study would have tested software that no longer exists.                                                                                                           | Protocols target the **current implementation**: painted world-locked focus window on the camera-sphere overlay, modes ColorPop / Soft Dark / Hard Dark, motion-based suppression (`CameraSphereVignetteManager.cs`, `VideoTestSceneManager.cs`).                                               |
+| 6   | No sickness measure, no practice block, no pilot, no failure criteria                                             | Novelty effects, dropouts, and stimulus failures had no defenses; there was no pre-agreed way to say "it does not work".                                              | **VRSQ pre/post with a stop rule; practice-to-criterion tutorial; a gated pilot study (§6); and a pre-committed decision table (§8.3)** covering every outcome, including failure.                                                               |
+| 7   | Described the superseded gaze-following system (`FocusVignette.unity`)                                                                   | The study would have tested software that no longer exists.                                                                                                           | Protocols target the **current implementation**: painted world-locked focus window on the camera-sphere overlay, modes SignPop / Soft Dark / Hard Dark, motion-based suppression (`CameraSphereVignetteManager.cs`, `VideoTestSceneManager.cs`).                                               |
 | 8   | Three scenarios as co-equal confirmatory tests                                                                                           | Power and session time split three ways; no single claim was properly tested.                                                                                         | **One primary confirmatory hypothesis** (Block A), one secondary confirmatory pair (Block B), and a compact exploratory mode sampler. The dissertation's headline claim rests on a single, properly powered test.                                                                               |
 
 The core reframing: v1 asked *"does the vignette make people better?"* against an unconstrained
-baseline. v2 asks a falsifiable question with a built-in manipulation check:
+baseline. v2 asks a falsifiable question against an effect the literature already establishes:
 
 > **Peripheral distractors impose a measurable cost on a focal task (established effect — Frontiers
-> 2025, N = 66). Does the DR vignette reduce that cost?**
+> 2025, N = 66). Under that established distraction, does the DR vignette improve focal-task
+> performance?**
 
-If the vignette does nothing, the study *shows* it does nothing (the distractor cost remains at its
-vignette-off size). If the distractors fail to distract, the pilot catches it before the main study
-runs. There is no configuration of results that yields "inconclusive".
+The distractor reel runs throughout every condition, so the contrast is the vignette alone and the
+established distractor cost is the backdrop rather than a measured factor. If the vignette does
+nothing, the study *shows* it does nothing — the two conditions come out level. There is no
+configuration of results that yields "inconclusive".
 
 ---
 
@@ -74,11 +76,11 @@ runs. There is no configuration of results that yields "inconclusive".
 **RQ1 (primary).** Does peripheral DR dimming (Hard Dark, world-locked window) reduce the performance
 cost that peripheral visual distractors impose on a focal workstation task?
 
-**RQ2 (secondary).** Does ColorPop salience re-grading speed detection of focal-region events in a
+**RQ2 (secondary).** Does SignPop salience re-grading speed detection of focal-region events in a
 dynamic (driving) scene, and does it do so **without** degrading peripheral event detection beyond an
 acceptable margin?
 
-**RQ3 (exploratory).** How do the three modes (ColorPop, Soft Dark, Hard Dark) compare subjectively
+**RQ3 (exploratory).** How do the three modes (SignPop, Soft Dark, Hard Dark) compare subjectively
 on comfort, perceived focus benefit, and willingness to use when sampled on a common stimulus?
 
 All hypotheses, tests, and margins below are fixed **before data collection**. The pilot (§6) may tune
@@ -87,18 +89,15 @@ or analysis choices.
 
 | ID | Hypothesis (directional, falsifiable) | Refuting observation | Status |
 |---|---|---|---|
-| **H1** | The distractor cost on the Block A task (error rate increase, Distractors-present vs -absent) is **smaller with the vignette On than Off** — a Vignette × Distractor interaction, with the vignette recovering at least the SESOI (default: ≥ 50 % of the vignette-off distractor cost; finalised from pilot data before the main study, §6). | Interaction estimate's 90 % CI excludes the SESOI (benefit too small to matter), or the interaction is absent/reversed. | Primary confirmatory |
-| **H2a** | With ColorPop On, median reaction time to **central** probes (< 10° from focus centre) is lower, and central hit rate is not lower, than with the vignette Off. | Central RT not reduced (95 % CI on the paired difference includes 0 or favours Off). | Secondary confirmatory |
-| **H2b** | With ColorPop On, **peripheral** probe hit rate (25–40° eccentricity) is *equivalent* to Off within a margin of **Δ = 10 percentage points** (TOST). | Equivalence not established AND the point estimate shows a drop > 10 pp → conclusive: the mode harms situational awareness. | Secondary confirmatory (safety) |
-| **H3** | NASA-TLX global workload in Block A is lower in Vignette-On + Distractors-present than Vignette-Off + Distractors-present. | No TLX difference or higher with vignette. | Secondary |
-| **MC1** (manipulation check, not a hypothesis) | With the vignette Off, Distractors-present produces a higher error rate than Distractors-absent (replicating the established distractor-cost effect). | If MC1 fails in the main study despite passing in the pilot, H1 is not interpretable for affected participants; report per pre-registered rule §8.4. | Gate |
-| **EQ1–EQ3** (exploratory) | Sampler ratings (comfort, perceived focus benefit, willingness to use) differ across ColorPop / Soft Dark / Hard Dark. | — (exploratory; no confirmatory claim) | Exploratory |
+| **H1** | Block A accuracy is **higher with the vignette On than Off**, under the distractor reel that runs throughout every condition. | Paired estimate's 95 % CI includes zero, or the difference is reversed. | Primary confirmatory |
+| **H2a** | With SignPop On, median reaction time to **central** probes (< 10° from focus centre) is lower, and central hit rate is not lower, than with the vignette Off. | Central RT not reduced (95 % CI on the paired difference includes 0 or favours Off). | Secondary confirmatory |
+| **H2b** | With SignPop On, **peripheral** probe hit rate (25–40° eccentricity) is *equivalent* to Off within a margin of **Δ = 10 percentage points** (TOST). | Equivalence not established AND the point estimate shows a drop > 10 pp → conclusive: the mode harms situational awareness. | Secondary confirmatory (safety) |
+| **H3** | NASA-TLX global workload in Block A is lower with the vignette On than Off. | No TLX difference or higher with vignette. | Secondary |
+| **EQ1–EQ3** (exploratory) | Sampler ratings (comfort, perceived focus benefit, willingness to use) differ across SignPop / Soft Dark / Hard Dark. | — (exploratory; no confirmatory claim) | Exploratory |
 
-**SESOI rationale.** H1's smallest effect size of interest is expressed as *proportion of distractor
-cost recovered* rather than raw errors, because the raw cost depends on stimulus tuning. A vignette
-that removes less than half of the distraction cost does not justify wearing a headset to get it; that
-judgement is defensible to a supervisor and fixed before the main study. The pilot converts it to an
-absolute error-rate margin for the power check. H2b's 10 pp margin reflects the safety framing: in a
+**H1 contrast rationale.** H1 is tested as a paired accuracy difference between the two vignette
+conditions. Both run under the same distractor reel, so the comparison isolates the vignette and
+needs no distractor-absent baseline. H2b's 10 pp margin reflects the safety framing: in a
 driving-like monitoring context, losing more than one peripheral event in ten to the overlay is an
 unacceptable awareness cost (consistent with the DR focus-vs-awareness trade-off documented by
 McLaughlin 2025 and Murphy 2021).
@@ -115,7 +114,7 @@ McLaughlin 2025 and Murphy 2021).
 | N | **20 analysed** (recruit 24: 4 spares for dropouts/exclusions) |
 | Session length | **~53 min** including consent and debrief (§5) — inside the 40–60 min tolerance window participants typically accept; Block C is last and skippable (§4.3) |
 | Blocks per participant | A (workstation, 2×2), B (driving probes, 2 conditions), C (compact 3-mode sampler — exploratory, skippable) |
-| Counterbalancing | Block A: 4×4 **balanced Latin square** over its 4 conditions → 4 order groups × 5 participants. Block B: condition order alternated by participant parity (10 ColorPop-first, 10 Off-first). Block C: 3 mode orders from a 3×3 Latin square, cycled (7/7/6). Block order A→B→C is fixed for all participants (A is primary and must come freshest; C is exploratory and absorbs any fatigue — acknowledged as a limitation in §9). |
+| Counterbalancing | Block A: 4×4 **balanced Latin square** over its 4 conditions → 4 order groups × 5 participants. Block B: condition order alternated by participant parity (10 SignPop-first, 10 Off-first). Block C: 3 mode orders from a 3×3 Latin square, cycled (7/7/6). Block order A→B→C is fixed for all participants (A is primary and must come freshest; C is exploratory and absorbs any fatigue — acknowledged as a limitation in §9). |
 | Population | Adults 18+, normal or corrected-to-normal vision, no vestibular disorders (per approved ethics). VR experience recorded as a covariate. |
 
 ### 3.2 Why within-subjects with repeated trials is the conclusive design
@@ -130,14 +129,12 @@ McLaughlin 2025 and Murphy 2021).
 
 ### 3.3 Power
 
-For the primary contrast (H1 interaction, computed per participant as a paired difference of
-differences): a paired t-test at α = .05 (two-tailed) with N = 20 achieves 80 % power for
-**dz ≈ 0.65**. The distractor main effect this interacts with is large in the source literature
-(commission errors more than doubled, 1.33 → 3.15, p < .001, N = 66 — Frontiers 2025), so a vignette
-recovering half of it is plausibly detectable at this N; the pilot verifies the local cost size before
-the main study commits. Trial-level linear mixed models (~11,000 Block A trials total under Option V)
-provide additional sensitivity. If the pilot shows the local distractor cost is small, the SESOI
-consultation with the supervisor happens **before** data collection, not after.
+For the primary contrast (H1, computed per participant as a paired accuracy difference between the
+two vignette conditions): a paired t-test at α = .05 (two-tailed) with N = 20 achieves 80 % power for
+**dz ≈ 0.65**. The distraction this operates against is large in the source literature (commission
+errors more than doubled, 1.33 → 3.15, p < .001, N = 66 — Frontiers 2025), so a vignette that
+suppresses a useful share of it is plausibly detectable at this N. Trial-level linear mixed models
+(~11,000 Block A trials total) provide additional sensitivity.
 
 ### 3.4 Conditions are the only thing that changes
 
@@ -156,12 +153,12 @@ paradigm that can detect it:
   workstation paradigm measures exactly what removal should buy (reduced distractor cost). Hard Dark
   is chosen over Soft Dark for the confirmatory test because it is the strongest manipulation —
   maximizing the chance of detecting the mechanism if it exists.
-- **ColorPop → Block B (salience re-grading).** ColorPop does not primarily remove signal; it
+- **SignPop → Block B (salience re-grading).** SignPop does not primarily remove signal; it
   re-grades salience. The probe-detection paradigm measures what re-grading should buy (faster focal
   detection, H2a) and what it must not cost (peripheral awareness, H2b).
 - **Soft Dark → Block C only.** Soft Dark is retained not as "a weaker Hard Dark" but as the design
   space's load-bearing middle point, for four reasons: (1) it is the **minimal manipulation** — pure
-  luminance attenuation, the only unconfounded member of the mode family (ColorPop bundles
+  luminance attenuation, the only unconfounded member of the mode family (SignPop bundles
   desaturation + salience re-grading + glare compression + dimming); (2) it is the graded **Tier-2**
   point — dimmed *real* passthrough at native quality rather than a re-rendered camera copy; (3) it
   has **no camera pipeline**, making it the only mode plausibly deployable for hour-long sessions
@@ -170,7 +167,7 @@ paradigm that can detect it:
   block for Soft Dark does not fit the session budget, so it receives sampler-level subjective data
   only — an explicit, stated trade-off.
 - **Mode × scenario confound, stated plainly:** Hard Dark is tested only at the workstation and
-  ColorPop only in the driving scene. All claims are therefore *mode-in-context* ("Hard Dark reduces
+  SignPop only in the driving scene. All claims are therefore *mode-in-context* ("Hard Dark reduces
   distractor cost in a workstation task"), never mode-generalized ("dark vignettes work"). Block C
   softens this slightly by showing all three modes on one stimulus, for subjective ratings only.
 
@@ -184,9 +181,9 @@ paradigm that can detect it:
   light — §12, VST perceptual-gap study). Same room, same layout, every session. Window blinds set to
   a marked position.
 - Participant seated on a fixed (non-swivel-marked) chair; desk in front.
-- Quest 3 with controllers; hand tracking disabled. Experimenter monitors via `scrcpy` mirror.
+- Quest 3 with controllers; hand tracking disabled. Experimenter monitors via a live `scrcpy` mirror; the mirror is **not** recorded (ethics approval does not permit recording participant sessions).
 - All stimuli are **deterministic and scripted**. Live YOLO detection is not used anywhere in the
-  study (the shipping system does not use it either; ColorPop is detector-free by design).
+  study (the shipping system does not use it either; SignPop is detector-free by design).
 
 ---
 
@@ -197,32 +194,34 @@ reduce the cost of real peripheral distractors on a focal task?
 
 #### Physical layout
 
-- A virtual task panel world-locked ~0.6 m from the eyes (§4.1 task section above).
-- Two tablets on stands at **±35° azimuth** from the task centre, ~1 m from the participant, screens
-  facing them. 35° sits in the near-periphery zone of maximal involuntary capture (UFOV literature, v1
-  §11.5 — rationale retained). **Design target for the formal collection, not yet achieved**: every
-  naive-pilot session to date used the browser prototype's screen-edge `<iframe>` distractors, which
-  typically achieve only 15–25° on a normal monitor — see the eccentricity caveat in
-  `PilotTools/README.md`. No pilot session run that way is informative about the distractor-cost
-  mechanism at the real 35°; that evidence can only come from the physical-tablet apparatus.
-- Tablet content: a prepared **distractor reel** (fast-cut, high-motion, bright video) with
+- Participant wears the headset in passthrough with the vignette under test active, seated ~0.6 m
+  from a **42-inch monitor** (930 mm wide) and performing the task on it through passthrough.
+- The display carries three regions rendered by one page (`PilotTools/block-a-cpt.html`), so their
+  relative geometry is fixed by the layout and identical for every participant: a 1100 px task
+  column, flanked by a 500 × 880 px video panel on each side, each held 120 px clear of the task
+  frame and styled with a rounded bezel so it reads as a propped device rather than a band of video.
+- At this display width and viewing distance the panel centres sit **36.6° off axis** (28.4° inner
+  edge, 43.4° outer edge) — the near-periphery zone of maximal involuntary capture (UFOV literature,
+  v1 §11.5 — rationale retained). Rendering the distractors on the task display fixes eccentricity
+  by construction, with no per-session placement to measure or drift; the cost is that eccentricity
+  depends on seating distance, which is recorded on the per-session checklist.
+- Panel content: a prepared **distractor reel** (fast-cut, high-motion, bright video) with
   **scheduled salient event bursts** (hard cuts to full-screen colour flashes + sudden motion) at
-  fixed timestamps, ~every 20–30 s, identical across participants. In *Distractors-absent* conditions
-  the tablets show a static black screen (still physically present, so the visual layout minus motion
-  is constant).
+  fixed timestamps, ~every 20–30 s, identical across participants. The set used is stamped into the
+  run-start payload. Panels stay dark during setup and results and light up only when a scored run
+  begins. The reel runs throughout every condition — there is no distractor-absent condition in the
+  design.
 
-#### Conditions (2×2 within, ~3.5 min each, balanced Latin square)
+#### Conditions (within-subjects, ~3.5 min each)
 
-| Condition | Vignette | Tablets |
-|---|---|---|
-| A1 | Off (`_DrIntensity = 0`, window painted but invisible) | Static black |
-| A2 | Off | Distractor reel |
-| A3 | Hard Dark On (window live) | Static black |
-| A4 | Hard Dark On | Distractor reel |
+| Condition | Vignette |
+|---|---|
+| FILTER | Hard Dark On (window live) |
+| NOFILTER | Off (`_DrIntensity = 0`, window painted but invisible) |
 
 Window placement: before the first Block A condition, the participant paints the focus window around
 the task surface with the right trigger (the system's normal interaction), release to lock;
-experimenter verifies both tablets fall outside the window and the whole task surface falls inside.
+experimenter verifies both distractor panels fall outside the window and the whole task surface falls inside.
 The **same locked window** persists across all four conditions (re-verified between conditions); only
 `_DrIntensity` toggles.
 
@@ -269,11 +268,10 @@ panel's legibility and difficulty were confirmed, removing the need for a paper 
 | Measure | Instrument / ground truth |
 |---|---|
 | Error rate per condition (primary DV input) | StudyLogger event log |
-| **Distractor cost** = errors(A2) − errors(A1), and errors(A4) − errors(A3) | Derived per participant |
-| **H1 statistic** = cost(Off) − cost(On) | Derived per participant; also modelled trial-level |
+| **H1 statistic** = errors(NOFILTER) − errors(FILTER) | Derived per participant; also modelled trial-level |
 | RT | StudyLogger, ms |
-| Head-turns toward tablets (> 30° yaw from task centre): count + dwell | Head-pose telemetry, 60 Hz |
-| Raw NASA-TLX | Tablet form after **each** of A1–A4 — the distractor-absent administrations give a workload baseline and a workload analogue of the H1 interaction |
+| Head-turns toward the distractor panels (> 30° yaw from task centre): count + dwell | Head-pose telemetry, 60 Hz — *not captured by the browser task page; see §4.2* |
+| Raw NASA-TLX | Paper or on-screen form after **each** Block A condition, giving a per-condition workload analogue of H1 |
 | Noticing check | One question after Block A: "Did anything make the side screens easier or harder to ignore?" (open) |
 
 #### Participant script (verbatim)
@@ -289,9 +287,9 @@ Participants are never told which rounds are "ours" or what the vignette is expe
 
 ---
 
-### 4.2 Block B — SECONDARY: Driving Probe Detection (ColorPop, video test scene)
+### 4.2 Block B — SECONDARY: Driving Probe Detection (SignPop, video test scene)
 
-**Question this block answers:** does ColorPop speed focal-event detection (H2a) without degrading
+**Question this block answers:** does SignPop speed focal-event detection (H2a) without degrading
 peripheral awareness beyond the safety margin (H2b)?
 
 #### Stimulus
@@ -307,7 +305,7 @@ block, to keep the region constant).
 | Condition | Shader state |
 |---|---|
 | B1 | Vignette Off (raw video) |
-| B2 | ColorPop On (with motion suppression active, per shipping defaults) |
+| B2 | SignPop On (with motion suppression active, per shipping defaults) |
 
 #### Probe task (Detection Response Task, ISO 17488 lineage — v1 grounding retained)
 
@@ -349,7 +347,7 @@ duration (size and contrast pilot-calibrated to 70–90 % baseline hit rate), on
 (No confirmatory claims; the Cheng CHI 2022 pattern — structured ratings + short interview.) This is
 the only block in which **Soft Dark** is experienced — its retention rationale is §3.5.
 
-- Participant watches the driving video with each of **ColorPop, Soft Dark, Hard Dark** for ~75 s
+- Participant watches the driving video with each of **SignPop, Soft Dark, Hard Dark** for ~75 s
   each, order from a 3×3 Latin square. No task — free viewing with the focus window pre-set.
 - After each mode, three 7-point Likert items (verbally administered, experimenter records):
   1. "This effect was comfortable to look at." (comfort)
@@ -381,7 +379,7 @@ mode feel?", not "which mode is better?" Ratings are reported as exploratory onl
 ## 5. Session Timeline
 
 Total: **~53 minutes** — inside the 40–60 min tolerance window participants typically accept. The
-information sheet is sent to participants **in advance**; raw TLX (~1 min each, on-panel or tablet)
+information sheet is sent to participants **in advance**; raw TLX (~1 min each, on-panel or paper)
 follows **every** A and B condition; Block C is last and skippable (§4.3), so a fatigued session
 closes at ~44 min without touching confirmatory data.
 
@@ -395,7 +393,7 @@ closes at ~44 min without touching confirmatory data.
 ─────────────── BLOCK A — Workstation (Hard Dark), Latin-square order ───────────────
 08:30 [ 1 min] Paint & lock focus window; experimenter verifies geometry
 09:30 [3.5   ] Condition i        (A1–A4 per Latin square)
-13:00 [ 1 min] TLX + reset (tablets re-cued / sheet swapped)
+13:00 [ 1 min] TLX + reset (distractor reel re-cued)
 14:00 [3.5   ] Condition ii
 17:30 [ 1 min] TLX + reset
 18:30 [3.5   ] Condition iii
@@ -404,7 +402,7 @@ closes at ~44 min without touching confirmatory data.
 26:30 [1.5   ] TLX + noticing question
 28:00 [1.5   ] Headset-off break; verbal comfort check (stop rule §7.2 applies
                throughout); water offered
-─────────────── BLOCK B — Driving probes (ColorPop vs Off), parity order ────────────
+─────────────── BLOCK B — Driving probes (SignPop vs Off), parity order ────────────
 29:30 [ 4 min] Condition i (B1 or B2)
 33:30 [ 1 min] TLX
 34:30 [ 4 min] Condition ii
@@ -432,14 +430,13 @@ analyses may not.
 
 | Gate | Test | Pass criterion | On fail |
 |---|---|---|---|
-| **G1 — distractors distract** | Run A1 vs A2 (vignette Off) on pilot participants | Visible error-rate increase under distractors for all but at most one pilot participant (direction, not significance) | Increase distractor salience: louder motion bursts, brighter flashes, closer/larger tablets, add audio? (audio would need ethics check) — then re-test |
+| **G1 — distractors are salient** | Vignette-off runs on pilot participants | Vignette-off accuracy sits off ceiling, and participants report the side panels as hard to ignore | Increase distractor salience: louder motion bursts, brighter flashes, larger panels, add audio? (audio would need ethics check) — then re-test |
 | **G2 — task form** | The already-selected forced-choice 1-back tried through passthrough (task-form choice was resolved ahead of the formal pilot by informal iteration — §4.1) | Panel fully legible; accuracy off both ceiling and floor across pilot participants | Retune timing/difficulty (SOA, answer window, lure ratio) against pilot data, then re-test; redesign the task only if retuning cannot bring it off ceiling or floor |
 | **G3 — probe calibration** | Block B with candidate probe sizes/contrasts | Baseline (vignette-off) hit rate 70–90 % for both eccentricity bands; RT distribution unimodal | Adjust probe size/duration/contrast per band; re-test |
 | **G4 — protocol dry run ×2** | Two full end-to-end sessions with the final configuration | Timeline within ±5 min; zero log gaps (validator clean); battery ≥ 20 % at end; no sickness terminations; TLX/questionnaire flow smooth | Fix the specific failure (checklist §10), re-run one dry run |
 
-**Post-pilot lock-in memo** (one page, to supervisor): the chosen task form, tuned stimulus
-parameters, the pilot-observed distractor cost, and the **finalised absolute SESOI** for H1 derived
-from it. After this memo, nothing changes until data collection ends.
+**Post-pilot lock-in memo** (one page, to supervisor): the chosen task form and the tuned stimulus
+parameters. After this memo, nothing changes until data collection ends.
 
 ---
 
@@ -475,18 +472,16 @@ from it. After this memo, nothing changes until data collection ends.
 
 All analysis in Python (pandas, pingouin, statsmodels) or R; scripts written and dry-run on pilot
 data **before** main data collection. α = .05. Effect sizes and CIs reported for every test — 95 %
-two-sided by default; 90 % where one-sided/equivalence logic applies (the H1 SESOI bound and the
-H2b TOST).
+two-sided by default; 90 % where one-sided/equivalence logic applies (the H2b TOST).
 
 ### 8.1 Confirmatory analyses
 
 | Hypothesis | Primary test | Robustness check | Effect size |
 |---|---|---|---|
-| **H1** | Linear mixed model on trial-level errors (Option V; logistic LMM: error ~ vignette × distractor + (1 + distractor | participant)); the interaction term is the test. For Option P: paired t-test on per-participant cost difference [cost(Off) − cost(On)] | Paired t-test on per-participant condition means (V); Wilcoxon signed-rank if Shapiro-Wilk rejects normality | dz on the cost difference; odds ratio from LMM |
+| **H1** | Paired t-test on per-participant accuracy, FILTER vs NOFILTER | Wilcoxon signed-rank (reported alongside, not as a fallback); trial-level logistic LMM (accuracy ~ vignette + (1 | participant)) for added sensitivity | dz on the paired difference |
 | **H2a** | Paired t-test (Wilcoxon fallback) on per-participant median central RT, B1 vs B2; hit rate checked descriptively for non-inferiority | LMM on trial-level RT (correct trials, log-RT) | dz |
 | **H2b** | **TOST** on peripheral hit rate (paired), margin Δ = 10 pp | Bayesian paired test as sensitivity check (optional) | Mean difference + 90 % CI vs margin |
-| **H3** | Paired t-test/Wilcoxon on TLX global score, A4 vs A2 | Per-subscale exploratory, Holm-corrected | dz / r |
-| **MC1** | Paired test, A2 vs A1 errors (vignette-off cost > 0) | — | dz |
+| **H3** | Paired t-test/Wilcoxon on TLX global score, FILTER vs NOFILTER | Per-subscale exploratory, Holm-corrected | dz / r |
 
 Multiplicity: H1 is the **single primary endpoint** — no correction. H2a/H2b/H3 form the secondary
 family — Holm correction across the three. Exploratory results (Block C, head-turn telemetry, TLX
@@ -497,11 +492,11 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 - Block C Likert: Friedman across the three modes per item; Bonferroni-corrected pairwise Wilcoxon
   (Cheng 2022 pattern); Kendall's W reported. Exploratory only (§4.3 caveats); sampler completion
   rate reported alongside.
-- Head-turn counts/dwell toward tablets (Block A) and head angular speed (Block B): descriptive +
+- Head-turn counts/dwell toward the distractor panels (Block A, where telemetry exists) and head angular speed (Block B): descriptive +
   paired tests, exploratory (head pose is a validated gaze proxy at these eccentricities — Higgins
   2022; Sitzmann 2018).
-- TLX workload interaction (the reason TLX follows all four A conditions): 2×2 Vignette × Distractor
-  on the global TLX score — the workload analogue of H1. Exploratory; reported alongside H3.
+- TLX workload: paired comparison of the global TLX score across the two vignette conditions — the
+  workload analogue of H1. Exploratory; reported alongside H3.
 - Block C interview: thematic coding into a small table (mode → recurring likes/concerns); quotes to
   illustrate quantitative findings.
 - VR-experience covariate: repeat H1 within experienced/naive subgroups as a robustness description.
@@ -510,12 +505,11 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 
 | # | Outcome pattern | Dissertation conclusion |
 |---|---|---|
-| 1 | H1 supported (interaction in predicted direction, ≥ SESOI) **and** H2b passes equivalence | **The system works**: peripheral DR dimming reduces distraction cost, and the salience mode does not measurably harm peripheral awareness. |
+| 1 | H1 supported (accuracy higher with the vignette on, 95 % CI excludes zero) **and** H2b passes equivalence | **The system works**: peripheral DR dimming improves focal-task performance under distraction, and the salience mode does not measurably harm peripheral awareness. |
 | 2 | H1 supported, H2b **fails** (drop > 10 pp) | The system works **for focus, at a quantified situational-awareness cost** — a conclusive, qualified result with a design implication (mode choice by context). |
-| 3 | H1 **refuted** (90 % CI on the recovered-cost proportion excludes the SESOI from below) | **The system does not deliver a meaningful benefit** in its core use case — a conclusive negative. The dissertation reports the bounded estimate ("the vignette recovers at most X % of the distraction cost"). |
-| 4 | H1 estimate positive but CI spans both SESOI and smaller values | The benefit is real-signed but **cannot be claimed at the pre-set size**; report the estimate with its CI as a bounded conclusion. (Made unlikely by the pilot gate + trial counts; if it occurs, it is reported as such — not spun.) |
-| 5 | MC1 fails in the main study (no distractor cost despite pilot pass) | H1 is not interpretable; report the manipulation failure honestly and fall back on H2a/H2b + Block C as the evidential core. (§8.4 limits this risk.) |
-| 6 | Pilot gates fail after tuning | **Main study does not launch**; the paradigm is redesigned with the supervisor. Inconclusive main-study data is prevented, not explained. |
+| 3 | H1 **refuted** (paired difference reversed, 95 % CI excludes zero from below) | **The system does not deliver a benefit** in its core use case — a conclusive negative. The dissertation reports the bounded estimate. |
+| 4 | H1 estimate positive but 95 % CI includes zero | The benefit is real-signed but **cannot be claimed**; report the estimate with its CI as a bounded conclusion, together with the achieved power. |
+| 5 | Pilot gates fail after tuning | **Main study does not launch**; the paradigm is redesigned with the supervisor. Inconclusive main-study data is prevented, not explained. |
 
 ### 8.4 Pre-registered exclusion & data-quality rules (fixed before collection)
 
@@ -524,7 +518,7 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 | VR-sickness termination | Session ends (§7.2); all partial data retained but participant excluded from confirmatory analysis; replaced from spares |
 | App crash / restart during a condition | That condition void; re-run once at the end of its block if time allows, else participant contributes remaining conditions to LMM (which tolerates missingness) and is excluded from the paired robustness test |
 | App crash / restart that spans a **new session launch** (the auto-session ledger assigns a fresh participant ID on relaunch rather than resuming the old one — observed repeatedly during naive piloting) | Pre-crash and post-relaunch IDs are reconciled into one canonical participant record before analysis: retain cleanly-completed blocks under whichever ID the experimenter designates canonical in the incident log, join in completed blocks from the other ID, and keep only the later complete attempt where a block was attempted on both IDs. Reconciliation is logged with both IDs and the ledger timestamps justifying the join, and fixed before analysis — not revisited afterwards |
-| Task accuracy < 60 % in the *distractor-absent, vignette-off* condition (A1) | Participant did not perform the task; exclude, replace |
+| Task accuracy < 60 % in the vignette-off condition | Participant did not perform the task; exclude, replace |
 | Block B: false-alarm rate > 30 % of presses in either condition | Response strategy invalid (pressing indiscriminately); exclude Block B for that participant |
 | Log integrity failure (validator reports gaps > 1 s or missing condition markers) | Affected condition void; incident log entry; same re-run rule as crashes |
 | Participant recognises the driving footage | Note; exclude only if they report strong familiarity affecting behaviour (v1 rule retained) |
@@ -541,12 +535,12 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 | **Order & learning effects** | Balanced Latin square (A), parity counterbalance (B); matched sheets/segments; equal trial counts. Fixed A→B block order is a limitation: Block B is always second — acceptable because B's comparison is internal to the block and counterbalanced within it. |
 | **Coverage limits from the session budget** | Soft Dark receives sampler-level subjective data only, no confirmatory task block (rationale §3.5); sampler ratings come from brief task-free exposures and may be lost to the skip rule (completion rate reported); the mode × scenario confound is inherent and stated (§3.5). |
 | **Demand characteristics** | Primary DVs are objective (errors, ms RT, telemetry). Neutral framing ("comparing display modes"); participants never told which condition is the "system". The noticing question comes *after* Block A data is collected. |
-| **Distractor floor** (distractors fail to distract → H1 untestable) | Pilot gate G1 + main-study manipulation check MC1 + decision-table row 5. |
+| **Distractor floor** (distractors too weak for the vignette to have anything to suppress) | Pilot gate G1, which tunes distractor salience before collection. The reel then runs identically in both conditions, so a weak reel costs sensitivity but cannot bias the paired comparison. |
 | **Simulator sickness / dropout** | Seated, no locomotion, ≤ 45 min headset time, mid-session break, VRSQ pre/post, stop rule, N + 4 recruitment. |
-| **Small-N insensitivity** | Within-subjects + high trial counts + LMM; single primary endpoint; SESOI + equivalence margins make nulls informative; effect sizes + CIs always reported. |
+| **Small-N insensitivity** | Within-subjects + high trial counts + LMM; single primary endpoint; the H2b equivalence margin makes a null informative; effect sizes, CIs and achieved power always reported. |
 | **Experimenter variability** | One experimenter, verbatim scripts (§14), printed checklist per session. |
-| **Ecological validity** (driving is a video, workstation distractors are tablets) | Acknowledged in the dissertation's discussion: the claim tested is about attention mechanisms under controlled distraction, with the driving scenario as a stimulus context — not a road-safety claim. This honesty is what keeps the conclusions inside what the data can support. |
-| **Stereo comfort of camera-fed effects** (project-specific) | The dark modes are overlay-only (no camera repaint); ColorPop runs in the video scene (no live camera fusion). Head motion moderate by task design (seated). |
+| **Ecological validity** (driving is a video, workstation distractors are on-screen video panels) | Acknowledged in the dissertation's discussion: the claim tested is about attention mechanisms under controlled distraction, with the driving scenario as a stimulus context — not a road-safety claim. This honesty is what keeps the conclusions inside what the data can support. |
+| **Stereo comfort of camera-fed effects** (project-specific) | The dark modes are overlay-only (no camera repaint); SignPop runs in the video scene (no live camera fusion). Head motion moderate by task design (seated). |
 
 ---
 
@@ -562,22 +556,22 @@ subscales) are labelled exploratory and never quoted as confirmatory findings.
 
 ### 10.2 Pre-session checklist (printed, ticked every session)
 
-1. Headset battery ≥ 80 %; controllers ≥ 50 %; tablets ≥ 60 % and charger present.
+1. Headset battery ≥ 80 %; controllers ≥ 50 %; monitor powered and task page loaded.
 2. Guardian set to stationary; room lighting at marked setting; blinds at marked position.
-3. Tablets on marked floor/desk positions (±35° verified with the printed angle template).
+3. Monitor at its marked position; participant seating distance set and recorded.
 4. Correct APK build hash (shown on the app's start screen) matches the locked pilot build.
 5. Free storage on device > 2 GB; previous session's files already pulled and archived.
-6. `scrcpy` mirror running and **screen recording started** (redundant capture of everything).
+6. `scrcpy` mirror running for live monitoring (not recorded).
 7. Spare: printed sheets ×2 sets, pens ×3, cleaning wipes, sick bags, water.
-8. Consent forms, demographics forms, VRSQ/TLX/SUS forms (or tablet forms loaded).
+8. Consent forms, demographics forms, VRSQ/TLX/SUS forms.
 
 ### 10.3 Logging & redundancy
 
 - `StudyLogger` writes one CSV row per frame (~60 Hz) with heartbeat semantics — an unbroken
   timestamp chain is itself evidence of integrity; flush every frame so a crash loses < 1 s.
 - Every event (condition start/end, stimulus onset, press, window lock, TLX start) is a labelled row.
-- Redundant channel: the `scrcpy`/`adb screenrecord` capture lets any disputed trial be re-checked
-  visually.
+- No redundant video channel: sessions are not recorded, so the telemetry is the sole session
+  record and its integrity checks carry that weight alone.
 - **`Tools/validate_session.py` runs before the participant leaves**: verifies expected condition
   count and durations, timestamp continuity, per-condition event counts (e.g., exactly 24 probe
   onsets), and writes a PASS/FAIL summary. A FAIL triggers the re-run rule (§8.4) while the
@@ -599,7 +593,7 @@ Approved protocol (v1) vs this design — classification for the supervisor/ethi
 | Change | Class | Note |
 |---|---|---|
 | Population, consent process, withdrawal rights, session length (~40 → ~53 min, ~44 if Block C skipped) | Unchanged / minor | Verify the information sheet wording; update the stated duration (usually an administrative amendment). Block C's skip rule keeps the confirmatory session near the approved length. |
-| Seated video-watching tasks, button presses, digit cancellation, tablets as distractors, NASA-TLX | Unchanged | Same task classes as approved. |
+| Seated video-watching tasks, button presses, digit cancellation, on-screen video as distractors, NASA-TLX | Unchanged | Same task classes as approved. |
 | Between-subjects groups **dropped**; all-within design | Minor/none | Reducing conditions per person's group assignment to a common protocol is a simplification; typically no amendment needed. |
 | Classroom lecture block **dropped** | None | Removal of a task. |
 | TLX after each condition instead of per block | None | Same instrument, more administrations. |
@@ -627,7 +621,7 @@ Added/updated grounding for the v2 design:
 | Within-subject DR evaluation at N = 16/12; Friedman + Bonferroni-Wilcoxon for Likert; counterbalanced scenarios; ratings + interview pattern (Block C) | Cheng, Yin, Yan, Gugenheimer, Lindlbauer — "Towards Understanding Diminished Reality", CHI 2022 | https://dl.acm.org/doi/10.1145/3491102.3517452 |
 | DR attenuation of distractions evaluated within-subject with linear mixed models; focus-vs-awareness trade-off (basis for H2b framing) | McLaughlin et al. — "Cognitive Aid Design Using Diminished Reality…", Human Factors 2025 | https://journals.sagepub.com/doi/10.1177/00187208251325169 |
 | Peripheral distractors reliably raise sustained-attention errors in HMDs (commission 1.33 → 3.15, p < .001, N = 66) — the effect H1 targets; errors (not RT) were the sensitive DV | "Impact of visual distractors in VR on sustained attention", Frontiers in Human Neuroscience 2025 | https://pmc.ncbi.nlm.nih.gov/articles/PMC12698649/ |
-| Saliency-modulation evaluation with time-to-first-fixation / target-area measures, N = 20 within-subject (ColorPop's own recipe source) | Sutton, Langlotz, Plopski, Zollmann, Itoh, Regenbrecht — "Look over there!", UIST 2022 | https://dl.acm.org/doi/10.1145/3526113.3545633 |
+| Saliency-modulation evaluation with time-to-first-fixation / target-area measures, N = 20 within-subject (SignPop's own recipe source) | Sutton, Langlotz, Plopski, Zollmann, Itoh, Regenbrecht — "Look over there!", UIST 2022 | https://dl.acm.org/doi/10.1145/3526113.3545633 |
 | Area darkening guides attention in 360° video; desaturation nearly ineffective (motivates testing dark modes as the guidance workhorse) | "Attention-guiding Methods in Cinematic VR Based on Eye Tracking", IEEE 2021 | https://ieeexplore.ieee.org/document/9522492 |
 | Guidance-efficiency measurement in immersive environments (time-to-fixate, noticeability) | Grogorick et al., ACM SAP 2017; dome comparison 2018 | https://dl.acm.org/doi/10.1145/3119881.3119890 |
 | Head pose validated as a gaze proxy in HMDs (justifies telemetry without eye tracking; Quest 3 has none) | Higgins et al., VAM-HRI 2022; Sitzmann et al. 2018 (arXiv 1612.04335) | https://iral.cs.umbc.edu/Pubs/Higgins2022VAM-HRI.pdf |
@@ -659,9 +653,9 @@ on-device dry run are pending (pilot gate G4).)*
 | Study-configuration guards | ConditionSequencer **asserts required flags at session start and refuses to run on mismatch** — e.g. `m_enableMotion = true` in `VideoTestSceneManager` for Block B (the code default is `false`, so a stock scene would silently drop motion suppression), baked-detection playback off during study conditions, correct scene per block — and logs the full configuration snapshot as the session's first event rows. |
 | `ProbeScheduler.cs` | Loads a versioned JSON schedule `{t, az_deg, el_deg, duration_ms, band}`; renders the diamond probe as a world-space quad on the sphere at the scheduled direction; defers onsets while head yaw > 20° off-forward; logs actual onset + matched presses (100–2500 ms window) and false alarms. |
 | `CPTPanel.cs` (Option V) | World-locked panel; Go/No-go shape stream from a seeded pseudo-random sequence file (per condition); logs every onset/response. Shape size ≥ 3° visual angle at 0.6 m. |
-| Distractor reel + tablet procedure | One pre-rendered video per condition slot with scheduled event bursts (edit list checked in); tablets started by countdown from the experimenter ("3-2-1-play" while condition start is marked); burst timestamps documented so head-turn telemetry can be aligned to bursts in analysis. |
+| Distractor reel procedure | One pre-rendered video per condition slot with scheduled event bursts (edit list checked in); the panels start automatically when the scored run begins, so distractor onset is locked to condition start by construction rather than by experimenter cue; burst timestamps documented. |
 | `Tools/validate_session.py` | Reads the session CSV; asserts: monotonic timestamps with no gap > 1 s, expected condition count/durations ±5 %, exactly 24 probe onsets per B condition, ≥ 130 CPT trials per A condition (V), all required markers present. Prints PASS/FAIL + summary; exit code drives the checklist. |
-| `Tools/analysis/` | `parse.py` (CSV → tidy trial table), `h1_lmm.py` (statsmodels MixedLM / logistic GEE + paired robustness tests), `h2_tost.py` (pingouin TOST, Δ=10 pp), `likert.py` (Friedman + pairwise Wilcoxon), `power_check.py` (post-pilot SESOI→absolute-margin conversion). All dry-run on pilot data before main collection. |
+| `Tools/analysis/` | `parse.py` (CSV → tidy trial table), `h1_lmm.py` (statsmodels MixedLM / logistic GEE + paired robustness tests), `h2_tost.py` (pingouin TOST, Δ=10 pp), `likert.py` (Friedman + pairwise Wilcoxon), `power_check.py` (achieved power and required N from the observed effect size). All dry-run on pilot data before main collection. |
 | Existing assets reused | `VideoTestScene.unity` + `VideoTestSceneManager.cs` (Block B/C stimulus), `CameraSphereVignette.unity` + `CameraSphereVignetteManager.cs` (Block A), `DebugVideo.mp4` (extend per §4.2). |
 
 ---

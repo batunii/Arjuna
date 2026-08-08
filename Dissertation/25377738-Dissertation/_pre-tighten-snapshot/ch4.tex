@@ -1,0 +1,647 @@
+\chapter{System Design and Implementation}
+
+\section{Overview}
+
+This chapter presents the reference implementation (Contribution C2): a multi-mode diminished-reality
+attention-guidance system running on a consumer Meta Quest 3, built in Unity 6 on Meta's
+Passthrough Camera Access sample framework (Meta, 2025). The system realises the design space of Chapter 3 in a
+deliberately economical architecture, \textbf{one shader and one manager component on a single piece of
+geometry}, and this chapter argues that the economy is itself a result: every capability tier of
+Chapter 3's taxonomy is reachable from one head-centred sphere and one fragment program.
+
+The exposition follows the architecture outward. Section 4.2 describes the sphere-and-window
+geometry that everything else inhabits. Section 4.3 presents the hybrid composite of system
+passthrough and processed camera feed, the flagship technique. Section 4.4 explains the
+world-direction sampling scheme that makes a monocular camera feed binocularly fusible.
+Section 4.5 specifies the three study modes at implementation depth,
+together with the superseded and exploratory modes retained in the codebase. Sections 4.6 and 4.7
+cover the motion-based comfort suppression and the interaction design. Section 4.8 describes the
+perception subsystem: live detection support and the offline oracle pipeline that stands in for it
+in evaluation. Section 4.9 describes the video test scene used as the evaluation harness. Section
+4.10 is the failure museum: the documented dead ends whose lessons shaped the final design.
+
+Throughout, parameter names in \verb|code font| are the actual serialized fields and shader properties in
+the repository (\verb|CameraSphereVignette.shader|, \verb|CameraSphereVignetteManager.cs|,
+\verb|VideoTestSceneManager.cs|), so that every quantitative claim in this chapter is checkable against
+the artifact.
+
+\textit{[Figure 4.1: System architecture: OVRCameraRig, the CameraSphereSphere GameObject with manager and
+material, PCA camera feeds, OS passthrough behind, and the compositor output. One box per component,
+arrows for per-frame data flow.]}
+
+\section{The Sphere and the Window}
+
+\subsection{Geometry}
+
+The entire visual effect is carried by a single inverted sphere of approximately 10 m radius,
+centred on the user's head and re-centred every frame (translation only: the sphere never rotates,
+which is what keeps its surface coordinates world-stable). The mesh is rendered inside-out with
+\verb|Cull Front|, on the transparent queue (\verb|Queue = Transparent|), with depth writes disabled
+(\verb|ZWrite Off|) and conventional alpha blending (\verb|Blend SrcAlpha OneMinusSrcAlpha|). Every fragment
+the user can see, in any direction, is a fragment of this sphere. The shader's output alpha at that
+fragment decides, per pixel, whether the user sees the diminishment effect or whatever lies behind
+the sphere, which, in the passthrough scene, is the operating system's native passthrough layer.
+
+This choice of a \textit{fragment-alpha-controlled full-surround surface} is what makes one object span all
+of Chapter 3's tiers: alpha 0 is Tier 2's "absence" (native passthrough passes through untouched);
+alpha 1 with a black colour is Tier 2's blackout; alpha 1 with a camera-fed colour is Tier 3's
+re-render. The mode logic reduces to deciding, per fragment, a colour and an alpha.
+
+\subsection{The world-locked focus window}
+
+This dissertation uses two different terms for two different things that can look similar: both are
+places where the periphery effect briefly does not apply.
+
+The \textbf{focus window} is the region the user places and locks onto a spot in the room. It stays
+fixed to that spot. Inside it, the application draws nothing at all, so native passthrough shows
+through untouched. The user controls it directly, by painting it once, and it does not move again
+until they reset it.
+
+The \textbf{detection aperture} is a different thing, described fully in Section 4.5.5. It is a
+smaller opening the system creates over a traffic light, sign, or person that a live detector has
+just recognised. It appears and disappears as objects are recognised and lost. The user has no
+control over it at all.
+
+The rest of this chapter keeps these two terms separate and names whichever one it means.
+
+The focus window is stored not in screen space or head space but in \textbf{world spherical
+coordinates}: a rectangle
+\verb|_FocusRect = (azMin, azMax, elMin, elMax)| in radians of azimuth and elevation about the sphere's
+centre. Each fragment reconstructs its own direction from first principles:
+
+\begin{verbatim}
+dir = normalize(worldPos - _SphereCenter)
+az  = atan2(dir.x, dir.z)
+el  = asin(dir.y)
+\end{verbatim}
+
+and computes a signed distance outside the rectangle, \verb|max(dAz, dEl)|, which a
+\verb|smoothstep(0, _SoftEdge, ·)| converts into the per-fragment vignette coordinate \textbf{t}: 0 inside
+the window, rising smoothly through the soft edge (default \verb|m_softEdgeDeg| = 20$^{\circ}$, widened to 32$^{\circ}$
+for ColorPop, Section 4.5.2), and 1 in the far periphery. Every mode consumes this single scalar.
+The dark modes use it directly as overlay alpha. ColorPop uses it to interpolate each pixel between
+its "inside" and "outside" treatments.
+
+Because azimuth and elevation are computed from world direction, the window is \textbf{world-locked}: it
+stays fixed to the room, to the desk, the doorway, the whiteboard, as the head rotates, rather
+than travelling with the gaze. Direction is computed per-fragment from \verb|worldPos| rather than
+interpolated from vertices, which avoids interpolation error at the sphere's poles.
+
+\textit{[Figure 4.2: The az/el window geometry: sphere cross-section with the focus rectangle drawn on it,
+the soft-edge band, and the t-profile plotted along one axis.]}
+
+\subsection{The window as absence}
+
+In the passthrough scene the shader's output inside the window is \verb|alpha = t = 0|: nothing is drawn.
+The consequence, argued in Chapter 3 and repeated here because it is the system's central design
+decision: inside the window the user sees the operating system's own passthrough at full native
+quality, full $\sim$110$^{\circ}$ field of view, and the OS pipeline's own latency compensation, none of which
+any application-rendered reconstruction can match. The effect budget is spent entirely in the
+periphery, where human acuity is lowest. One line of shader arithmetic (\verb|alpha = t|) simultaneously
+solves the field-of-view problem (the accessible camera feed covers only $\sim$85–90$^{\circ}$) and the fidelity
+problem (1280$\times$960 mono versus the native stereo view), by ensuring the reconstruction is only ever
+shown where neither limitation matters much.
+
+\subsection{Per-frame data flow}
+
+The manager component (\verb|CameraSphereVignetteManager|) owns all per-frame state and feeds the shader
+exclusively through material uniforms. The shader holds no state of its own. Each frame the manager:
+(i) re-centres the sphere on the head anchor and uploads the centre as \verb|_SphereCenter|, the one
+value on which the whole angular coordinate system depends; (ii) uploads the current focus rectangle
+(\verb|_FocusRect|) and soft edge; (iii) for camera-fed modes, uploads each active camera's pose basis
+(\verb|_CamLFwd/_CamLRt/_CamLUp|, and the right-camera set when present with \verb|_HasRightCam = 1|) and its
+half-FOV tangents (\verb|_TanHalfFovL/R|), derived from the camera intrinsics reported by the PCA API
+(\verb|SensorResolution / (2·FocalLength)|) rather than an assumed field of view (an intrinsics-derived
+projection was what removed the early implementation's slight "zoom" mismatch between the camera
+periphery and the native window); (iv) combines formation and motion-suppression state into the single
+\verb|_VignetteStrength| scalar; and (v) pushes the active mode's parameter block (Section 4.5).
+
+Stereo correctness is handled at the vertex/fragment interface: the shader is written for Unity's
+single-pass instanced stereo (\verb|UNITY_VERTEX_OUTPUT_STEREO| and per-fragment eye setup), and, by the
+world-direction design of Section 4.4, contains \textit{no} eye-dependent sampling anywhere in the camera
+path. The renderer, a standard \verb|MeshRenderer| on the sphere, requires no per-eye scripting.
+
+Two serialization details are deliberate. The renderer field keeps its historical name
+(\verb|m_renderer|) to preserve scene serialization across the system's refactors, and the selection
+dots' material is a serialized template asset rather than a runtime-found shader. The reason is
+failure-museum entry 3 (Section 4.10).
+
+\section{The Hybrid Composite}
+
+The system's flagship configuration composes the tiers: a \textbf{Tier-3 processed camera feed as the
+periphery, with the Tier-2 transparent window revealing native passthrough as the focus region}.
+These are two different renderings of the same reality, fused into one continuous view.
+
+Mechanically: the Passthrough Camera Access feed is bound to the sphere material (\verb|_MainTexL|, and
+\verb|_MainTexR| where the right camera is available), the fragment shader computes each periphery
+fragment's colour from the feed (with whatever manipulation the active mode specifies: blur,
+desaturation, salience re-grading), and outputs it at \verb|alpha = t·strength|. Inside the window,
+\verb|t = 0| yields transparency and the OS layer shows through. The seam between the two renderings is
+the window's soft edge, where the processed feed fades out over \verb|_SoftEdge| radians. Because both
+renderings depict the same world from (nearly) the same viewpoint, the transition reads as an effect
+boundary, not as two images.
+
+The construction has one honest seam-level caveat, stated here because it motivates a Chapter 5
+benchmark. The two renderings do not share a latency budget: the OS passthrough inside the window is
+served by the platform's dedicated low-latency reprojection path, while the camera-fed periphery
+carries the application pipeline's additional delay. In static or slowly moving views the mismatch is
+invisible. Under fast head rotation the periphery can momentarily lag the window at the seam. The
+system's motion-based suppression (Section 4.6) incidentally masks the worst case, since the effect
+fades out precisely when the head moves fast, but the residual mismatch is a real property of the
+hybrid and is measured, not assumed away, in the planned latency benchmark.
+
+The claim this construction supports is deliberately precise (Chapter 3, Section 3.6): the
+\textit{composite} is the novelty, exploiting the quality/FOV asymmetry between a native layer that cannot
+be touched and a camera copy that can, not any of its ingredients. Its costs are Tier 3's costs
+(resolution, latency, fusion, heat), paid only in the periphery. Its planned quantitative
+characterisation (per-mode GPU cost, legibility of window versus periphery, thermal envelope) is
+specified in Chapter 5.
+
+\textit{[Figure 4.3: Through-the-lens style mock-up or screenshot pair: the same room with the hybrid
+active, native-quality window, processed periphery, annotated with which tier renders which
+region.]}
+
+\section{Binocular Fusion by World-Direction Sampling}
+
+The accessible camera feed is monocular, but the display is binocular. How the mono image is presented
+to two eyes determines whether the system is usable at all. The governing requirement is that the
+sampling domain be \textbf{eye-independent}. Under stereo rendering the same world point projects to
+different screen positions in each eye, so any scheme keyed to screen position feeds each eye a
+different camera pixel for the same world point, and the two images do not fuse (Section 4.10,
+failure 1).
+
+The shader therefore samples by \textbf{world direction}. Each fragment's direction from the
+sphere centre (already computed for the window test) is projected through a head-centred pinhole
+model of the camera: with the camera's forward/right/up basis (\verb|_CamLFwd|, \verb|_CamLRt|, \verb|_CamLUp|) and
+half-FOV tangents (\verb|_TanHalfFovL|, derived from the camera intrinsics as
+\verb|SensorResolution / (2·FocalLength)| rather than an assumed FOV), the shader computes
+
+\begin{verbatim}
+uv = ( (dir.rt, dir.up) / max(dir.fwd, eps) ) / tanHalfFov . 0.5 + 0.5
+\end{verbatim}
+
+Because world direction is \textbf{eye-independent}, both eyes sample the \textit{same} camera pixel for the
+same world point. The mono image behaves like a texture painted onto the world shell, and the visual
+system fuses it. The residual, and acceptable, artefact is that the painted shell has no true
+stereo disparity of its own. This is consistent with the project's standing comfort constraint that a
+mono feed must never be presented as if it were geometry-correct stereo across the full field of view.
+
+Where both cameras are available, the shader samples both and selects per fragment by in-view
+weight, a \textbf{hard split} (\verb|inFovL >= inFovR ? sampledL : sampledR|) rather than an alpha crossfade,
+because a crossfade of two horizontally offset viewpoints produces exactly the ghosting the
+world-direction scheme exists to avoid. The two forward cameras share an orientation and differ only
+by a small horizontal baseline, so the stitch line is invisible in normal use.
+
+\textit{[Figure 4.4: Fusion diagram: same world point, two eyes. Screen-space sampling (two different
+camera pixels, double image) versus world-direction sampling (one camera pixel, fused).]}
+
+\section{The Modes}
+
+The mode enumeration in the codebase (\verb|VignetteMode|) contains eleven entries. Two are carried
+into the user study, SignPop and Hard Dark, both to confirmatory testing. A third, Soft Dark, is
+specified here but was never tested with participants (Chapter 6). Blur is their superseded ancestor. ColorPop is the base grading pipeline SignPop extends
+with a detection gate (Section 4.5.5); it is not itself evaluated as a separate mode. Five further
+entries are retained design-exploration variants (ChromaticCool, ConspicuitySqueeze,
+GranulatedPeriphery, OutlinedDark, SpotLift). The eleventh, TintedDark, is dead code, dropped from
+discussion but kept in the enum because removing the entry would break a serialized scene value
+(Section 4.10). All share the geometry, window, and t-coordinate of Section 4.2. A mode is, in
+implementation terms, a per-fragment colour/alpha policy.
+
+\subsection{Peripheral occlusion (Hard Dark and Soft Dark)}
+
+The simplest and strongest manipulation: \verb|periColor = black|,
+\verb|periAlpha = t · _VignetteStrength · _MaxVignetteAlpha| with \verb|_MaxVignetteAlpha = 1.0|. At full
+formation the periphery is completely occluded. The user's visual world \textit{is} the focus window. The
+shader path (\verb|_SimpleMode = 1|) samples no textures and does no camera mathematics. An early return
+delivers what is effectively a fixed-function overlay, with correspondingly negligible GPU cost and
+no camera permission or thermal exposure (this is the deployability argument of Chapter 3,
+Section 3.5, in code). Hard Dark is the confirmatory mode of user-study Block A (Chapter 6): the
+strongest available manipulation, chosen to maximise the chance of detecting the distraction-
+suppression mechanism if it exists. The same shader path, run with \verb|_MaxVignetteAlpha| set from
+\verb|m_mode2MaxAlpha| (default \textbf{0.75}) instead of 1.0, gives Soft Dark: the periphery darkens
+substantially but never fully, so peripheral motion and events stay visible through the veil. It is one
+of the further design-space variants of Section 4.5.3, and it carries no participant data
+(Chapter 6).
+
+Both dark modes \textbf{form gradually}: on window lock, a coroutine animates \verb|_VignetteStrength| from 0
+to 1 along a SmoothStep over \verb|m_vignetteFormTime| (default \textbf{3 s}), so the periphery dims as a
+transition rather than a cut. Formation runs independently of the motion suppression of Section 4.6.
+If the user's head moves during formation, suppression multiplies the strength down while the
+formation clock keeps counting, and the effect resumes at its accumulated level when the head
+settles.
+
+\subsection{Colour- and saliency-gated peripheral re-grading (ColorPop)}
+
+ColorPop is the Tier-3 mode. It re-grades the camera feed's colour and brightness rather than
+dimming it, using the literature's strongest guidance channel: luminance and saturation contrast,
+with no hue shifts (Bailey et al., 2009; Grogorick et al., 2017; Sutton et al., 2022). The re-grading
+is a standing property of the whole visual field, not a transient cue that appears and disappears.
+After on-device comparison across the mode family, ColorPop was the standout and became the
+dissertation's dynamic-scenario mode (user-study Block B).
+
+Its grading is a \textbf{four-level hierarchy} on two tracks, gated by colour class and interpolated by
+the window coordinate t:
+
+\begin{center}
+outside-other $<$ outside-ROG $<$ inside-other $<$ inside-ROG
+\end{center}
+
+\textbf{Colour classification.} A shader helper (\verb|PopColorKeep|) computes membership in the kept
+red/orange/green (ROG) set, the colour classes of signal lamps and signage. Membership is defined
+by hue bands (warm band hue $\in$ [0, 0.18] fading out by 0.25; a wrap-around red band above 0.85; a
+green band 0.22–0.48) gated by saturation floors. The warm band uses a deliberately higher floor
+(\verb|_PopWarmSatMin| = 0.35): warm-\textit{white} light, headlights at hue $\approx$ 0.1 and saturation 0.1–0.25,
+must not ride into the "orange" class, while genuine lamps and signs sit at saturation above 0.5.
+
+\textbf{The "other" track} (non-ROG pixels) stays near-natural inside the window (a slight desaturation,
+\verb|_PopInsideDesat| = 0.25, keeps the window from feeling artificially vivid against its own
+periphery), graded down to dim grey outside (\verb|_PopGreyDim| = 0.4). The periphery's non-signal
+content is present but muted.
+
+\textbf{The ROG track}: inside the window, saturation is boosted $\times$\verb|_PopSatBoost| (1.7) about the pixel's
+own luminance, a sigmoidal midtone-contrast transfer is applied per Sutton et al.'s published recipe
+($\alpha$ = 10, $\beta$ = 0.5, normalised so 0$\rightarrow$0 and 1$\rightarrow$1; strength \verb|_PopSigmoid| = 0.6, scaled by $(1-t)$ so it is
+full inside the window and absent outside), and brightness is lifted $\times$\verb|_PopBrightIn| (1.15).
+Outside the window, ROG pixels keep their \textbf{natural colour, dimmed} to $\times$\verb|_PopBrightOut| (0.65).
+This is a deliberate design decision: signal-relevant colours remain detectable \textit{everywhere}, merely
+privileged inside the window, which fits a monitoring context in which a peripheral traffic light
+must never become invisible.
+
+\textbf{Glare compression.} Pixels that are bright (\verb|luma > _PopGlareKnee| = 0.6), unsaturated, and not
+ROG, the signature of headlight glare, are compressed toward the knee, i.e. toward a visible dim
+spot, never black: the oncoming vehicle stays legible while its veiling glare is attenuated. The
+compression is mild inside the window (\verb|_PopGlareInside| = 0.35) and strong in the periphery
+(\verb|_PopGlareOutside| = 0.85). A \textbf{blown-core guard} protects the one case the mask would otherwise
+destroy: the clipped white centre of a bright signal lamp. Before dimming, the shader samples a small
+Gaussian surround (\verb|_PopGuardRadius| = 0.008 UV). If the surround is a kept colour, the lamp's
+saturated fringe, the pixel is exempted.
+
+\textbf{Global periphery dim.} Finally the whole periphery, ROG included, is multiplied down by
+\verb|_PopPeriphDim| (0.85), so that the focus window also wins on plain luminance, the strongest single
+guidance channel in the attention literature. Net outside-ROG brightness at defaults is therefore
+$\approx$ 0.65 $\times$ 0.85 $\approx$ 0.55 of natural.
+
+Because a colour/grey boundary reads perceptually harsher than a blur or darkness boundary, ColorPop
+uses a widened window edge: \verb|m_popSoftEdgeDeg| = \textbf{32$^{\circ}$} against the global default of 20$^{\circ}$.
+
+In the passthrough scene, ColorPop grades the periphery only. The window must remain transparent,
+since the OS layer cannot be graded, and repainting the full field from the mono feed would violate
+the comfort constraint. In the video test scene (\verb|_PassthroughMode = 0|) the same shader grades the
+entire sphere, window included (\verb|periAlpha = lerp(1, t, _PassthroughMode) · strength|), which is the
+configuration evaluated in Block B.
+
+\textit{[Figure 4.5: ColorPop grading pipeline flowchart: classify (ROG?) $\rightarrow$ glare mask + core guard $\rightarrow$
+track-specific grading $\rightarrow$ periphery dim, with a screenshot pair showing a street scene off/on.]}
+
+\subsection{Progressive peripheral blur with contrast restoration (Blur, superseded) and the exploratory family}
+
+The system's ancestor mode, \textbf{Blur}, renders the periphery from the camera feed with progressive
+Gaussian blur and delayed desaturation, and is retained in the codebase though not evaluated. It
+blurs through a two-ring Gaussian
+(centre + 8 taps at radius r + 8 taps at 2r, $\sigma$ = r) whose fine/coarse difference doubles as a local
+Laplacian estimate driving a \textbf{perceptual noise term} (after Tariq, Tursun \& Didyk, 2022): world-
+anchored luminance noise, amplitude-scaled by local variance (capped at 0.2 to prevent marbling at
+hard night-scene boundaries), reintroducing "detectable but not resolvable" high-frequency content
+that blur otherwise strips. A \textbf{contrast-restoration} term (after Patney et al., 2016) re-amplifies
+the blurred signal's residual local contrast (\verb|_BlurContrastRestore| = 0.8, overshoot clamped to
+$\pm$0.15), because peripheral blur is detected primarily through its contrast loss. Restoring contrast
+roughly doubles tolerable blur radius and removes the tunnel-vision percept. Blur precedes nothing:
+desaturation begins at \verb|_DesatDelay| = 0.3 of the t-range and blur only at \verb|_BlurDelay| = 0.5, so
+colour mutes before structure softens.
+
+Two sampling details make the blur path viable on the equirectangular video sphere as well as the
+camera feed. Blur taps go through a mode-aware UV helper: in camera mode both axes clamp (the camera
+image does not wrap), while in equirectangular mode the horizontal axis wraps (\verb|frac|) for a seamless
+360$^{\circ}$ join and out-of-range vertical taps are \textit{folded back} rather than clamped, since clamping
+would smear the top and bottom texture rows across the sky and floor. Independently, the blur radius
+is faded to zero toward the poles by a \verb|cos(el)| factor, since at the poles any UV-space offset
+corresponds to a huge angular distance and unfaded taps produce visible polar artefacts.
+
+Five further exploratory modes are retained in shader and enumeration but excluded from evaluation.
+Each is a literature-derived point in the design space: warm-window, cool-periphery chromatic
+opposition (\textbf{ChromaticCool}); centre–surround contrast flattened toward the local mean
+(\textbf{ConspicuitySqueeze}, after Veas et al., 2011); world-locked static noise grains with
+eccentricity-ramped density (\textbf{GranulatedPeriphery}, after Cao et al., 2021); near-blackout with
+luminance edges restored (\textbf{OutlinedDark}, after Cheng et al., 2022's finding that
+context-preserving outlines reduce anxiety); and a focus-region brightness lift over a soft
+peripheral dim (\textbf{SpotLift}, video mode only, since OS passthrough cannot be brightened). They
+are reported as explored design points. None carries evaluation claims. A sixth candidate,
+\textbf{TintedDark} (a configurable-colour overlay), is dead code, since it has no proposing paper and
+no mechanism the dark family does not already have. Its shader branch and enum entry remain in the
+codebase, because removing the entry would break a serialized scene value. The video test scene's
+free-play mode cycle (\verb|k_modeCycle|, the A-button cycle) walks the entire eleven-entry enum in
+enum order, matching the passthrough scene's cycle, so free play and demos can reach every mode,
+while the study proper only ever programmatically selects SignPop, Soft Dark, and Hard Dark
+(Chapter 6).
+
+\subsection{Cost structure of the shader paths}
+
+The mode family spans roughly two orders of magnitude in per-fragment cost, and the gradient is
+structural rather than incidental. It is Chapter 3's deployability axis realised in instructions. The
+dark modes take an early return after the window test: no texture reads, a handful of ALU
+operations, one blended write. ColorPop reads the source texture once per fragment on its main path,
+plus a 17-tap Gaussian surround \textit{only} inside the small fraction of fragments where the glare mask
+fires with the core guard enabled. Its cost is dominated by per-pixel colour arithmetic (HSV-style
+classification, two grading tracks, a sigmoid). The Blur path is the heaviest: two Gaussian rings of
+8 taps each around a shared centre (17 taps) per camera, doubled when both cameras are live near the
+stitch, plus the noise texture read and contrast-restoration arithmetic. These are analytic
+expectations. Their empirical confirmation (per-mode GPU frame cost against the 72/90 Hz budget) is
+one of the planned benchmarks of Chapter 5. The design consequence stands regardless of exact
+numbers: the modes the study asks participants to imagine using for long sessions (the dark family)
+are the modes that cost almost nothing, and the mode with the richest effect (ColorPop) is the one
+whose Tier-3 pipeline carries the platform's thermal ceiling.
+
+\textit{[Figure 4.6: Screenshot triptych of the three study modes on the same video frame.]}
+
+\subsection{Detection-gated salience re-grading (SignPop, video-only): evaluated, Block B}
+
+\textbf{SignPop} is an eleventh mode, live only in the video test scene, and it is the mode placed in
+front of participants in Block B (Chapter 6). It shares ColorPop's four-level ROG grading pipeline
+(Section 4.5.2),
+but a confirmed detection from the offline oracle track (Section 4.8.2) gates a bundle of effects,
+not colour alone.
+
+\textbf{The colour gate.} ColorPop already keeps red/orange/green hues partly visible in the
+periphery without any detection (Section 4.5.2's outside-ROG track). SignPop restricts the
+\textit{full} vivid treatment to pixels inside a confirmed detected traffic-light/stop-sign box
+(\verb|_PopDetGate|). An undetected ROG pixel, neon signage, brake lights, advertising, or a
+genuine bake miss, falls back to a partial keep (\verb|m_signRogFallback| / \verb|_PopDetFallback|,
+default 0.35) rather than full grey, a "graceful miss" so a missed real signal is dimmed, never
+hidden. A short hold (\verb|m_signDetHoldSec|, default 0.5 s) keeps a detection alive after it drops
+out of the bake so pops do not blink between samples.
+
+\textbf{An independent detection-zone system.} Beyond the colour gate, every confirmed detection
+drives three further, colour-independent effects computed from soft elliptical zones around each
+detection box (\verb|CameraSphereVignette.shader:610–665|):
+
+\begin{itemize}
+\item \textbf{A detection aperture.} The vignette is carved away directly over the object
+  (\verb|t = min(t, 1 - windowClear)|). This is not the focus window described in Section 4.2: it
+  is a separate, transient opening that appears wherever a detection is confirmed, inside or
+  outside the focus window, and disappears when the detection is lost.
+\item \textbf{A saliency lift.} Saturation, brightness, and local contrast around the object are
+  boosted (\verb|detHighlight|), scaled down when the object already sits inside the focus window
+  (\verb|_DetectionOutsideScale|) since the standing focus window already reveals it there, and
+  left at full strength in the periphery where the lift is doing the work.
+\item \textbf{A darkened surround.} A soft annulus just outside the object's boundary is dimmed
+  slightly (\verb|detSurround|), raising the object's centre–surround contrast from both sides
+  (Veas et al., 2011's dual modulation, the same source cited for ConspicuitySqueeze, Section 4.5.3).
+\end{itemize}
+
+This entire detection-zone system is suppressed for Hard Dark (\verb|_SuppressDetectionWindows|):
+once the user-placed window is locked, no detected object anywhere gets a carve-out, however
+salient. This is a deliberate choice, not an omission: Hard Dark's role in Block A (Chapter 6) is to
+test the strongest possible manipulation, full occlusion with no exceptions, against a workstation
+task with no peripheral object the participant needs to see. Adding detection apertures back into
+Hard Dark would weaken exactly the property the confirmatory test relies on. A detection-aware
+variant of Hard Dark is a reasonable extension for contexts where a peripheral object genuinely
+matters, such as a walking or driving scenario, and Chapter 8 returns to it as future work, not as a
+gap in the present study's design.
+
+\textbf{A breathing pulse.} The saliency lift additionally oscillates at approximately 1 Hz
+(\verb|_DetectionPulseAmp| modulating \verb|_Time.y|, \verb|CameraSphereVignette.shader:909–912|),
+following Waldner et al. (2014) on low-frequency, low-amplitude temporal modulation
+attracting attention with low annoyance.
+
+\textbf{Two gates on what counts as a detection at all.} The offline bake
+(\verb|Tools/bake_detections.py|) considers only the forward view by default, azimuth $\pm$85°,
+elevation $\pm$50° around video-centre, so a detection behind the participant never enters the
+track. At runtime, a detection's window and boost stay suppressed until its apparent size clears a
+minimum threshold ($\sim$1.2°, \verb|VideoTestSceneManager.cs:200|). 33 of 246 post-debounce
+traffic-light lifetimes in the current bake never clear it, so a distant, still-small light does not
+open a window over what is still, perceptually, a speck.
+
+\textbf{What a confirmed detection actually switches on.} Six effects fire together on the same
+gate: the colour-pop upgrade, the window carve-out, the saturation lift, the brightness lift, the
+contrast expansion, and the darkened surround, layered on the $\sim$1 Hz pulse. None of the six is
+isolable in the current build. Chapter 6's threats-to-validity section and Chapter 7 return to this
+as a limitation on what any measured effect can be attributed to.
+
+\section{Motion-Based Suppression}
+
+Head-coupled restriction of the visual field is a known comfort hazard: Norouzi et al. (2018) found
+that vignetting yoked to head rotation \textit{increased} rather than decreased simulator sickness. The
+system therefore decouples in the opposite direction: the effect \textbf{fades out while the head moves
+fast, and returns when it settles}.
+
+Each frame the manager computes head angular speed via \verb|Quaternion.Angle| between successive head
+rotations. When speed exceeds a per-mode threshold, defaults \verb|m_motionBlur| 30$^{\circ}$/s (hold 0.6 s),
+ColorPop 35$^{\circ}$/s (hold 0.7 s), \verb|m_motionSoftDark| 50$^{\circ}$/s (hold 1.0 s), \verb|m_motionHardDark| 70$^{\circ}$/s (hold
+1.5 s), thresholds scale with the mode's intrusiveness, so the blackout mode tolerates the most
+motion before yielding, a suppression scalar animates toward 1 over \verb|m_motionFadeOutSec| (0.20 s)
+and, once speed has stayed below threshold for the mode's hold time, back toward 0 over
+\verb|m_motionFadeInSec| (0.70 s). The shader receives
+\verb|effectiveStrength = m_vignetteStrength . (1 - suppression)|: suppression multiplies, never resets,
+the formation state.
+
+One refinement matters for the intended interaction loop. If the head's direction enters the focus
+window (with a +15$^{\circ}$ margin, \verb|k_focusArrivalMarginRad| = 0.2618), the hold timer is zeroed
+\textbf{immediately}. Arriving at the focus region restores the effect at once, without waiting out the
+hold. The asymmetry is deliberate: looking \textit{away} is treated as a possible need for situational
+awareness (effect yields, generously), while looking \textit{back at the task} is treated as re-engagement
+(effect returns, promptly).
+
+The parameterisation encodes a policy, not just a tuning surface. Thresholds and hold times scale
+\textit{with} the mode's intrusiveness. The blackout mode requires the fastest head motion (70$^{\circ}$/s) to
+yield and waits longest (1.5 s) before returning, because the cost of wrongly suppressing a strong
+effect (a flash of the full periphery) is jarring, while the cost of wrongly suppressing a gentle one
+is negligible. The fade asymmetry (out in 0.20 s, in over 0.70 s) follows the same logic: yielding
+must feel instantaneous to be trusted, while returning may be leisurely because nothing is at stake.
+And suppression \textit{multiplies} the formation state rather than resetting it, so a glance over the
+shoulder during the 3-second formation does not restart the transition. State that the user created
+(the locked window, the accumulated formation) is never destroyed by a comfort mechanism, only veiled.
+
+\textit{[Figure 4.7: Suppression state diagram: speed threshold, hold timer, fade-out/fade-in ramps, and
+the focus-arrival shortcut.]}
+
+\section{Interaction Design}
+
+The user defines the focus window by \textbf{painting} it: holding the right controller trigger sweeps
+the controller's aim across the scene, and the window rectangle grows to enclose the swept region
+(seeded at the aim point with a small brush pad). Releasing the trigger \textbf{locks} the window and, in
+the dark modes, starts the 3-second formation. The rectangle is computed and stored directly in the
+world az/el coordinates of Section 4.2.2 (via \verb|atan2|/\verb|asin| on the controller-forward direction),
+so what the user paints is what stays locked to the room. The \textbf{A} button cycles modes. \textbf{B}
+clears the window and cancels the effect.
+
+Feedback is deliberately minimal. Five runtime dot markers (four corners plus a yellow aim cursor,
+\verb|m_dotSize| = 0.055 m spheres) show the window during painting, dim on lock, and auto-hide after
+\verb|m_dotHideDelay| = 3 s via a shrink animation (painting again restores them). A world-space toast
+panel (0.54 $\times$ 0.15 m, lazily following at 1.5 m ahead and 0.3 m below eye level, billboarded to the
+head) announces mode changes with a name, one-line description, pip-dot position indicator and a
+colour-coded accent stripe, fading in over 0.35 s and away after 2.8 s. Hand tracking is disabled.
+Input is controller-only, a scope decision that removes a class of input ambiguity from the study
+sessions.
+
+Three design rationales are worth making explicit. \textit{Painting rather than pointing}: a focus window is
+a region, not a point, and asking the user to sweep it makes the region's extent an explicit,
+deliberate act. The alternative, auto-sizing a window around a pointed target, hides a consequential
+parameter inside a heuristic. \textit{World-locking rather than head-locking}: the window belongs to the
+task surface, not to the gaze. A head-locked window would chase the user's attention rather than
+anchor it, and head-coupled visual-field manipulation is precisely the comfort hazard Section 4.6
+exists to avoid. \textit{Formation as transition}: the 3-second SmoothStep exists because an instantaneous
+peripheral blackout is startling. The gradual close is the system's only concession to theatricality,
+and it doubles as the user's confirmation that the lock succeeded. The temporal behaviours here,
+formation, suppression fade-out/fade-in, dot auto-hide, are, per the literature review's gap
+analysis (Chapter 2), among the least-studied parameters in DR design. The system therefore exposes
+every one of them as an Inspector-tunable value rather than a constant.
+
+\textit{[Figure 4.8: Interaction sequence: paint (dots visible) $\rightarrow$ release/lock $\rightarrow$ formation $\rightarrow$ dots
+auto-hide, plus the mode toast.]}
+
+\section{Perception: Detection Islands and the Offline Oracle}
+
+\subsection{Live detection support}
+
+The live passthrough manager (\verb|CameraSphereVignetteManager|) supports up to eight simultaneous
+\textbf{detection islands} (\verb|k_maxDetections = 8|, backed by the shader's \verb|_DetectionRects[16]| array):
+az/el rectangles, fed by an optional \verb|YoloRunner| component, inside which the vignette is cleared
+(\verb|t = min(t, 1 - inside)|) so the detected object shows through undiminished. Each island renders as
+a soft-edged ellipse (feather from \verb|m_detectionSoftEdgeDeg| = 3$^{\circ}$) with a \textbf{dual modulation} after
+Veas et al. (2011): the object itself receives a mild saturation/brightness lift
+(\verb|m_detectionEnhance| = 0.4) while a soft annulus just outside its boundary is slightly darkened
+(\verb|m_detectionSurround| = 0.15), raising the object's centre–surround contrast from both sides
+without a glow artefact. The lift breathes gently at $\sim$1 Hz (\verb|m_detectionPulseAmp| = 0.25), a
+low-frequency, low-amplitude temporal modulation chosen for attention capture at low annoyance
+(Waldner et al., 2014), far below the photosensitivity band. Detections expire after
+\verb|m_detectionLifetime| = 0.6 s without renewal. The class filter is deliberately narrow: COCO
+classes 9 (traffic light) and 0 (person) only, the two object classes the Block B marker task uses
+as targets (Chapter 6).
+
+\subsection{The offline oracle pipeline}
+
+For evaluation, live inference is replaced by a \textbf{pre-baked detection track}, the oracle-perception
+instantiation of Chapter 6's methodology. A PC-side script (\verb|Tools/bake_detections.py|) runs YOLO11
+over the full-resolution 3840$\times$2160 study video used in the test scene, as 3$\times$2 overlapping tiles
+plus a full-frame pass merged by per-class non-maximum suppression, sampling at 0.5 s intervals, and
+writes a JSON track (\verb|study_video.detections.json|) keyed by video time. The runtime loads it with
+\verb|m_useBakedDetections = true| and plays detections back deterministically.
+
+The bake over the 8-minute-39-second study clip produced
+\textbf{13,939 detections across 1,040 samples, with 99.5 \% of samples containing at least one
+detection} (median 14 per sample, 2,952 traffic lights and 10,987 people). Unlike the live manager, the
+video test scene's manager (\verb|VideoTestSceneManager|) draws on the shader's full sixteen-slot
+\verb|_DetectionRects[16]| array (\verb|k_maxDetections = 16|), which absorbs the oracle bake's density,
+so no ordering or survival policy is needed for the great majority of samples. These figures are the system's preliminary oracle-side data and reappear in Chapter 5 as
+one arm of the planned oracle-versus-live benchmark.
+
+\textit{[Figure 4.9: Oracle pipeline: source video $\rightarrow$ tiled YOLO11 full-res inference $\rightarrow$ NMS merge $\rightarrow$ JSON
+track $\rightarrow$ deterministic playback into shader islands.]}
+
+\section{The Video Test Scene}
+
+All dynamic-scenario evaluation runs in a dedicated harness scene (\verb|VideoTestScene.unity|,
+\verb|VideoTestSceneManager.cs|) in which the passthrough layers are replaced by an
+8-minute-39-second equirectangular driving clip decoded onto the sphere (\verb|VideoPlayer| $\rightarrow$ RenderTexture $\rightarrow$ \verb|_MainTexL|,
+with equirectangular sampling \verb|_EqCamSampling = 1| and pole-safe blur tap folding). The scene
+preserves everything else, the same shader, window logic, modes, interaction, and detection islands,
+so a mode behaves identically over video and over the live camera feed, while gaining what live
+passthrough can never provide: \textbf{identical, repeatable, event-dense stimuli for every participant},
+plus a deterministic ground-truth detection track. The harness is thus the simulation-based-
+evaluation instrument of the user study (Chapter 6, Block B) and the reason the study's
+stimuli are versionable artifacts rather than descriptions.
+
+The harness carries its own alignment and perception plumbing. The equirectangular mapping exposes
+horizontal and vertical UV offsets (\verb|m_videoUOffset|, \verb|m_videoVOffset|) and a vertical flip
+(\verb|m_flipVideoY|) so that any source clip's forward direction and horizon can be registered to the
+scene's coordinate frame without re-encoding the video. For live-inference experiments the manager
+maintains a dedicated 640$\times$360 render target for the detector (\verb|m_yoloRT|) so that YOLO never reads
+the 4K video texture directly. The downsample blit happens inside the detector component, on the
+detector's own cadence rather than every frame. For evaluation this path is bypassed entirely in
+favour of the baked track (\verb|m_useBakedDetections = true|, the default). Mode robustness is handled at
+startup: any stale serialized mode from an older scene save is snapped to the current cycle's default
+(ColorPop), and the removed exploratory modes' shader toggles are zeroed once, since nothing drives
+them per-frame any more.
+
+Two harness-specific notes have study consequences. First, in the video scene SignPop's grading
+covers the full sphere including the window (Section 4.5.2/4.5.5), which is the intended Block B
+configuration. Second, the video manager's motion-suppression master switch (\verb|m_enableMotion|)
+currently defaults to \textbf{false}. Study Block B specifies suppression active, so the study
+configuration must set it explicitly (flagged in the study tooling specification, Chapter 6
+Appendix).
+
+\section{The Failure Museum}
+
+Documented dead ends are reusable knowledge. This section reports the eight failures that shaped the
+system, each with what was tried, why it failed, and what replaced it.
+
+\textbf{1. Screen-space camera sampling $\rightarrow$ double vision.} The first shader sampled the camera texture by
+screen position. Per-eye the image was correct. Binocularly it could not fuse, because each eye
+sampled a different camera pixel for the same world point. On-device symptom: frank double vision.
+Replaced by world-direction sampling through a head-centred pinhole (Section 4.4), verified fused on
+device. Lesson: in stereo rendering, \textit{eye-independence of the sampling domain} is a correctness
+criterion, not an optimisation.
+
+\textbf{2. Surface-projected passthrough $\rightarrow$ deprecated API.} The obvious platform mechanism for "put real
+passthrough on my own geometry", surface-projected passthrough, was evaluated and rejected because
+it is deprecated as of SDK v83. Any architecture built on it would be built on removed ground.
+Replaced by the window-as-absence composite, which uses only stable compositor behaviour. Lesson: on
+young platforms, prefer primitives the OS must keep (alpha compositing) over conveniences it may
+withdraw.
+
+\textbf{3. }\verb|Shader.Find|\textbf{ on device $\rightarrow$ null.} Runtime materials created via \verb|Shader.Find("Unlit/Color")|
+worked in the editor and silently returned null on Quest: Android builds strip shaders that no
+serialized asset references, and the failure surfaced as a crashed startup coroutine rather than an
+error. Replaced by a serialized \textbf{template material} (\verb|SelectionDotMat.mat|, assigned in the
+Inspector as \verb|m_dotMaterialTemplate|) that runtime dots clone. The asset reference guarantees build
+inclusion. Lesson: never construct device materials from name lookups. Ship a serialized template.
+
+\textbf{4. Downsampled detection baking $\rightarrow$ missing traffic lights.} The first oracle bake ran YOLO on a
+640$\times$360 downsample of the 4K source. Distant traffic lights fell below detectable pixel size and the
+track silently omitted most of them, an oracle that was not an oracle. Replaced by the full-
+resolution tiled PC-side baker (Section 4.8.2), raising coverage to 99.5 \% of samples. Lesson:
+validate ground-truth pipelines against the \textit{smallest} objects they must contain, and never let the
+convenience path (in-editor, low-res) overwrite the reference track (\verb|BakeOnPlay| now defaults off).
+
+\textbf{5. Building into a OneDrive-synced folder $\rightarrow$ corrupted builds.} Android builds intermittently
+failed with \verb|IOException: RuntimeActionBindings.json already exists| and related file-lock errors.
+Cause was OneDrive synchronisation locking freshly written build files mid-process (compounded once
+by a stale file from a prior failed build). Fixed by building to a non-synced local folder and
+clearing stale outputs. Lesson: cloud-sync directories are hostile to build systems. Keep build
+outputs outside them.
+
+\textbf{6. Camera-service screenshots $\rightarrow$ black frames.} Capturing evidence via the platform's camera-based
+screenshot service returned black images whenever the application held the passthrough camera. The
+service and the app contend for the same resource. Replaced by framebuffer capture
+(\verb|screencap|/\verb|screenrecord|), which records the composited display output. Lesson relevant to the
+study protocol: the redundant session recording (Chapter 6) must use the framebuffer path.
+
+\textbf{7. Controller input silently dead at session start.} On several occasions the headset booted with
+controllers in the \verb|CONNECTED_INACTIVE| state (asleep, or the OS stuck in hand-tracking mode), so the
+application received no input at all, indistinguishable, from inside the app, from a broken build.
+Mitigations: the study build boots directly into the experiment scene (no menu navigation requiring a
+laser pointer), hand tracking is disabled to remove the ambiguous input mode, and "wake controllers /
+restart headset if input is dead" is a line on the pre-session checklist rather than tribal
+knowledge. Lesson: input liveness is an environmental precondition. Put it in the protocol, not in
+the debugger.
+
+\textbf{8. The magenta floor patch.} During video-scene work a metre-wide error-magenta rectangle
+appeared lying on the floor at the origin. Cause: a leftover \verb|SelectionLine| GameObject from the
+passthrough scene's earlier selection UI, a \verb|LineRenderer| with a null material (Unity renders
+missing materials in error magenta), default width, never wired to the video manager. Deleted from
+the scene. Lesson, minor but real: when a system evolves by scene-cloning, orphaned scene objects are
+a distinct defect class. Audit clones against the components that actually drive them.
+
+\section{Summary}
+
+One sphere, one shader, one manager: the implementation realises Chapter 3's design space with a
+per-fragment colour/alpha policy over a world-locked spherical window. Its load-bearing techniques,
+the window as absence, the hybrid composite of native passthrough and processed camera feed, and
+eye-independent world-direction sampling, are each answers to a specific platform wall, and its
+failures are documented with the same care as its successes because both are findings about building
+DR on consumer hardware. What the system \textit{costs} (frames, milliseconds, heat) and how far its live
+perception stands from the oracle it is evaluated under are the questions of Chapter 5.
+
+\section*{References}
+
+\refitem{Bailey, R., McNamara, A., Sudarsanam, N., \& Grimm, C. (2009). Subtle gaze direction. \textit{ACM Transactions on Graphics}, 28(4).}
+\refitem{Cao, Z., Grandi, J., \& Kopper, R. (2021). Granulated Rest Frames Outperform Field of View Restrictors on Visual Search Performance. \textit{Frontiers in Virtual Reality}, 2:604889. doi:10.3389/frvir.2021.604889}
+\refitem{Cheng, Y., Yin, H., Yan, Y., Gugenheimer, J., \& Lindlbauer, D. (2022). Towards Understanding Diminished Reality. \textit{Proc. CHI 2022.} doi:10.1145/3491102.3517452}
+\refitem{Grogorick, S., Stengel, M., Eisemann, E., \& Magnor, M. (2017). Subtle gaze guidance for immersive environments. \textit{Proc. ACM SAP 2017.}}
+\refitem{Meta (2025). \textit{Passthrough Camera Access.} \url{developers.meta.com/horizon/}}
+\refitem{Norouzi, N., Bruder, G., \& Welch, G. (2018). Assessing Vignetting as a Means to Reduce VR Sickness During Amplified Head Rotations. \textit{15th ACM Symposium on Applied Perception (SAP '18).} doi:10.1145/3225153.3225162}
+\refitem{Patney, A., Salvi, M., Kim, J., et al. (2016). Towards foveated rendering for gaze-tracked virtual reality. \textit{ACM Transactions on Graphics}, 35(6).}
+\refitem{Sutton, J., Langlotz, T., Plopski, A., Zollmann, S., Itoh, Y., \& Regenbrecht, H. (2022). Look over there! Investigating saliency modulation for visual guidance with augmented reality glasses. \textit{Proc. UIST 2022.} doi:10.1145/3526113.3545633}
+\refitem{Tariq, T., Tursun, C., \& Didyk, P. (2022). Noise-based Enhancement for Foveated Rendering. \textit{ACM Transactions on Graphics.} doi:10.1145/3528223.3530101}
+\refitem{Veas, E., Mendez, E., Feiner, S., \& Schmalstieg, D. (2011). Directing attention and influencing memory with visual saliency modulation. \textit{Proc. CHI 2011.} doi:10.1145/1978942.1979158}
+\refitem{Waldner, M., Le Muzic, M., Bernhard, M., Purgathofer, W., \& Viola, I. (2014). Attractive flicker: Guiding attention in dynamic narrative visualizations. \textit{IEEE TVCG}, 20(12), 2456–2465. doi:10.1109/TVCG.2014.2346352}

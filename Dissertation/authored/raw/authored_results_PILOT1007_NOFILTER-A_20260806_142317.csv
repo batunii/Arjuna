@@ -1,0 +1,14 @@
+t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
+1786022597961,1007,NoFilter,P,0,traffic_light,0.000,2.500,2.500,hit,1.001,0.168
+1786022599580,1007,NoFilter,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,0.204
+1786022609432,1007,NoFilter,A,1,traffic_light,6.500,23.000,16.500,hit,4.311,1.620
+1786022615216,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022616072,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022616581,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617107,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617135,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617344,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617357,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617607,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022617660,1007,NoFilter,A,-1,,,,,false_alarm,,
+1786022631365,1007,NoFilter,A,60,person,21.500,32.000,10.500,miss,,

@@ -371,6 +371,18 @@ owner: Shreyansh. Trade-off to weigh in that pilot: full opacity maximises the r
 guarantee but makes the probe a solid foreign marker (Point 1 pop-out direction), where the
 translucent bordered-yellow ring stays scene-transmissive.
 
+**UPDATE (2026-08-08, post-study — supersedes the paragraph above as a record of what ran): the
+rope IS the study probe.** The main-study Block B sessions ran the *translucent* rope —
+`m_ringSegments = 4`, `m_ringColor.a` 0.4, `m_ringWidth` 0.06, `m_ringOutline` 0.6,
+`m_ringBehindFilter` ON, probe 1.6°, onset ramp 0.5 s — the configuration serialized in
+`Assets/VideoTestScene.unity`, which is the authority over this doc and over the presenter's code
+defaults (segments 0, behind-filter off — both are scene-overridden). Confirmed by the author,
+2026-08-08. Neither the solid-yellow fallback below nor the opaque "fair rope" proposed above was
+what participants saw; the opaque variant remains untested. The no-filter baselines this
+configuration produced are in `Dissertation/authored/analysis-2026-08-08-pooled-n17.md` (pooled
+50.67%, per-participant 17.5–77.5%). The dissertation's ring figure (ch5, `fig:ring`) renders
+exactly this configuration from the shader arithmetic.
+
 **Alternative implemented in the same build — solid yellow ring + dark border
 (`m_ringOutline`, default 0.6):** the
 traffic-warning-sign colour pairing. The yellow annulus keeps the empirically anchored chroma +

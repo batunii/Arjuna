@@ -1,0 +1,15 @@
+# LaTeX build artefacts — all regenerable by:
+#   pdflatex thesis && bibtex thesis && pdflatex thesis && pdflatex thesis
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc
+
+# The built PDF is tracked deliberately, so it is not ignored here.

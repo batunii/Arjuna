@@ -1,0 +1,213 @@
+\chapter{Introduction}
+
+\section{Motivation: attention is the scarce resource}
+In the Mah\=abh\=arata, Dro\d{n}a, the martial teacher of the P\=a\d{n}\d{d}ava and Kaurava princes, sets up a wooden 
+bird in a tree and tells his students to aim for its eye. Before each releases the arrow, he asks what 
+they see. One says the tree. Another the branches, the leaves, his brothers standing beside him. 
+Dro\d{n}a asks Arjuna the same question, then asks again: does he see the tree? The branches? Arjuna answers
+no to each, until only one thing remains: "I see only the eye of the bird." For that moment, the tree,
+the branches, and everyone else standing there have not merely fallen out of Arjuna's interest. They have gone.
+This dissertation pursues the same operation on a headset instead of a bow: not adding emphasis to what matters,
+ but removing everything that does not, until it is no longer competing to be seen.
+
+The modern visual environment is engineered against sustained attention. Open-plan offices place
+moving colleagues at the edge of vision. Shared homes put televisions and phone screens beside
+workspaces. Streetscapes compete for a driver's gaze with advertising designed by professionals to
+win it. The cost is well documented: task-irrelevant peripheral events capture attention
+involuntarily, and each capture carries a performance penalty on the task the viewer intended to do.
+In immersive settings the effect is directly measurable, introducing peripheral visual distractors
+into a virtual classroom more than doubled commission errors on a sustained-attention task in a
+recent study of sixty-six participants \citep{ai2025}, replicating decades
+of laboratory findings on involuntary attentional capture by peripheral motion and luminance change
+\citep{itti1998}.
+
+The conventional response of the extended-reality (XR) community to attention problems has been
+\textit{additive}: arrows, halos, attention funnels, and highlights layered onto the world to point at what
+matters \citep{biocca2006}. This dissertation pursues the complementary and far less explored
+operation: \textit{subtraction}. If the periphery pulls attention away, dim it, mute it, or re-grade it so
+that it pulls less. In the literature this family of operations is called diminished reality (DR), 
+concealing or attenuating real-world content rather than adding to it \citep{mori2017,cheng2022},  and its application to distraction has recently been named \textit{visual noise
+cancellation}, by direct analogy with the acoustic kind \citep{hong2024}.
+
+A video-see-through (VST) headset is, in principle, the ideal instrument for visual noise
+cancellation. Unlike optical see-through (OST) glasses, whose additive light engines physically
+cannot darken the world, a VST headset re-displays the world on an opaque screen: every pixel the
+user sees is, in principle, available for modification. The Meta Quest 3, an affordable, widely
+owned consumer device with colour passthrough, would seem to make DR-based attention guidance
+deployable at scale for the first time. In principle.
+
+\section{The compositing constraint}
+
+In practice, the premise "every pixel is available for modification" is false on consumer hardware,
+and that falsity is the motivating technical problem of this dissertation.
+
+On the Quest 3, the passthrough view of the world is composited by the operating system, not by the
+application. An application cannot read the passthrough layer, cannot shade it, and cannot spatially
+mask it. It may only draw \textit{on top} of it, or apply a global colour transform through a narrow styling
+interface. Since early 2025 the platform has additionally exposed the raw forward camera feed to
+applications (Passthrough Camera Access), but at materially lower quality than the system passthrough
+the user normally sees: a monocular 1280$\times$960 stream covering roughly 85–90$^{\circ}$ of field of view, versus
+the system layer's full coverage of the headset's approximately 110$^{\circ}$ display, with its correct
+per-eye reprojection. The one place where full pixel control exists is therefore also the place where
+image quality is worst. A recent psychophysical study shows the stakes plainly: no current VST
+headset reaches normal human visual acuity through its passthrough, with the Quest 3 degrading
+further in low light \citep{wang2026}.
+
+Subtractive attention guidance on this platform is consequently a \textit{compositing-rights problem}. The
+effect one wants: "dim everything except the region that matters, without degrading the region that
+matters", cannot be obtained by editing the image the user sees, because no application is permitted
+to edit it. Chapter 3 shows that what remains is a narrow but genuinely usable design space, organised
+into three tiers of access, and Chapter 4 presents a working system that exploits an architectural
+inversion at its centre: the region that matters is rendered as an \textit{absence},  a transparent window
+in an overlay, so that the highest-quality image on the device, the native system passthrough,
+serves the focus region for free, while the manipulation is confined to the periphery where acuity is
+lower and precision matters less. On the same principle, the system's most capable mode composites
+native passthrough inside the window with a shader-processed camera feed outside it, a hybrid for
+which a structured prior-art search (Chapter 2) found no published or shipped precedent.
+
+\section{One question, two halves}
+
+The dissertation asks a single question, with two distinct halves:
+
+\begin{quote}
+\textbf{Can subtractive attention guidance be delivered on consumer XR hardware? And when it is
+delivered, does it actually help human attention?}
+\end{quote}
+
+The two halves of the question structure the entire work.
+
+\textbf{Part T (technical): can it be built?} What degree of diminishment control is achievable on a
+consumer VST headset without OS-level access to the passthrough layer, and at what cost to image
+quality, field of view, latency, and comfort? Part T is answered by the design space (Chapter 3), the
+reference implementation (Chapter 4), and the technical evaluation plan with preliminary results
+(Chapter 5).
+
+\textbf{Part H (human): does it work?} Under controlled distraction, does peripheral diminishment reduce
+the cost distractors impose on a focal task, and does salience re-grading enhance focal detection
+without unacceptably degrading peripheral awareness? Part H is answered by a pre-registered user
+study design (Chapter 6).
+
+Two methodological commitments connect the halves and should be named at the outset, because they are
+choices rather than accidents.
+
+First, the study's dynamic scenario runs as a \textit{simulation}, pre-recorded driving footage
+presented on the system's rendering sphere rather than live passthrough of a street, following the
+closest published DR evaluations, which simulated diminishment inside virtual environments because
+controlled, repeatable, event-dense stimuli cannot be obtained from the uninstrumented real world
+\citep{cheng2022,mclaughlin2025}. Second, detection is supplied by an \textit{oracle}
+computed offline over the study footage rather than by a model running on the headset, so the study
+can ask whether an effect built on excellent detection helps attention without first engineering
+excellent detection on-device. Chapter 5 measures how far a live pipeline currently falls short of
+that oracle, and Chapter 6 carries both commitments forward as stated limitations.
+
+The two study blocks bracket the feasibility spectrum. The primary, workstation, block runs on
+\textit{real passthrough with real physical distractors}, the actual artefact with no simulation. The
+secondary, driving, block evaluates the concept in the simulated deployment context.
+
+\section{Research questions and hypotheses}
+
+Three research questions operationalise the spine question. They are stated here in summary. Their
+full pre-registered form, including smallest effect sizes of interest, equivalence margins,
+statistical tests, and a decision table committing the dissertation to a conclusion under every
+outcome, is given in Chapter 6.
+
+\begin{itemize}
+\item \textbf{RQ1 (primary).} Does peripheral DR dimming (Hard Dark, world-locked window) reduce the
+  performance cost that peripheral visual distractors impose on a focal workstation task?
+  \textit{Hypothesis H1:} the error rate on the workstation task, run with distractors present
+  throughout, is lower with the vignette on than off, by at least a pre-registered fraction of the
+  vignette-off error rate.
+\item \textbf{RQ2 (secondary).} Does SignPop's detection-gated salience re-grading improve detection
+  specifically where the gate has room to act, without degrading detection pooled across the whole
+  scene beyond an acceptable margin?
+  \textit{Hypotheses H2a/H2b:} detection improves in the eccentricity band where the colour-pop gate is
+  strong but the target is still within useful glance range (H2a), and hit rate pooled across the
+  whole field of view is equivalent to the vignette-off condition within a 10-percentage-point margin
+  (H2b). H2b is a safety hypothesis tested by equivalence, so failing it would be a conclusive
+  negative finding rather than an ambiguous null.
+\item \textbf{RQ3 (exploratory).} After experiencing the system, what do participants report about
+  perceived focus benefit, perceived awareness cost, and visual comfort?
+\end{itemize}
+
+The design philosophy behind these hypotheses deserves one sentence here: the study is built so that
+it cannot return "inconclusive". Distractors are already known to impose a measurable cost, on the
+evidence of the sixty-six-participant result cited above. The study takes that cost as given, asks
+whether the system reduces it, and pre-commits to the interpretation of every outcome, including
+failure.
+
+\section{Contributions}
+
+\begin{itemize}
+\item \textbf{C1: Design space.} A taxonomy of DR capability under compositing constraints on consumer VST
+  hardware: three access tiers, with the achievable effects, ceilings, and costs of each,
+  characterised empirically rather than speculatively (Chapter 3).
+\item \textbf{C2: Reference implementation.} An open, working multi-mode DR attention-guidance system on
+  Quest 3 passthrough: the world-locked focus-window-as-absence architecture, world-direction fusion
+  sampling that lets a monocular camera feed fuse binocularly, motion-coupled comfort suppression,
+  and ten peripheral treatments spanning the three-tier space. Two of them, SignPop (detection-gated
+  salience re-grading) and Hard Dark (full peripheral occlusion), are carried to confirmatory
+  evaluation, with documented failure modes (Chapter 4).
+\item \textbf{C3: Technical evaluation.} A benchmark plan (frame cost, latency, legibility across rendering
+  paths, thermal endurance, and the oracle-versus-live detection gap) with preliminary results from
+  the offline detection pipeline (Chapter 5).
+\item \textbf{C4: Pre-registered user study, with interim results.} A falsifiable within-subjects design
+  (N = 20) with a single properly powered primary hypothesis, equivalence-bounded safety testing,
+  pilot gates, and a pre-committed decision table, together with an interim analysis of the fourteen
+  participant pairs collected so far: a workstation-focus benefit (+3.34 points accuracy), no loss of
+  peripheral awareness, and a detection gain specifically in the eccentricity band the system's own
+  design predicts (Chapter 6).
+\end{itemize}
+
+\section{Scope: what this dissertation does not claim}
+
+Because the credibility of a small, carefully scoped study depends on the discipline of its claims,
+the non-claims are stated as prominently as the claims.
+
+\textbf{No driving or road-safety claims.} The driving footage used in the secondary study block is a
+dynamic, high-event-rate monitoring \textit{stimulus}. A seated participant passively watching
+passenger-perspective video licenses no inference about driving, drivers, or road safety. Such
+inference would require a driving simulator with vehicle control, which is out of scope.
+
+\textbf{No product claims.} The study evaluates attention mechanisms under controlled distraction, not the
+desirability or readiness of a wearable product. Comfort findings from a 2026 headset transfer to
+future lighter hardware only as bounds, and are reported as such.
+
+\textbf{Oracle conditioning stays visible.} SignPop's finding depends on detection: on offline,
+oracle-quality detection, not on live, on-device detection. Every place this dissertation reasons
+about a live or on-device detector, that reasoning is conditioned on the oracle bound that Chapter 5
+measures, and marked accordingly. Oracle performance is never substituted for live performance
+without saying so.
+
+\textbf{Interim, not final, results.} At the time of writing the technical benchmark campaign of
+Chapter 5 has not been run, beyond the offline detection bake reported there as a preliminary result.
+The user study of Chapter 6 is a different matter. It is actively collecting, against the
+pre-registered design that chapter specifies. Fourteen usable pairs exist for the workstation block
+and thirteen for the driving block, against a target of twenty. Chapter 6, Section 6.11 reports what
+those pairs show, explicitly as an interim analysis. Recruitment continues, achieved power at this $N$ is
+below the pre-registered target, and every claim built on it in this dissertation is qualified as
+interim accordingly. No result in this document is asserted as the pre-registered confirmatory
+finding. Where an interim result is discussed, it is named as interim every time.
+
+\section{Roadmap}
+
+Chapter 2 surveys the literature across diminished reality, saliency modulation and gaze guidance,
+foveated rendering, attention guidance in driving and workstation contexts, and human-factors
+foundations, closing with the research gaps this work addresses and a documented prior-art search for
+the system's core architecture. Chapter 3 develops the three-tier design space of DR under
+compositing constraints. Chapter 4 presents the system: architecture, the full mode family and the
+three modes the study uses, interaction design, and the engineering record including dead ends. Chapter 5 specifies the technical evaluation
+and reports preliminary detection-pipeline results. Chapter 6 presents the pre-registered user study
+design in full and reports interim results from the fourteen Block A and thirteen Block B pairs
+collected so far.
+Chapter 7 discusses these interim results, threats to validity, and transfer, including what does
+and does not carry to optical see-through hardware. Chapter 8 concludes.
+Figure~\ref{fig:structure} sets out how the two parts fit together.
+
+\figplaceholder{60mm}{The three peripheral treatments seen from the user's viewpoint: SignPop, Soft Dark, Hard Dark, each with the world-locked focus window visible. Composite of headset screenshots.}{The three peripheral treatments seen from the user's viewpoint.}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_dissertation_structure.png}
+\caption{The two-part structure of the dissertation.}
+\label{fig:structure}
+\end{figure}

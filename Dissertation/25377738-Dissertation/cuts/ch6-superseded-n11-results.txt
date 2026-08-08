@@ -1,0 +1,105 @@
+\section{Interim Results (N = 11)}
+
+Recruitment continues toward the N = 20 target specified in Section 6.1.3. Twelve people have been
+tested so far, across an initial pilot day and three further collection days. Each of the two
+confirmatory blocks has eleven usable pairs. These are overlapping but not identical eleven-person
+subsets, because one participant contributed a usable result to one block but not the other. What
+follows is the interim analysis of those eleven pairs per block. It is reported honestly as interim
+for three reasons: it is not the pre-registered confirmatory analysis of Section 6.9, the achieved
+power at this N is well below 80\%, and recruitment is still ongoing. One participant's Block B data
+is excluded under the pre-registered false-alarm rule (Section 6.9.4). Their filtered run recorded
+539 presses that hit nothing, against 40 targets. An additional check confirmed this was
+indiscriminate pressing rather than lucky detection: this person's scored catches landed further from
+their target on average (median 1.82$^{\circ}$, worst decile 8.62$^{\circ}$) than everyone else's (median
+1.59$^{\circ}$), against the 10$^{\circ}$ scoring radius.
+
+\subsection{H1: Block A, workstation focus}
+
+Accuracy on the memory task rose from 92.6\% with the vignette off to 96.3\% with Hard Dark on. That
+is a gain of \textbf{+3.65 percentage points} (90\% CI +0.28 to +7.02, paired $t(10) = 2.42$,
+$p = .036$, Wilcoxon $W = 8.0$, $p = .024$, $d_z = 0.73$). Nine of eleven participants improved. The
+four people tested on pilot day 1 show a smaller gain than the rest: 97.2\% to 99.4\%, +2.20 points,
+4 of 4 improved. The seven tested afterwards show 90.0\% to 94.5\%, +4.48 points, 5 of 7 improved.
+This split fits a ceiling effect on day 1, not a weaker true effect: at 97.2\% only 2.8 points of
+headroom remained to show any gain at all, so the task was made harder for the remaining sessions.
+Achieved power at this N and effect size is 59\%. Around 17 participants would be needed for the
+conventional 80\%. \textbf{H1 is supported at the interim N}, though the CI's lower bound sits close
+to zero, so the effect's true size is not yet pinned down.
+
+\figplaceholder{58mm}{Slopegraph: one line per participant, NoFilter accuracy on the left axis,
+Filter accuracy on the right, 11 lines, the 9 improvers rising and the 2 decliners falling. Group
+means overlaid as a heavier line. Pilot-day-1 participants distinguished by marker so the ceiling
+effect is visible.}{Block A per-participant accuracy, vignette off versus Hard Dark on (N = 11).}
+
+\subsection{H2b: Block B, pooled safety check}
+
+Hit rate pooled across the whole field of view rose by \textbf{+3.9 percentage points} with SignPop
+on. That figure is not independently reliable on its own (TOST 90\% CI $-4.9$ to $+12.6$ against the
+pre-registered $\pm 10$-point margin). The worst case the data support is a loss of about five points,
+comfortably inside the safety margin. \textbf{H2b is supported on the safety side}: peripheral
+awareness was not lost, and if anything the pooled estimate is positive. The pooled figure only
+answers the safety question, because it mixes the near-centre region the filter barely touches with
+the far periphery it acts on fully. That is why H2a asks the finer-grained question below.
+
+\figplaceholder{45mm}{Equivalence plot: horizontal axis is the paired difference in pooled hit rate
+in percentage points. Shaded band marks the pre-registered $\pm$10-point equivalence margin. Point
+estimate at +3.9 with the 90\% TOST interval ($-$4.9 to +12.6) drawn as a horizontal bar, visibly
+contained within the margin on the loss side.}{Block B pooled hit rate, TOST equivalence against the
+$\pm$10-point safety margin (H2b, N = 11).}
+
+\subsection{H2a: Block B, the 20–30\textdegree{} band}
+
+Hit rate broken out by eccentricity band shows a pattern, not a uniform shift. Under 10$^{\circ}$ the
+change is $-1.1$ points, because the colour-pop gate is close to zero strength there and has nothing
+to lift. From 10–20$^{\circ}$ the change is $+2.6$ points, where the gate sits at roughly 20\% strength.
+\textbf{From 20–30$^{\circ}$ the change is +18.6 points} (40.0\% to 58.2\%, 90\% CI +2.5 to +34.7,
+paired $t(10) = 2.57$, $p = .028$, Wilcoxon $W = 9.0$, $p = .030$, 9 of 11 improved, $d_z = 0.78$,
+achieved power 64\%). Beyond 30$^{\circ}$ the change is $-1.5$ points: the gate is at full strength
+there, but the target sits far enough into the periphery that a stronger signal buys nothing. Only the
+20–30$^{\circ}$ band is individually reliable, and it is the only band whose direction agrees across
+both independently collected phases: the pilot phase shows +25.4 points (4 of 4 improved), and the
+seven tested afterwards show +14.7 points (5 of 7 improved). The other three bands flip sign between
+phases, which is the signature of noise rather than a real effect. This is exactly the shape the
+shader's own detection-gated design predicts. The gate has nothing to reveal below 10$^{\circ}$, and it
+reveals the most beyond 30$^{\circ}$, but only in the 20–30$^{\circ}$ band is there both a strong effect
+to reveal and an eye still able to use it. \textbf{H2a is supported at the interim N, specifically and
+only in the band the mechanism predicts.} This is a secondary, exploratory analysis, not a substitute
+for a confirmatory test at the final N.
+
+\figplaceholder{65mm}{Grouped bar chart, the dissertation's headline result. Four eccentricity bands
+on the horizontal axis ($<$10\textdegree{}, 10--20\textdegree{}, 20--30\textdegree{},
+$>$30\textdegree{}), paired NoFilter and Filter hit-rate bars per band with 90\% CI whiskers. The
+20--30\textdegree{} pair carries the +18.6-point gap and is the only band whose interval excludes
+zero. A second panel or overlaid line shows the colour-pop gate strength across the same axis, so the
+alignment between where the gate acts and where the benefit appears is visible in one
+figure.}{Block B hit rate by eccentricity band, with gate strength overlaid (H2a, N = 11).}
+
+Two further descriptive observations come from the 20–30$^{\circ}$ band. Briefly-visible markers, on
+screen under two seconds, went from 2 of 36 caught (6\%) to 9 of 30 (30\%). And the share of catches
+occurring while a marker sat in the 10–30$^{\circ}$ region rose from 41\% to 49\%, while the median angle
+at the moment of the press barely moved (17.6$^{\circ}$ to 19.1$^{\circ}$). So participants were catching
+more of what was already in front of them, not scanning further out to find it.
+
+\subsection{What this interim result does and does not show}
+
+The manipulation-is-a-bundle limitation (Section 6.10.2) applies in full. Nothing above attributes the
+20–30$^{\circ}$ gain to the colour lift, the detection aperture, the saturation boost, or the darkened
+surround individually. Ten end-of-session questionnaires (Section 6.7) show a divergence worth
+flagging rather than resolving here. Perceived focus benefit is strongly positive, 47 of 50 responses
+favouring the effects, and the three items on holding attention, looking away, and knowing where to
+look were answered the same way by all ten participants. Perceived awareness cost splits close to
+evenly, 29 of 50, so about half the responses report feeling cut off from the surroundings or
+noticing side events late. Visual comfort sits at 30 of 40 across its four answered items. The
+subjective impression of lost awareness is not supported by the behavioural data above, and it is
+discussed in Chapter 7.
+
+\figplaceholder{50mm}{Diverging stacked bar, one row per end-of-session construct: perceived focus
+benefit (47/50 favourable), perceived awareness cost (29/50), visual comfort (30/40 across four
+answered items). Favourable responses extend right of centre, unfavourable left, so the split shape
+of the awareness construct contrasts against the near-solid focus-benefit
+bar.}{End-of-session questionnaire responses by construct (N = 10).}
+
+Achieved power throughout this section is 59\% for H1 and 64\% for
+the 20–30$^{\circ}$ band. This means a null result at this N would not have been informative either
+way. The results reported here happened to clear their thresholds regardless, which is not the same
+claim as having been powered to find them.

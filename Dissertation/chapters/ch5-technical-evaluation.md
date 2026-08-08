@@ -1,4 +1,4 @@
-# Chapter 5 — Technical Evaluation: Plan and Preliminary Results
+# Chapter 5 — Technical Evaluation
 
 ## 5.1 Purpose and evaluative stance
 
@@ -13,16 +13,20 @@ specifies the benchmark protocol that will substantiate — or fail to substanti
 Two properties of the protocol are worth stating up front, because they mirror the evaluative ethos
 of the user study in Chapter 6. First, every benchmark is **falsifiable**: each defines, in advance,
 the measurement method, the metric, and the criterion or interpretation band against which the
-result will be read. A benchmark that cannot fail is marketing, not evaluation. Second, the chapter
-is written **before the benchmarks have been run**. With one exception — the offline detection bake
-reported in Section 5.8, which was required during development — no measurement below has been
-performed. All protocol text is therefore in the future tense, and no result is anticipated. The
-completed benchmark tables will replace the placeholder rows in a later revision; the criteria will
-not move.
+result will be read. A benchmark that cannot fail is marketing, not evaluation. Second, every
+criterion was fixed before the corresponding measurement was taken, so the numbers below can be
+read against a standard that was not adjusted to fit them; where the executed method departed from
+the stated one, the deviation is disclosed with the result rather than folded quietly into the
+method text.
 
-The benchmarks require no participants. They will be executed during the user-study pilot week
-(Chapter 6, Section 6.6), when the study build is frozen, so that the numbers reported describe the
-exact binary that participants experience.
+This chapter reports two benchmarks against the platform — frame cost (Section 5.3) and legibility
+across rendering paths (Section 5.4) — together with the offline detection bake (Section 5.6) that
+the system's detection gate depends on. These are the measurements that bear on claims made
+elsewhere in the dissertation: frame cost establishes that the study configurations render inside
+budget, legibility quantifies the quality argument for the window architecture, and the bake
+characterises the oracle the driving block runs on. Latency, world-locking stability and thermal
+endurance were scoped out for the time available; Section 5.9 states what each would have measured
+and Chapter 8 carries them as future work. None of the benchmarks requires participants.
 
 ## 5.2 Apparatus and instrumentation
 
@@ -40,7 +44,7 @@ by build hash (Chapter 6, Section 6.10 pre-session checklist item 4). Instrument
   printed optotype charts at marked distances under the study room's controlled lighting
   (Chapter 6, Section 6.4.0).
 - **The offline detection oracle**: the full-resolution YOLO11 detection set produced by
-  `Tools/bake_detections.py` over the study's driving footage (Section 5.8), used as ground truth
+  `Tools/bake_detections.py` over the study's driving footage (Section 5.6), used as ground truth
   for the oracle-gap benchmark.
 
 Each benchmark will be run three times; medians are reported with min–max ranges. Trace files,
@@ -53,7 +57,7 @@ The platform's history within this project — a passthrough capability deprecat
 (Chapter 4) — is the argument for recording the tuple explicitly: on consumer XR hardware, a
 benchmark without its platform coordinates is unreproducible within a single OS update cycle.
 
-## 5.3 Benchmark T1 — Per-mode GPU cost and frame-budget headroom
+## 5.3 Per-mode GPU cost and frame-budget headroom
 
 **Claim defended.** "The system runs within the display budget of consumer hardware" — the
 precondition for every other claim in the dissertation.
@@ -68,7 +72,7 @@ frame time extracted per frame. Configurations:
 | 2 | Soft Dark (overlay only, `_SimpleMode`) | 2 | `CameraSphereVignette` |
 | 3 | Hard Dark (overlay only) | 2 | `CameraSphereVignette` |
 | 4 | Blur (live PCA feed, 9-tap kernel + desaturation) | 3 | `CameraSphereVignette` |
-| 5 | ColorPop on video sphere (study Block B/C configuration) | 3 (applied to video) | `VideoTestScene` |
+| 5 | SignPop on video sphere (study Block B/C configuration) | 3 (applied to video) | `VideoTestScene` |
 | 6 | Baseline video sphere, effects off | — | `VideoTestScene` |
 
 Captures are taken worn rather than benched because head motion exercises the code paths that
@@ -89,33 +93,57 @@ merely a defect. *Interpretation band* for configuration 4 (Blur, not used in th
 relative to configuration 2 quantifies the price of Tier-3 camera re-rendering versus Tier-2
 overlay compositing — a design-space datum in its own right, reported whether or not it passes.
 
-[Figure 5.1 — Bar chart: median and p95 GPU frame time per configuration against the frame-budget
-line.]
+![Figure 5.1 — Median and 95th-percentile GPU frame time per configuration against the 72 Hz frame
+budget.](figures/fig5-1-t1-frame-cost.png)
 
-## 5.4 Benchmark T2 — Focus-window world-locking stability
+**Results (measured 2026-08-07).** The instrument actually used was the OVR Metrics Tool CSV export
+rather than Perfetto: it reports `app_gpu_time_microseconds`, `stale_frame_count`,
+`cpu_utilization_percentage` (already the worst-core figure, not an average — confirmed in the
+tool's own documentation) and `gpu_utilization_percentage` directly, at roughly 1 Hz, which is the
+four metrics this benchmark needs without a separate trace-parsing step. Two further deviations from
+the planned protocol are stated here rather than left implicit: each configuration was captured once
+in a single continuous session per scene (not three repeated 120 s runs), and the headset was worn
+under ordinary use rather than a scripted head-motion sweep. Wall-clock switch times were logged live
+against the CSV timestamps; the passthrough-scene run covered 14:40:56–14:49:31 and the video-scene
+run 15:02:20–15:08:41 (raw log:
+`Dissertation/authored/raw/technical-T1-T3-20260807/session-log.md`). Device: Quest 3, serial
+`2G0YC5ZG5F051R`, refresh rate measured at 72 Hz (budget 13.89 ms), study APK sha256 prefix
+`51227f964135900e`; Horizon OS build version was not captured this session, a gap noted rather than
+guessed.
 
-**Claim defended.** "The focus window is world-locked": the rectangle stays fixed to the room, not
-to the head, under natural head motion. If the window visibly swims or lags, the architectural
-claim of Chapter 4 fails, and the study's premise that participants attend to a stable spatial
-region weakens.
+| # | Configuration | n (≈1 Hz samples) | GPU frame time, median / p95 (ms) | Stale-frame rate | GPU util, median / p95 | Verdict |
+|---|---|---|---|---|---|---|
+| 1 | Baseline (passthrough, effects off) | 103 | 3.22 / 3.36 | 0.27 % | 41 / 44 % | not a study config |
+| 2 | Soft Dark | 89 | 3.25 / 3.35 | 0.00 % | 41 / 42 % | **Pass** |
+| 3 | Hard Dark | 158 | 3.17 / 3.36 | 0.05 % | 41 / 42 % | **Pass** |
+| 4 | Blur (Tier-3, not used in study) | 164 | 8.01 / 8.15 | 0.11 % | 77 / 90 % | interpretation band |
+| 5 | Sign Pop (video) | 255 | 8.62 / 11.44 | **7.35 %** | 70 / 85 % | **Fail** (stale-frame rate) |
+| 6 | Baseline video (effects off) | 126 | 10.06 / 12.40 | **8.02 %** | 80 / 90 % | **Fail** (stale-frame rate) |
 
-**Method.** Two complementary measurements. (a) *Log-level:* during scripted head sweeps
-(slow ~30°/s and fast ~90°/s yaw, three repetitions each), per-frame logs of head pose and the
-window's rendered azimuth/elevation bounds will be captured; since the window is defined in world
-azimuth/elevation, its logged bounds should be constant while head pose varies — any variation is
-implementation error. (b) *Display-level:* through-the-lens video at the camera's highest frame
-rate, with a printed reference edge aligned to the window edge; frame-by-frame inspection gives the
-apparent displacement of the rendered edge against the physical edge during the sweep, in degrees
-of visual angle.
+Every configuration clears the GPU-frame-time half of the criterion with wide margin; even the
+video scene's worst p95 (12.40 ms) sits under the 13.89 ms budget. The failure is entirely in the
+stale-frame-rate half. Soft Dark and Hard Dark pass cleanly (0.00 % and 0.05 %), matching the
+expectation that a Tier-2 overlay is nearly free. Blur, not a study configuration, is reported as the
+pre-stated interpretation band: at 8.01 ms median it costs roughly 2.5× a Tier-2 overlay and pushes
+GPU utilisation from ~41 % to 77 % median, which is the measured price of Tier-3 camera
+re-rendering that Section 5.5's legibility result (below) has to be weighed against.
 
-**Metrics.** Maximum apparent window-edge displacement (°) during the fast sweep; stale-frame rate
-during sweeps.
+Both video-scene configurations fail the < 1 % stale-frame criterion by a wide margin, and this is
+the chapter's most consequential frame-cost finding. Because the *baseline* video configuration — no
+vignette treatment at all — fails just as badly as Sign Pop (8.02 % vs 7.35 % stale), the failure is
+not attributable to the Sign Pop shader path; a config with less shader work failed slightly worse.
+The most likely explanation, offered here as interpretation rather than a further-measured fact, is
+that the video scene's 4K decode and texture upload contend with the compositor for the same frame
+window regardless of which vignette mode is active; the elevated `gpu_level` (DVFS boost step 3–4
+during video-scene runs versus a steady 2 throughout the passthrough scene) is consistent with the
+GPU being under load from something other than the vignette shader itself. This is a genuine failure
+against a pre-stated criterion, reported as such: **the video-scene stimulus, as currently
+implemented, does not meet the study's own jitter-freedom bar**, independent of which filter
+condition is shown, and this should be weighed before the video-scene blocks of the user study are
+run at scale. Optimising the video decode/texture-upload path, or reducing source resolution, is the
+indicated fix; it is not diagnosed further here.
 
-**Criteria.** *Pass:* apparent displacement ≤ 1° during the 90°/s sweep and no perceptible tearing
-in the through-lens footage. *Fail* triggers an implementation fix before the pilot's dry runs —
-this benchmark is deliberately scheduled before participant-facing sessions.
-
-## 5.5 Benchmark T3 — Legibility across rendering paths
+## 5.4 Legibility across rendering paths
 
 **Claim defended.** The central architectural insight of Chapter 4: routing the focus window
 through the *absence* of overlay preserves native OS passthrough quality, while the Tier-3 camera
@@ -144,96 +172,83 @@ window-versus-periphery *gap* is meaningful even where absolute values are not. 
 psychophysical measurements for Quest 3 passthrough (Wang et al., 2026) overlap with condition (1),
 they serve as an external sanity check on the method.
 
-**Criteria.** *Interpretation, not pass/fail:* the architecture is vindicated if the window path
+**Criteria.** *Interpretation, not pass/fail:* the architecture's quality argument holds if the window path
 resolves at least one optotype line finer than the camera-feed path at 0.6 m. If the two paths
 measure equal, the window-as-absence design loses its quality argument (though it retains the FOV
 and latency arguments), and the dissertation will say so. The measured gap also feeds the Chapter 6
 threat analysis: it quantifies exactly how much acuity the Block A task had to be designed around.
 
-[Figure 5.2 — Side-by-side through-lens crops of the same chart region: native window vs Tier-3
-periphery vs no-headset reference.]
+![Figure 5.2 — Same chart region, native OS passthrough (left) vs Tier-3 camera path (right); row
+labels are the printed logMAR values, read directly rather than by pixel position because the
+camera path's narrower field of view changes the chart's apparent scale in
+frame.](figures/fig5-2-t3-legibility.png)
 
-## 5.6 Benchmark T4 — The oracle gap: on-device detection versus the offline oracle
+**Results (measured 2026-08-07).** Three deviations from the planned method are stated here. First,
+the capture instrument was an MQDH screen recording of the rendered output (2560×1370, ~24 fps, 81 s
+continuous), not through-the-lens photography; this is arguably the cleaner instrument, since it
+captures the eye-buffer content itself rather than a photograph of it through headset optics, but it
+was not the pre-stated method and is recorded as a substitution. Second, only the two in-headset
+paths were captured, native and Tier-3 camera; no independent no-headset reference photograph was
+taken, so the *absolute* logMAR readings below cannot be cross-checked against the Wang et al.
+(2026) sanity check as planned. Third, the finest-resolvable-row read below is a single experimenter
+pass off extracted frames rather than two independent blind raters, so the result is indicative and
+is reported as such. What was preserved from the plan: 0.6 m distance, identical chart,
+identical lighting, headset resting (not worn) so placement was constant across conditions, and a
+continuous single recording rather than separate captures per condition, which is a *stronger*
+control on placement than the plan called for.
 
-**Claim defended.** Part H's oracle-perception assumption (Chapter 6, Section 6.2) is legitimate
-only if it is stated as a *measured distance* from present reality, not a hand-wave. This benchmark
-produces that measurement — the single table that ties Part T to Part H.
+The chart was taped at 600 mm, the headset rested on a stand facing it, and the recording ran through
+an alternating native → camera → native → camera sequence (four segments, ~15–45 s each), confirmed
+by the on-screen `T3: NATIVE PATH` debug label the study code itself prints (the label is occluded
+during the camera-path segments, since the full-cover re-render draws over it — itself confirmation
+that the camera path is a true full-frame replacement, not a partial overlay). In every segment the
+chart was legible and never black, so the benchmark's precondition (config B needs the PCA feed live)
+is satisfied.
 
-One clarification keeps this benchmark honest. The user study itself uses no live detection
-anywhere: ColorPop is luminance-keyed and detector-free by design, and all study stimuli are
-scripted (Chapter 6, Section 6.4.0). The oracle-gap benchmark therefore does not validate the study
-protocol; it bounds the *idealisation* under which detector-dependent guidance variants (the
-salience-highlighting modes prototyped earlier in the project, and any future object-conditioned
-mode) are discussed. Without this number, "assume perfect detection" is untestable optimism; with
-it, the assumption has a stated size.
+| Condition | Approx. finest resolved row | Behaviour |
+|---|---|---|
+| Native (OS passthrough) | ~0.6–0.7 logMAR | ring-gap orientation stays discriminable |
+| Tier-3 camera path | ~0.8–0.9 logMAR | gap orientation degrades into a blurred ring 1–2 rows earlier |
 
-**Method.** The deployable on-device configuration (YOLO11n via Unity Sentis, FP16, at the
-camera-feed resolution the live pipeline would receive) will be run on the Quest 3 against the same
-180-second driving footage used for the offline bake, frame-matched to the oracle's 720 sampled
-frames. Oracle detections (full-resolution YOLO11 offline; Section 5.8) are treated as ground
-truth. A live detection matches an oracle detection when their boxes overlap at IoU ≥ 0.5 with the
-same class label.
+The native path resolves roughly one to two logMAR lines finer than the camera path, which satisfies
+the pre-stated criterion (window ≥ 1 line finer) even under the conservative single-rater read: the
+gap would have to be entirely an artefact of rating error to overturn the direction of the result,
+and the two conditions are separated by more than a single row. This is reported as an *indicative*
+pass pending the two-rater blind confirmation, not a final number.
 
-**Metrics and the oracle-gap table (template — values to be measured):**
+One further, unplanned finding: the camera path shows a visibly narrower field of view than native
+passthrough at the same physical position and distance — the same chart fills noticeably more of the
+frame once the Tier-3 path is active (Figure 5.2 shows this directly: the title and key rows, both
+present in the native crop, run off the top and bottom of the camera-path crop despite identical
+chart placement). Tier-3 camera re-rendering therefore costs the architecture on three axes measured
+across this chapter, not one: GPU time (Section 5.3, ~2.5× a Tier-2 overlay), legibility (this
+section), and field of view.
 
-| Metric | Offline oracle (assumption) | On-device live (reality) | Gap |
-|---|---|---|---|
-| Recall vs oracle (traffic lights + stop signs) | 1.00 by definition | *to be measured* | — |
-| Precision vs oracle | 1.00 by definition | *to be measured* | — |
-| Throughput (inferences/s) | offline (not real-time) | *to be measured* | — |
-| End-to-end latency, frame capture → detection available (ms) | 0 by assumption | *to be measured* | — |
-| Small-target recall (boxes < 20 px at capture resolution) | 1.00 by definition | *to be measured* | — |
+## 5.5 Measurements not taken
 
-**Matching procedure detail.** Frame correspondence is exact (both pipelines index the same video
-timestamps), so matching reduces to per-frame box assignment: greedy assignment by descending IoU,
-each oracle box matched at most once, unmatched live boxes counted as false positives against the
-oracle, unmatched oracle boxes as misses. Confidence thresholds for the live pipeline will be swept
-and the operating point reported alongside the curve, so that the headline recall number is not an
-artefact of one threshold choice.
+Three measurements in the original programme were not run, and each bounds something the
+dissertation claims elsewhere. They are named here so the boundary is visible rather than implied.
 
-**Threat to this benchmark, inherited by its consumers.** The oracle is full-resolution YOLO11, not
-human annotation; it is a *reference*, and its own errors are unknown. Treating it as ground truth
-is defensible for measuring the *gap between offline and on-device pipelines* — both face the same
-footage, and the offline pipeline strictly dominates in resolution and compute — but the absolute
-detection quality of either pipeline against human-verified truth is not established here, and no
-claim in this dissertation depends on it. A 100-frame human-annotated spot check is listed as
-optional hardening if pilot-week time allows; if skipped, that is stated with the results.
+**World-locking stability.** Chapter 4 claims the focus window is locked to the room rather than the
+head. The measurement would sweep the head at a controlled rate and record apparent displacement of
+the window edge against a physical reference, with a pass at one degree or less and no visible
+tearing. The claim currently rests on the implementation and on the absence of participant reports
+of window drift, neither of which is a measurement.
 
-**Criteria.** *Interpretation bands, pre-stated:* live recall ≥ 0.8 of oracle at ≥ 10 inferences/s
-would place detector-driven guidance within near-term engineering reach, and the oracle assumption
-would be a modest idealisation; recall below 0.5 or throughput below 2 inferences/s would mean the
-assumption is a genuine idealisation of present hardware, and every detector-conditioned statement
-in Chapter 7 inherits that qualifier. The small-target row exists because the development history
-(Section 5.8) shows small traffic lights are precisely where downsampled pipelines fail first.
+**The oracle gap.** SignPop's detection gate runs on an offline, full-resolution bake
+(Section 5.6), not on a live detector. The measurement would run a quantised detector on-device
+over the same footage and report recall, precision and throughput against that bake. Without it,
+the driving-block result is conditioned on oracle-quality detection and cannot be extrapolated to a
+deployed system that must detect in real time. This is the more consequential of the three, and
+Chapter 7 treats it as the principal boundary on how far the Block B finding travels.
 
-## 5.7 Benchmark T5 — Thermal and battery endurance
+**Thermal endurance.** The deployability argument in Chapter 3 holds that Soft Dark, the camera-free
+mode, is the only one plausibly wearable for hour-long sessions, on the basis of a published
+projection for on-device camera processing rather than a measurement of this system. Session lengths
+in this study were around forty-five minutes and no thermal throttling was observed, but that is an
+absence of incident, not a characterisation.
 
-**Claim defended.** The deployability argument of Chapter 3, Section 3.5-adjacent reasoning (and
-testing-strategy §3.5): Soft Dark, the camera-free Tier-2 mode, is claimed to be the only mode
-plausibly wearable for hour-long sessions. The prior expectation comes from the one published
-feasibility study of PCA-based on-device compositing, which projects 720p30 segmentation-based
-compositing for only 5–10 minutes before thermal throttling — a simulation-based estimate, not a
-measured on-device run (Laghari et al., 2025, arXiv:2509.18929). The present system's Tier-3 path is
-shader-only — lighter than segmentation — so the outcome is genuinely uncertain, which is what
-makes the benchmark informative.
-
-**Method.** Four 45-minute continuous runs on a fully charged, thermally rested device in the study
-room: (1) Soft Dark, passthrough scene; (2) Hard Dark, passthrough scene; (3) Blur (live PCA feed),
-passthrough scene; (4) ColorPop on the video sphere. Battery percentage, thermal-warning events
-(logcat), sustained frame rate, and stale-frame rate will be logged at one-minute resolution.
-
-**Pre-stated expectation (TB1).** The camera-free configurations (1, 2, 4) complete 45 minutes
-without thermal throttling; the live-PCA configuration (3) may not. Confirmation would ground the
-Soft Dark deployability claim empirically; refutation in either direction is reported as found.
-
-**Study-feasibility criterion.** Separately from TB1: the configurations the user study actually
-uses must sustain their block durations with margin — Hard Dark for ≥ 25 minutes (Block A plus
-tutorial) and the video-sphere configurations for ≥ 15 minutes (Blocks B and C). Failure here would
-require a protocol change and would be caught before the pilot's dry runs. Note that the study, by
-design, never runs live PCA: the longest-exposure mode (Hard Dark) is a Tier-2 overlay, which is
-what makes the 53-minute session thermally plausible in the first place.
-
-## 5.8 Preliminary results: the offline detection bake
+## 5.6 The offline detection bake
 
 One component of the technical programme has already been executed, because development required
 it: the offline detection oracle over the study's driving footage.
@@ -251,32 +266,31 @@ signs, on 2026-07-04.
 
 **Results.** The bake produced **9,170 detections across the 720 sampled frames**, with **97 % of
 sampled frames containing at least one detection**. Two properties of this result matter for the
-rest of the dissertation. First, it confirms the footage is genuinely event-dense — a precondition
-for its role as the Block B and Block C stimulus, and a check that was previously done by eye.
-Second, it establishes the oracle side of the T4 table: a fixed, versioned, full-resolution
-detection set against which the live pipeline can be scored, rather than a moving target.
+rest of the dissertation. First, it confirms the footage is genuinely event-dense, which its role as
+the Block B stimulus depends on. Second, it fixes a versioned, full-resolution detection set that a
+live pipeline could later be scored against, rather than a moving target.
 
-**What this result does not establish.** It says nothing about on-device feasibility (T4's live
-column), nothing about detection quality in absolute terms (YOLO11 at full resolution is the
-*reference*, not verified truth against human annotation — a limitation inherited by T4 and stated
-there), and nothing about the user-facing system, which uses no detections at all in the study
-configuration.
+**What this result does not establish.** It says nothing about on-device feasibility, and nothing
+about detection quality in absolute terms: YOLO11 at full resolution is the *reference* here, not
+verified truth against human annotation. Both are boundaries on the driving-block finding rather
+than on this measurement, and Section 5.5 states them.
 
-## 5.9 Summary of criteria and reporting rules
+## 5.7 Summary of criteria and reporting rules
 
-| Benchmark | Metric | Pre-stated criterion / band | On failure |
+| Benchmark | Metric | Pre-stated criterion / band | Result (2026-08-07) |
 |---|---|---|---|
-| T1 GPU cost | p95 frame time; stale % | Study configs: within budget, stale < 1 % | Optimise or change study config before pilot dry runs; report the failure |
-| T2 World-locking | Apparent edge drift (°) at 90°/s | ≤ 1°, no tearing | Fix before pilot; benchmark re-run |
-| T3 Legibility | Optotype lines, window vs Tier-3 path | Window ≥ 1 line finer at 0.6 m vindicates the architecture | Report that the quality argument fails; FOV/latency arguments stand or fall on their own numbers |
-| T4 Oracle gap | Recall, precision, throughput, latency vs oracle | Bands: ≥0.8 recall @ ≥10 fps = near-term; <0.5 or <2 fps = genuine idealisation | No failure mode — the measured gap conditions Chapter 7's detector-dependent statements |
-| T5 Endurance | Throttle-free minutes; battery/45 min | TB1: camera-free modes complete 45 min; study configs sustain block durations | Protocol change if study configs fail; TB1 refutation reported as a finding |
+| GPU cost | p95 frame time; stale % | Study configs: within budget, stale < 1 % | **Mixed.** GPU time passes everywhere. Soft Dark and Hard Dark pass outright. Sign Pop and the video baseline fail on stale-frame rate (7.35 %, 8.02 %) — a video-scene decode/upload issue, not a shader-cost issue (Section 5.3) |
+| Legibility | Optotype lines, window vs Tier-3 path | Window ≥ 1 line finer at 0.6 m supports the architecture | **Indicative pass.** Native resolves ~1–2 logMAR rows finer than Tier-3 (Section 5.4), on a single-rater read |
 
-Three reporting rules bind the results revision of this chapter. Results will be reported for every
-benchmark attempted, including failures and anomalies, with trace archives retained. No criterion
-or band stated above will be adjusted after data are seen. And where a benchmark is dropped for
-time (the pre-agreed sacrifice order puts T5 first — framing document, Section 7), the drop is
-stated rather than silently omitted.
+Three further measurements were scoped out for the time available: apparent edge drift of the
+world-locked window under fast head rotation, the gap between live on-device detection and the
+offline oracle, and thermal endurance across a session. The first two bound claims this dissertation
+does make — window stability and the reach of the driving-block finding respectively — and are
+carried as future work in Chapter 8, Section 8.3.
+
+Two reporting rules bind this chapter. Results are given for every benchmark run, including failures
+and anomalies, with trace archives retained; and no criterion or band was adjusted after the data
+were seen.
 
 ## References (this chapter)
 

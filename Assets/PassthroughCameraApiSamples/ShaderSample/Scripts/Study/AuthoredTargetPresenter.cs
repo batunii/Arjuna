@@ -107,19 +107,20 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField, Range(0.1f, 80f)] private float m_windowHalfWidthDeg = 8f;
         [SerializeField, Range(0.1f, 60f)] private float m_windowHalfHeightDeg = 6f;
 
-        [Header("Probe (ring) — matches the piloted style")]
+        [Header("Probe (ring) — THE STUDY RAN THE ROPE (VideoTestScene serializes segments 4, behind-filter ON)")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
-        // Yellow, but the shader attenuates the ring by the filter's local desat+dim (Point 3):
-        // full colour with the filter off / inside the window, faded like a real object in the
-        // filtered periphery. A plain black ring (filter-invariant) was tried 2026-07-22 and
-        // floored the no-filter baseline (48% hit, 3.55 s median RT) — peripheral onsets need chroma.
+        // With m_ringSegments > 0 the shader IGNORES this RGB (the rope's arcs are pure
+        // black/white) and keeps only the alpha (0.4 = the study's translucent rope). The yellow
+        // RGB is retained for the segments = 0 solid-ring fallback only. History: a plain black
+        // ring (filter-invariant) was tried 2026-07-22 and floored the no-filter baseline
+        // (48% hit, 3.55 s median RT); the rope's alternating polarity is the durable fix.
         [SerializeField] private Color m_ringColor = new(1f, 0.85f, 0.1f, 0.4f);
         [SerializeField, Range(0.02f, 0.2f)] private float m_ringWidth = 0.06f;
-        [Tooltip("0 = solid ring colour (default). >0 = 'rope' ring with this many alternating black/white arc PAIRS. Piloted 2026-07-22: at 0.4 alpha and thin width the rope FRAGMENTS (only one polarity contrasts on any background -> four faint flecks, no closure) and was harder to spot than solid yellow — the fiducial principle needs opaque, chunky markers. Kept for reference/experiments.")]
+        [Tooltip("0 = solid ring colour (fallback). >0 = 'rope' ring with this many alternating black/white arc PAIRS. THE MAIN STUDY RAN 4 (serialized in VideoTestScene.unity with alpha 0.4, width 0.06): achromatic, so the filter's desaturation is a no-op on it; polarity-alternating, so some arc contrasts with any background; and the multiplicative dim preserves its internal Michelson contrast, so it dims honestly under the filter (Point 3). An early 2026-07-22 in-headset note judged the translucent rope prone to fragmenting; the study configuration kept it regardless, and the dissertation reports that configuration (ch5, fig:ring). This field's code default (0) is overridden by the scene.")]
         [SerializeField, Range(0, 8)] private int m_ringSegments = 0;
-        [Tooltip("Dark border flanking the ring — the yellow/black warning-sign pairing. Guarantees a luminance step on bright/yellowish backgrounds where the ring colour alone fades; multiplicative darkening, so it dims with the filter automatically (Point 3). 0 = off.")]
+        [Tooltip("Dark border flanking the ring. Guarantees a luminance step on bright backgrounds where the arc pattern's own step is weakest; multiplicative darkening, so it dims with the filter automatically (Point 3). 0 = off. Study value: 0.6.")]
         [SerializeField, Range(0f, 1f)] private float m_ringOutline = 0.6f;
-        [Tooltip("On: ring colour is attenuated by the filter's local desat+dim (supervisor Point 3 — the probe behaves like a real object, so deep-periphery detection honestly floors under the filter). Off: ring draws on top at full colour everywhere — an always-visible attention marker; the Filter condition then measures attention allocation, not visibility.")]
+        [Tooltip("On: ring colour is attenuated by the filter's local desat+dim (supervisor Point 3 — the probe behaves like a real object, so deep-periphery detection honestly floors under the filter). THE STUDY RAN ON (serialized in VideoTestScene.unity; this code default is overridden by the scene). Off: ring draws on top at full colour everywhere — an always-visible attention marker; the Filter condition then measures attention allocation, not visibility.")]
         [SerializeField] private bool m_ringBehindFilter = false;
         [SerializeField, Range(0f, 2f)] private float m_onsetRampSeconds = 0.5f;
         [SerializeField] private Color m_hitFlashColor = new(0.3f, 1f, 0.4f, 0.9f);

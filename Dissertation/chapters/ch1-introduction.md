@@ -70,13 +70,12 @@ The two halves of the question structure the entire work.
 **Part T (technical): can it be built?** What degree of diminishment control is achievable on a
 consumer VST headset without OS-level access to the passthrough layer, and at what cost to image
 quality, field of view, latency, and comfort? Part T is answered by the design space (Chapter 3), the
-reference implementation (Chapter 4), and the technical evaluation plan with preliminary results
-(Chapter 5).
+reference implementation (Chapter 4), and the technical evaluation (Chapter 5).
 
 **Part H (human): does it work?** Under controlled distraction, does peripheral diminishment reduce
 the cost distractors impose on a focal task — and does salience re-grading speed focal detection
 without unacceptably degrading peripheral awareness? Part H is answered by a pre-registered user
-study design (Chapter 6).
+study, whose design and results are both reported in Chapter 6.
 
 Two methodological commitments connect the halves and should be named at the outset, because they are
 choices rather than accidents.
@@ -86,17 +85,23 @@ the system's rendering sphere, rather than live passthrough of a street. This fo
 of the closest published DR evaluations, which simulated diminishment inside virtual environments
 because controlled, repeatable, event-dense stimuli cannot be obtained from the uninstrumented real
 world (Cheng et al., 2022; McLaughlin et al., 2025). Second, the perception problem is
-deliberately decoupled from the attention question — twice over. The evaluated modes are
-detector-free by design (ColorPop keys on luminance and colour; the dark modes on window geometry
-alone), so no object detection, live or pre-baked, runs anywhere in the study protocol. Where
-detection enters the dissertation at all, it enters as an *oracle*: detections pre-computed offline
-at full resolution validate the driving stimulus's event density and anchor Chapter 5's
-oracle-versus-live benchmark, standing in for the perfect detector that future detector-dependent
-variants would require. The human-factors findings of this study therefore remain valid regardless
-of future improvements in object detection — first because the evaluated modes require none, and
-second because detector-dependent extensions are characterised against a measured oracle bound that
-live systems approach from below. Crucially, the two study blocks bracket the feasibility spectrum:
-the primary (workstation) block runs on *real passthrough with real physical distractors* — the
+deliberately decoupled from the attention question — but from *live, on-device* detection
+specifically, not from detection itself. SignPop, the mode evaluated in the driving block, is not
+detector-free: its signal pop, a locally opened window over the object, a saturation and brightness
+lift, and a darkened surround are all gated on a single detection signal (Chapter 4, Section 4.5.6).
+What makes the decoupling real is where that signal comes from — an *oracle*, computed once,
+offline, at full resolution over the study footage (Chapter 5, Section 5.6), never from a model
+running on the headset during a session. The oracle is used exactly as an oracle is meant to be
+used: it lets the study ask whether an effect built on excellent detection helps attention, without
+first having to engineer excellent detection on-device. The human-factors finding therefore does not
+depend on today's on-device detection quality — but it does depend on oracle-quality coverage, and
+Chapter 5 sets out the gap between that coverage and what a live pipeline
+currently achieves, which conditions how far the finding travels toward a deployed system. Nor does
+the current design distinguish which of the gated effects — the colour pop, the opened window, or
+the saliency lift — is responsible for any measured benefit; that limitation is carried forward
+explicitly in Chapter 6. Crucially, the two study blocks bracket the feasibility spectrum:
+the primary (workstation) block runs on *real passthrough over a real display carrying real moving
+distractors* — the
 actual artefact, no simulation — while the secondary (driving) block evaluates the concept in the
 simulated deployment context.
 
@@ -107,13 +112,14 @@ full pre-registered form — including smallest effect sizes of interest, equiva
 statistical tests, and a decision table committing the dissertation to a conclusion under every
 outcome — is given in Chapter 6.
 
-- **RQ1 (primary).** Does peripheral DR dimming (Hard Dark, world-locked window) reduce the
-  performance cost that peripheral visual distractors impose on a focal workstation task?
-  *Hypothesis H1:* the distractor-induced error increase is smaller with the vignette active — a
-  Vignette × Distractor interaction, with the vignette recovering at least a pre-registered fraction
-  of the distractor cost.
-- **RQ2 (secondary).** Does ColorPop salience re-grading speed detection of focal-region events in a
-  dynamic scene without degrading peripheral event detection beyond an acceptable margin?
+- **RQ1 (primary).** Under sustained peripheral distraction, does peripheral DR dimming (Hard Dark,
+  world-locked window) improve performance on a focal workstation task?
+  *Hypothesis H1:* focal-task accuracy is higher with the vignette active than without it, measured
+  as a paired within-participant difference under a distractor reel that runs throughout both
+  conditions.
+- **RQ2 (secondary).** Does SignPop's detection-gated salience re-grading speed detection of
+  focal-region events in a dynamic scene without degrading peripheral event detection beyond an
+  acceptable margin?
   *Hypotheses H2a/H2b:* central probe reaction time improves (H2a), and peripheral probe hit rate is
   equivalent within a 10-percentage-point margin (H2b) — a safety hypothesis tested by equivalence,
   such that failing it is a conclusive negative finding rather than an ambiguous null.
@@ -121,9 +127,9 @@ outcome — is given in Chapter 6.
   benefit, and willingness to use, when sampled on a common stimulus?
 
 The design philosophy behind these hypotheses deserves one sentence here: the study is built so that
-it cannot return "inconclusive". Distractors are known to impose a measurable cost; the study asks
-whether the system reduces that cost, verifies the cost exists before the main study runs, and
-pre-commits to the interpretation of every outcome, including failure.
+it cannot return "inconclusive". Distraction is held constant and known to be costly; the study asks
+whether the system improves performance against it, and pre-commits to the interpretation of every
+outcome, including failure.
 
 ## 1.5 Contributions
 
@@ -133,14 +139,19 @@ pre-commits to the interpretation of every outcome, including failure.
 - **C2 — Reference implementation.** An open, working multi-mode DR attention-guidance system on
   Quest 3 passthrough: the world-locked focus-window-as-absence architecture, world-direction fusion
   sampling that lets a monocular camera feed fuse binocularly, motion-coupled comfort suppression,
-  and three peripheral treatments (ColorPop, Soft Dark, Hard Dark) — with documented failure modes
-  (Chapter 4).
-- **C3 — Technical evaluation.** A benchmark plan (frame cost, latency, legibility across rendering
-  paths, thermal endurance, and the oracle-versus-live detection gap) with preliminary results from
-  the offline detection pipeline (Chapter 5).
-- **C4 — Pre-registered user study.** A falsifiable within-subjects design (N = 20) with a single
-  properly powered primary hypothesis, equivalence-bounded safety testing, pilot gates, and a
-  pre-committed decision table (Chapter 6).
+  and ten peripheral treatments spanning the three-tier space, of which two are carried to
+  confirmatory evaluation — SignPop (detection-gated salience re-grading) and Hard Dark (full
+  peripheral occlusion) — with documented failure modes (Chapter 4).
+- **C3 — Technical evaluation.** Measured frame cost against the 72 Hz budget and measured legibility
+  across rendering paths, quantifying the quality advantage that motivates the window architecture,
+  with results from the offline detection pipeline and a stated account of which benchmarks remain
+  unrun (Chapter 5).
+- **C4 — Pre-registered user study and its results.** A falsifiable within-subjects design with a
+  single primary hypothesis, equivalence-bounded safety testing, and a pre-committed decision table,
+  executed on 18 participants. Focal-task accuracy improved by 3.09 percentage points under
+  peripheral dimming (95 % CI +0.62 to +5.55, 82 % achieved power); peripheral awareness was
+  non-inferior under salience re-grading; and the dynamic-scene detection benefit localised to the
+  20–30° band immediately outside the focus window (+17.55 points, 84 % power) (Chapter 6).
 
 ## 1.6 Scope: what this dissertation does not claim
 
@@ -156,14 +167,18 @@ inference would require a driving simulator with vehicle control, which is out o
 desirability or readiness of a wearable product. Comfort findings from a 2026 headset transfer to
 future lighter hardware only as bounds, and are reported as such.
 
-**Oracle conditioning stays visible.** No study finding depends on object detection — the evaluated
-modes are detector-free. Where the dissertation discusses detector-dependent extensions, those
-discussions are conditioned on the oracle bound that Chapter 5 measures, and marked accordingly.
+**Oracle conditioning stays visible.** SignPop's finding depends on detection — on offline,
+oracle-quality detection, not on live, on-device detection. Every place this dissertation reasons
+about a live or on-device detector, that reasoning is conditioned on the oracle bound that Chapter 5
+measures, and marked accordingly; oracle performance is never substituted for live performance
+without saying so.
 
-**Results are pending.** At the time of writing, neither the user study nor the technical benchmark
-campaign has been run. Chapters 5 and 6 present pre-registered plans — including everything required
-to hold the eventual analysis to its commitments — together with preliminary pipeline results where
-these already exist. No empirical outcome is asserted anywhere in this document.
+**Claims are bounded by what was measured.** The user study ran on 18 participants and the
+technical benchmarks are partially complete: frame cost and legibility are measured, while
+world-locking stability, thermal endurance, and the oracle-versus-live detection gap are not.
+Chapter 5 marks which is which, and Chapter 6 reports every pre-registered test including those
+its sample cannot resolve. Where a result is a bounded estimate rather than a demonstrated effect,
+it is labelled as one.
 
 ## 1.7 Roadmap
 
@@ -172,13 +187,21 @@ foveated rendering, attention guidance in driving and workstation contexts, and 
 foundations, closing with the research gaps this work addresses and a documented prior-art search for
 the system's core architecture. Chapter 3 develops the three-tier design space of DR under
 compositing constraints. Chapter 4 presents the system: architecture, the three modes, interaction
-design, and the engineering record including dead ends. Chapter 5 specifies the technical evaluation
-and reports preliminary detection-pipeline results. Chapter 6 presents the pre-registered user study
-design in full. Chapter 7 discusses expected interpretations, threats to validity, and transfer —
-including what does and does not carry to optical see-through hardware. Chapter 8 concludes.
+design, and the engineering record including dead ends. Chapter 5 reports the technical evaluation.
+Chapter 6 presents the pre-registered user study
+design in full and reports its results. Chapter 7 discusses those results, threats to validity, and
+transfer — including what does and does not carry to optical see-through hardware. Chapter 8
+concludes.
 
-[Figure 1.1 — The three peripheral treatments seen from the user's viewpoint: ColorPop, Soft Dark,
-Hard Dark, each with the world-locked focus window visible. Composite of headset screenshots.]
+![Figure 1.1](figures/fig1-1-three-treatments.png)
+
+**Figure 1.1 —** The three peripheral treatments on the same driving scene, captured on device.
+**(a)** Sign Pop desaturates the periphery while holding the red and orange of road markings and
+signage at full strength. **(b)** Soft Dark attenuates the periphery without removing it.
+**(c)** Hard Dark takes the attenuation to its limit. In all three the focus window sits at the
+centre and is left untouched, so the region the viewer is working in reaches the eye through the
+headset's own passthrough rather than through the effect. Panel (c) carries the build's on-screen
+mode badge.
 
 [Figure 1.2 — The two-part structure of the dissertation: Part T (design space → system → benchmarks)
 and Part H (pre-registered study), with the workstation block bridging them on real hardware.]

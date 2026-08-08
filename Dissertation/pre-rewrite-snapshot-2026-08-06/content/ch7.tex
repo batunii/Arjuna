@@ -1,0 +1,326 @@
+\chapter{Discussion}
+
+\textbf{Status note.} This chapter was originally drafted before the user study (Chapter 6) had
+produced any data. Most of its interpretive frame (Sections 7.3–7.4) is kept in that pre-committed
+form deliberately. It is the discussion-chapter counterpart of the pre-registered decision table,
+fixed before data collection so results cannot be interpreted by a frame built afterwards to flatter
+them. The technical benchmark programme of Chapter 5 still has not produced data beyond the offline
+detection bake. The user study, however, now has interim results from fourteen Block A pairs and
+thirteen Block B pairs (Chapter 6, Section 6.11). Section 7.2 below discusses them against the pre-committed frame that
+follows it. This is an interim discussion, not the confirmatory one the frame was built for, and it
+is named as such throughout.
+
+\section{What can already be discussed}
+
+\subsection{The design space is itself a result}
+
+The central finding of Part T does not await any benchmark: it is the shape of the design space in
+Chapter 3. On a consumer VST headset, diminished reality is not one problem but three, indexed by
+compositing access. At Tier 1, the platform grants global colour remapping of the system passthrough
+layer (the Styling API's brightness, contrast, saturation, and LUT controls) and nothing spatial: no
+per-pixel masks, no world-locked regions, no read access, and, since the deprecation of
+surface-projected passthrough at SDK v83, no per-surface control either. The significant fact is
+the \textit{absence}: a developer who wants to dim the periphery and spare a window cannot do it at Tier 1
+at all. That absence is a platform-policy finding, not an engineering one, and it shapes what DR
+research is possible on consumer hardware more than any algorithm does.
+
+The system's response to that absence, the world-locked focus window realised as a shaped \textit{absence}
+of overlay, native passthrough showing through it, with all manipulation confined to the periphery,
+is an existence proof: windowed subtractive DR is achievable at Tier 2 without OS cooperation, and
+hybrid Tier-2/Tier-3 composites (native passthrough inside the window, an effect-processed camera
+feed outside it) are achievable with Passthrough Camera Access. The structured prior-art search
+reported in Chapter 2, Section 2.5.2 found no publication, product, or open-source project
+that composites system passthrough with a live shader-processed camera feed in one view, for any
+purpose, while every constituent mechanic has documented precedent. The composite, precisely scoped,
+is the novelty claim, and the documented search protocol is what entitles the dissertation to make
+it. Should the refresh search before submission surface a concurrent system, the claim degrades
+gracefully to independent invention with a characterised design space, which is why the claim is
+worded around the space rather than the trick.
+
+\subsection{Engineering lessons that generalise}
+
+Four lessons from the implementation are candidates for reuse beyond this project.
+
+\textbf{Sample by world direction, not screen space, when re-rendering a mono camera feed.}
+Screen-space UV mapping of the camera texture gives each eye a different pixel for the same world
+point, and the result is double vision. Sampling by world direction through a head-centred pinhole
+is eye-independent, so the binocular system fuses the re-rendered image. Any future system that
+re-renders a mono VST feed, on this platform or another, will face the same problem and can use
+the same solution.
+
+\textbf{Exploit the quality asymmetry: route the task-critical region through the native layer.} The
+naive architecture re-renders everything and accepts camera-feed quality everywhere. Inverting it,
+manipulating only the periphery and leaving the window as an absence, means the user's
+task-relevant vision never pays the Tier-3 quality tax. Chapter 5's T3 benchmark will quantify the
+tax. The architectural lesson stands independently: on any platform where an accessible feed is
+worse than the native view, put the manipulation where the eyes are not.
+
+\textbf{Decouple effects from head motion.} Head-coupled peripheral restriction increases discomfort
+\citep{norouzi2018}. The system therefore fades the effect out during fast head rotation and
+restores it on settling, with an immediate restore when the head enters the focus region. This
+inverts a common default, effects that follow the head, into one that yields to the head.
+
+\textbf{Consumer-platform DR research inherits platform-policy risk.} The failure museum's least
+technical entry may matter most: surface-projected passthrough, a capability this project might have
+built on, was deprecated mid-project at SDK v83. Tier boundaries on consumer hardware are set by
+vendor policy and move without notice. Research designs that, like this one, keep a working path at
+every tier are robust to that movement. Designs premised on a single capability are not.
+
+\subsection{Positioning: software-defined visual noise cancellation}
+
+The literature review's closest conceptual frame for the whole project is visual noise cancellation
+(VNC): moderating the visual environment through head-worn hardware the way acoustic noise
+cancellation moderates sound. Read through that frame, the present system is a \textit{software-defined}
+VNC device: the "cancellation profile" is a shader parameter set, the modes are profiles
+(attenuate: Soft/Hard Dark; re-grade: SignPop), and the tier taxonomy describes which profiles the
+platform physically permits. The analogy also imports a useful discipline from its acoustic
+original: noise-cancelling headphones are evaluated on measured attenuation \textit{and} on what they cost
+the wearer in awareness, which is exactly the H1/H2b pairing. The analogy is offered as
+positioning, not as a claim of equivalence: acoustic cancellation is subtractive at the signal
+level, whereas everything in Chapter 3 exists precisely because consumer VST compositing forbids
+signal-level subtraction and forces synthesis by overlay.
+
+\subsection{What could not be discussed before, and what changed}
+
+Before any data existed, no statement about whether the system \textit{works}, in the sense of H1,
+H2a, or H2b, was available. The literature gave reason to take both outcomes seriously. Peripheral
+distractors reliably impose sustained-attention costs in headsets \citep{ai2025}, and DR-style
+attenuation reduced workload in VR simulation \citep{mclaughlin2025}. But area darkening's guidance
+effects come mostly from immersive video contexts, desaturation alone has shown weak effects \citep{wang2020}, and awareness costs are documented wherever attenuation succeeds \citep{murph2021}. The design space contained both a working system and a placebo, and only data could say which.
+Fourteen Block A pairs and thirteen Block B pairs now exist (Chapter 6, Section 6.11). The next
+section discusses what they show, against the interpretive frame that follows it, as an interim reading rather than the
+confirmatory one that frame was built for.
+
+\section{Interim results, discussed}
+
+The interim data point toward the working-system end of that range, on both questions the design set
+out to ask, with a genuine surprise attached to the second.
+
+\textbf{The workstation benefit (H1) is present and sizeable at this $N$.} There is a 3.34-point
+accuracy gain (95\% CI +0.33 to +6.34, $p = .032$, $d_z = 0.641$) on a real-hardware task, with real
+physical distractors. It survives both a parametric and an assumption-free test, and ten of fourteen
+people improved individually. The honest caveat is the interval's width. A lower bound of +0.33
+points is compatible with a benefit barely worth the SESOI the pre-registered design set at 50\% of
+the vignette-off error rate. At 60\% power the true effect could plausibly be smaller or larger than
++3.34 once the remaining participants are collected. It is worth noting that adding three
+participants moved the estimate by only a third of a point while tightening nothing much, which is
+what a real but modest effect looks like as a sample grows.
+
+\textbf{The safety question (H2b) comes back clean.} Pooled hit rate did not drop. It rose by 5.58
+points, and the 90\% interval ($-0.98$ to $+12.14$) puts the worst case the data support at about a
+one-point loss, far inside the ten-point margin the design set. Section 6.2 committed in advance to
+what would refute H2b, a drop greater than ten points alongside a failure to establish equivalence,
+and the estimate points the other way, so the refuting observation did not occur. Nothing here
+suggests that re-grading salience costs the user their periphery.
+
+\textbf{One methodological lesson comes out of the statistic rather than the result.} Formal
+equivalence within $\pm$10 points is not established at this $N$ ($p = .126$), and the reason is
+instructive. The two-sided procedure requires ruling out a large \textit{benefit} as well as a large
+loss, and the data cannot rule out a benefit above ten points. But a large benefit was never a safety
+concern. H2b asks a one-directional question, so the instrument matched to it is a non-inferiority
+test against a $-10$-point bound, which is the lower one-sided test and passes at $p = .0006$. The
+mismatch is a specification error made when the hypothesis was written, not a property of the system,
+and it is worth recording because equivalence testing is increasingly recommended for exactly this
+kind of safety claim \citep{lakens2017} and is easy to reach for in its two-sided default form when
+the question at hand only has one side. A study writing a safety bound should state the direction it
+cares about and test that direction alone.
+
+\textbf{The genuine surprise is where H2a's benefit lives.} The pre-registered hypothesis asked
+whether SignPop speeds detection generally. What the interim data show instead is a benefit
+concentrated specifically in the 20--30\textdegree{} eccentricity band, the one region where the
+colour-pop gate has visible room to act and the target is still close enough to use the result
+(+16.5 points, $p = .034$). Every band moves positively, but the other three move by between 1.9 and
+5.4 points and none is individually reliable, so one band carries almost all of the signal. This was
+not the shape anticipated when the hypothesis was pre-registered. It emerged from breaking the
+pooled result down by angle, which makes it a secondary, exploratory finding rather than the
+confirmatory test H2a was designed to be.
+
+What makes it more than a lucky slice is that the band was fixed by the design before any data
+existed. The soft edge was set at 20\textdegree{} against the useful field of view, the roughly
+30\textdegree{} radius within which people extract task-relevant information without moving their
+eyes \citep{ball1993}, and set out in Chapter 4, Section 4.2. The benefit therefore appears in precisely the
+annulus between where the gate starts having room to act and where the useful field runs out. Inside
+20\textdegree{} the gate has nothing to reveal, and beyond 30\textdegree{} it reveals plenty to an eye
+that can no longer use it. This is exploratory analysis agreeing with the system's own geometry
+rather than fitting noise, which is the strongest kind of exploratory finding available at this
+sample size, and it is named as exploratory every time it is used in the rest of this chapter.
+
+\textbf{The subjective and behavioural data partly disagree, and the disagreement is itself
+informative.} Perceived focus benefit is strongly positive, 57 of 65 responses. But roughly four in
+ten responses on the awareness construct report feeling cut off from the surroundings or noticing
+side events late, against a behavioural hit rate that rules out any large peripheral-awareness loss
+and, in the 20--30\textdegree{} band, shows an improvement. Two explanations are worth taking seriously rather than
+explaining away. First, noticing
+that the periphery has been changed is a different experience from missing something in it, and every
+DR manipulation studied to date is noticed \citep{sutton2022}. "I can tell my vision has been
+altered" and "I failed to detect something" are not the same report, even when only the first is
+true. Second, narrowed-field anxiety is documented independently of task performance. It rises in
+every restricted-field condition tested in the literature, including conditions where spatial learning
+is unaffected \citep{barhorstcates2016}. Reassuring people directly, for instance with a visible
+cue when something happens outside the window, would reintroduce exactly the salience the filter
+exists to remove. That is the trade-off in its sharpest form, and it is left unresolved here.
+
+\section{The pre-registered interpretation frame}
+
+The decision table (Chapter 6, Section 6.9.3) is reproduced here in condensed form, with the
+scientific meaning each row would carry. The dissertation will report the row that occurred once the
+final $N = 20$ collection concludes. This section exists so that the meaning of each row is on record
+before that data is. The interim data discussed in Section 7.2 sit closest to row 1, but Section 6.9.3
+is explicit that this table maps the confirmatory collection, not an interim reading of it.
+
+\textbf{Row 1, H1 supported and H2b passes equivalence}, would validate the mechanism claim on real
+hardware. The claim would remain mode-in-context, Hard Dark at a workstation and SignPop on a
+monitoring stimulus, and the design cannot support "dark vignettes work" in general. Within that
+scope it would be the first performance-based demonstration of DR distraction suppression on consumer
+passthrough hardware rather than in VR simulation.
+
+\textbf{Row 2, H1 supported and H2b failing}, is not a failure row. It would reproduce and
+\textit{quantify} on real hardware the focus--awareness trade-off documented in simulated DR
+\citep{mclaughlin2025,murph2021}, which is arguably the most design-relevant outcome
+available, because it converts mode choice from an aesthetic decision into a safety-relevant one:
+attenuation modes for closed environments where the periphery genuinely does not matter, salience
+modes or nothing where it does.
+
+\textbf{Row 3, H1 refuted}, would be the bounded negative, and it carries a specific scientific
+reading. If peripheral visual attenuation at Hard Dark's maximum reduces the error rate by less than
+the SESOI, then distractor interference in this paradigm is not carried solely by continuing visual
+input. Knowing the tablets are there, and holding an attentional set toward them, may impose costs no
+visual overlay can remove. That would be genuinely useful to a field that currently extrapolates from
+simulation studies in which removing a distractor is total.
+
+\textbf{Rows 4 and 5} exist to forbid two temptations: retrospectively deciding that a smaller effect
+"would also be meaningful", and omitting an abort path from a pre-registered frame.
+
+\section{Block A versus Block B: a built-in test of simulation-based evaluation}
+
+The two confirmatory blocks run the same guidance principle at opposite ends of the feasibility
+spectrum: Block A on the real Tier-2 artifact over live passthrough with physical distractors,
+Block B on the simulated context, video sphere, scripted probes, that stands in for the
+future system. This pairing was designed as a bridge, and it carries an incidental methodological
+payload. If the two blocks agree in direction, diminishment helps
+focal performance in both, the simulation methodology that the nearest published work relies on
+entirely (\citealp{cheng2022}; \citealp{mclaughlin2025}, both VR-simulated) gains a point of external
+credibility from this project's real-hardware anchor. If they diverge, the divergence localises
+what simulation misses: candidate explanations would include the absence of depth motion in
+monoscopic video, the different distractor ontology (baked footage events versus physically present
+screens), and hardware-borne effects such as fusion strain that no video condition reproduces.
+Either way the comparison is reportable, which is the property that was designed for. The blocks
+were not powered as a formal cross-context contrast, and any A-versus-B statement will be framed as
+observational.
+
+Operationally, "agreement" will be read at the level of sign and decision-table row, not effect
+magnitude: Block A's H1 and Block B's H2a estimate the benefit of diminishment-family manipulations
+on focal performance in their respective contexts, and the comparison asks whether both point the
+same way. Magnitudes are not comparable across the blocks (different tasks, different dependent
+variables, different modes), and no ratio between them will be interpreted.
+
+\section{Transfer: what leaves this dissertation, and under what conditions}
+
+\textbf{To optical see-through (OST) hardware, the dark overlay does not transfer.} The Tier-2 modes
+work because a VST display is an opaque screen under full render control. Additive OST optics
+cannot darken the world. What transfers is the taxonomy and the question. On OST hardware the
+taxonomy collapses toward display-side attenuation, of which segmented dimming hardware (e.g.
+Magic Leap 2's segmented dimmer \citep{magic2024}, a dedicated low-resolution panel that locally attenuates light behind masked virtual content) is the nearest existing analogue of a
+Tier-2 windowed dim, and toward the additive salience modulation demonstrated by \citet{sutton2022}. Whatever Chapter 6 finds about \textit{what peripheral diminishment does to attention} transfers
+as a human-factors result to any hardware that can implement an equivalent stimulus. The
+implementation findings transfer only within VST.
+
+\textbf{From the simulation, transfer is conditional, and the conditions are enumerated.} Headset weight
+biases only comfort ratings, and conservatively. Attention effects are unaffected in either
+direction by lightening hardware. Monoscopic video removes motion-in-depth, so peripheral capture
+by looming stimuli is untested. The passenger viewpoint removes task coupling, which is why no
+statement in this dissertation concerns driving performance, and none should be quoted as if it
+did. Video dynamic range compresses glare, so SignPop's glare-suppression track is exercised only
+weakly. Identical stimuli for all participants trade ecological breadth for internal validity, and
+the trade is intended. Block A, running on the real system against physical distractors, is the one
+component that transfers without these caveats, which is why it carries the primary hypothesis.
+
+\textbf{Oracle conditioning.} Every statement about detector-dependent guidance variants is conditioned
+on the oracle assumption, whose measured size is Chapter 5's T4 deliverable. Until the live column
+of the oracle-gap table is filled, "the detector sees everything in time" is an assumption with a
+plan for its own measurement, not a fact. The study protocol is not insulated from this caveat:
+SignPop, Block B's evaluated mode, is itself detector-dependent, on offline, oracle-quality
+detection rather than a live pipeline, so RQ2/H2a/H2b inherit the same conditioning as any future
+detector-dependent extension, not a lesser version of it.
+
+\section{Limitations, consolidated}
+
+The limitations below are collected from Chapters 3–6 so that they appear once, together, rather
+than diluted across the text.
+
+\begin{enumerate}
+\item \textbf{Mode $\times$ scenario confound.} Hard Dark is tested only in the workstation context, SignPop only
+   in the monitoring context. Every empirical claim is mode-in-context. The design cannot separate
+   mode effects from scenario effects, and nothing in the design mitigates it (Chapter 6,
+   Section 6.7).
+\item \textbf{SignPop's manipulation is a bundle.} A confirmed detection switches on six effects at
+   once: colour pop, window carve-out, saturation lift, brightness lift, contrast expansion, and
+   darkened surround (Chapter 4, Section 4.5.5). None is isolable in the current design, so
+   RQ2/H2a/H2b cannot attribute a measured benefit to any one of them.
+\item \textbf{Soft Dark carries no participant data at all.} It was never placed in front of a
+   participant (Chapter 6, Section 6.7). Its place in the dissertation rests on design-space
+   grounds (Chapter 3, Section 3.5) and on its shader path, never on evidence about how it is
+   experienced.
+\item \textbf{No eye tracking.} Quest 3 has none. Head pose is a validated proxy at the eccentricities used
+   \citep{higgins2022,sitzmann2018}, but covert attention shifts, distraction without
+   head movement, are invisible to telemetry. The dependent variables were chosen so that
+   \textit{performance outcomes}, not attention allocation, carry the hypotheses. The mechanism remains
+   partially inferred.
+\item \textbf{Sensitivity floor.} N = 20 gives 80 \% power at dz $\approx$ 0.65 for the classical paired test.
+   Trial-level mixed models improve on this, but effects meaningfully smaller than the SESOI are
+   detectable only as estimates with wide intervals (decision-table row 4 exists for this reason). At
+   the interim sample, achieved power is 60\% for H1 ($N = 14$) and 59\% for the 20--30\textdegree{}
+   band ($N = 13$), below the pre-registered target for either. That is why both are reported as interim rather than
+   confirmatory findings, regardless of clearing their significance thresholds.
+\item \textbf{Single experimenter, single site, single hardware generation.} Scripts and checklists bound
+   experimenter variance but cannot eliminate it. Every number is specific to Quest 3 and the
+   frozen OS/SDK versions, on a platform whose capabilities have already moved once mid-project.
+\item \textbf{Ecological validity boundaries.} The workstation distractors are two tablets with scheduled
+   bursts. The monitoring stimulus is a video. The study measures attention mechanisms under
+   controlled distraction, deliberately, and its conclusions end where those controls end.
+\item \textbf{Residual novelty.} Practice-to-criterion and counterbalancing distribute first-exposure
+   effects. They do not abolish the fact that every participant meets peripheral diminishment for
+   the first time that hour. Longitudinal adaptation, the deployment-relevant question, is future
+   work by construction.
+\item \textbf{Passthrough acuity boundary.} The task was designed around the platform's acuity ceiling
+   (virtual panel or pilot-verified large print), so no claim extends to fine-detail real-world
+   tasks such as reading small text through passthrough, the very context that motivated some of
+   the use cases. This is a hardware boundary the dissertation documents rather than solves.
+\end{enumerate}
+
+\section{Implications in both futures}
+
+\textbf{If the system works (rows 1–2).} The immediate implication is that subtractive attention
+guidance is deliverable \textit{today}, at Tier 2, on unmodified consumer hardware: no OS cooperation, no
+eye tracker, no detector. The near-term research programme that opens is concrete: hour-scale field
+deployment of the camera-free dark modes (whose endurance T5 tests), the temporal-transition
+and user-controlled-release questions already identified as gaps in the literature review (gaps 3
+and 4), an eye-tracked replication to convert performance findings into attention-allocation
+findings, and an OST translation via segmented dimming hardware. A row-2 outcome adds the design
+rule that mode selection is a safety decision, and would motivate a context-detection layer,
+which is where the oracle-gap measurement re-enters as an engineering budget.
+
+\textbf{If the system does not work (row 3).} The negative is bounded and useful. For the field, it
+would indicate that peripheral visual attenuation on passthrough, the cheapest and most deployable
+DR, does not by itself buy back distraction costs, redirecting effort toward the channels the
+overlay cannot touch: semantic knowledge of the distractor, auditory leakage, and interruption
+timing. For this dissertation, the contributions that survive are exactly the ones constructed to
+be result-independent: the design space and its tier constraints (C1), the reference implementation
+and its transferable engineering lessons (C2), the benchmark characterisation of a consumer VST
+platform (C3), and a pre-registered, falsifiable evaluation method for DR attention claims (C4),
+which a null result would demonstrate rather than undermine. A field that currently argues DR's
+promise largely from simulation would gain its first hard, hardware-grounded boundary.
+
+\textbf{In either future, the method is part of the contribution.} The evaluation apparatus built for
+this dissertation, a single primary endpoint with a smallest effect size of interest, equivalence
+margins for safety claims, a gated pilot whose failure aborts rather than degrades the main study,
+and a decision table committed before data collection, is not standard practice at
+masters-project scale, where underpowered multi-hypothesis designs that can only end inconclusively
+remain common. The apparatus costs little (its artefacts are documents and thresholds, not
+equipment) and converts every outcome into a claim with stated bounds. Whichever row of the
+decision table occurs, the dissertation demonstrates the apparatus by using it in public, which is
+a transferable contribution to how small-N XR evaluations can be run.
+
+Both futures are written here with equal seriousness because the study was designed so that either
+one is a finding. That property, not any particular row of the decision table, is the standard
+this dissertation set out to meet.

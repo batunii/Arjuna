@@ -12,7 +12,7 @@ The answer is not a single number but a structured design space. The central cla
 that on a platform such as the Meta Quest 3, the feasibility of any DR effect is determined almost
 entirely by **which layer of the compositing stack an application is permitted to touch**, and that
 these permissions stratify into three discrete tiers with sharply different capabilities and costs.
-The three vignette modes evaluated in this dissertation — ColorPop, Soft Dark, and Hard Dark — were
+The three vignette modes evaluated in this dissertation — SignPop, Soft Dark, and Hard Dark — were
 not designed as arbitrary aesthetic variants; each occupies a distinct position in this space, and
 together they span it. The taxonomy presented here is Contribution C1; the modes that instantiate it are described in implementation detail in Chapter 4.
 
@@ -68,7 +68,7 @@ Table 3.1 and elaborated below.
 |---|---|---|---|---|
 | **1 — OS passthrough styling** | `OVRPassthroughLayer` Styling API: brightness / contrast / saturation scalars, 3D colour look-up tables, edge tint | **Global colour remapping only.** Whole-layer desaturation, tinting, posterisation | No blur; no per-pixel or spatial masks; no world-locked regions; layer can never be read. Surface-projected passthrough (per-surface styling) deprecated at SDK v83 | — (bounding case) |
 | **2 — Overlay compositing** | Application draws alpha-blended geometry in front of the passthrough layer | Dimming, blackout, occlusion; a shaped *absence* of overlay passes OS-native passthrough through untouched | Can only attenuate or occlude reality — cannot recolour, blur, or filter it | Soft Dark, Hard Dark; the focus window itself |
-| **3 — Camera re-render (PCA)** | Passthrough Camera Access: the raw forward camera feed as a GPU texture, with intrinsics and pose | Arbitrary per-pixel manipulation: blur, desaturation, salience re-grading, glare compression | Mono 1280×960 at ~85–90° horizontal FOV vs the ~110° OS view; added latency; binocular-fusion burden (Chapter 4); sustained on-device processing is thermally bounded (Section 3.3.3) | ColorPop, Blur (superseded) |
+| **3 — Camera re-render (PCA)** | Passthrough Camera Access: the raw forward camera feed as a GPU texture, with intrinsics and pose | Arbitrary per-pixel manipulation: blur, desaturation, salience re-grading, glare compression | Mono 1280×960 at ~85–90° horizontal FOV vs the ~110° OS view; added latency; binocular-fusion burden (Chapter 4); sustained on-device processing is thermally bounded (Section 3.3.3) | SignPop (evaluated; built on the ColorPop pipeline), Blur (superseded) |
 
 ### 3.3.1 Tier 1 — the styling ceiling
 
@@ -114,7 +114,7 @@ task performance depends on seeing well. Alpha punch-through as a mechanism is d
 practice ("Passthrough Windows"; Meta, 2024b) and shipped commercially in Immersed's Passthrough
 Portals (Immersed, 2022) — but in all found prior uses the hole reveals passthrough *surrounded by
 virtual content*. Using the hole as the *focus region of a diminished periphery* is, per the prior-art
-search of Section 3.6, unprecedented.
+search of Section 3.6, without a precedent the search could find.
 
 ### 3.3.3 Tier 3 — full pixel control at a price
 
@@ -265,7 +265,7 @@ world-locked focus window in an effect-processed camera-feed periphery, exploiti
 asymmetry between layers — **applied to peripheral attention guidance on a consumer standalone
 headset**, together with the world-direction fusion sampling that makes the mono feed binocularly
 viewable (Chapter 4). An alpha-blended dark overlay, by itself, is just compositing, and is not
-claimed as novel.
+claimed as new, in the bounded sense the search supports.
 
 Two adjacent patents (US 12548271; US 12524072) describe claim-level ideas in this territory —
 attenuating external stimuli while preserving spatial awareness, and blurred external video feeds

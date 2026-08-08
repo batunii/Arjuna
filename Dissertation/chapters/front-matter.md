@@ -71,20 +71,28 @@ owns the passthrough layer, which applications may neither read nor spatially mo
 dissertation contributes a three-tier design space of diminished reality (DR) under this compositing
 constraint, and a working reference implementation spanning it: a world-locked *focus window* rendered
 as an absence in an overlay sphere, through which native passthrough passes at full quality, with
-three peripheral treatments — ColorPop (salience re-grading of the camera feed), Soft Dark (partial
+three peripheral treatments — SignPop (salience re-grading of the camera feed), Soft Dark (partial
 overlay attenuation), and Hard Dark (full peripheral occlusion) — plus motion-coupled suppression for
 comfort. A structured prior-art search found no published or shipped precedent for the system's
-hybrid composite of native passthrough and a shader-processed camera feed. A technical evaluation
-plan (frame cost, latency, legibility across rendering paths, and the gap between live and oracle
-object detection) is specified.
+hybrid composite of native passthrough and a shader-processed camera feed. Frame-cost measurement
+confirms the study configurations render inside the 72 Hz budget, and a legibility comparison shows
+the native-passthrough window resolving roughly one to two logMAR lines finer than the camera-fed
+path, which is the quantitative case for the architecture's central design decision.
 
-The human half contributes a pre-registered, fully within-subjects user study (N = 20) built to be
-falsifiable rather than merely hopeful: a workstation distractor-suppression paradigm carrying the
-single primary hypothesis, a driving-scene probe-detection paradigm with an equivalence-bounded
-situational-awareness safety test, and a pre-committed decision table under which every outcome —
-positive, negative, or qualified — is a conclusive result. At the time of writing, data collection
-has not yet begun; this dissertation reports the completed system, the design space, the evaluation
-plans, and preliminary pipeline results.
+The human half contributes a pre-registered, fully within-subjects user study built to be falsifiable
+rather than merely hopeful, carrying a single primary hypothesis, an equivalence-bounded
+situational-awareness safety test, and a pre-committed decision table under which every outcome is a
+conclusive result. Eighteen participants were tested. **Peripheral dimming improved focal-task
+accuracy under sustained distraction by 3.09 percentage points (95 % CI +0.62 to +5.55, *p* = .017
+parametric and .015 rank, *d*<sub>z</sub> = 0.645, *n* = 17), at 82 % achieved power.** In a
+dynamic driving-scene detection task, salience re-grading did not degrade peripheral awareness
+(non-inferiority against a 10-point margin, *p* = .0002, *n* = 15), and improved detection
+specifically in the 20–30° eccentricity band by 17.55 points (*p* = .014, *d*<sub>z</sub> = 0.722,
+84 % power) — the band immediately outside the focus window's soft edge, which is where the
+architecture predicts the effect should appear. Sixteen participants rated the system as helping
+concentration on 89 % of items, while reporting a subjective awareness cost the behavioural data do
+not show. The pre-registered decision table resolves to its positive row: the system works, with the
+dynamic-scene benefit bounded to the near periphery.
 
 ---
 
@@ -109,14 +117,17 @@ This dissertation makes four contributions:
   sampling for the monocular camera feed, and motion-coupled comfort suppression — including
   documented failure modes and dead ends (Chapter 4).
 
-- **C3 — Technical evaluation.** A benchmark plan covering per-mode rendering cost, latency,
-  legibility across rendering paths, and the measured distance between live on-device perception and
-  the oracle-perception assumption used in the user study, together with preliminary results from the
-  offline detection pipeline (Chapter 5).
+- **C3 — Technical evaluation.** Measured per-mode rendering cost against the 72 Hz frame budget and
+  a legibility comparison across rendering paths, quantifying the quality advantage of the
+  native-passthrough window over the camera-fed path, together with results from the offline
+  detection pipeline and an honest account of the configurations that fail their criteria
+  (Chapter 5).
 
-- **C4 — Pre-registered user study.** A falsifiable, within-subjects evaluation design (N = 20) of
+- **C4 — Pre-registered user study and its results.** A falsifiable, within-subjects evaluation of
   peripheral diminishment under controlled distraction, with equivalence-bounded safety hypotheses
-  and a pre-committed decision table covering positive, negative, and qualified outcomes (Chapter 6).
+  and a pre-committed decision table, executed on 18 participants: focal-task accuracy improved by
+  3.09 percentage points at 82 % power, peripheral awareness was non-inferior, and the dynamic-scene
+  benefit localised to the 20–30° band immediately outside the focus window (Chapter 6).
 
 ---
 
@@ -126,8 +137,8 @@ This dissertation makes four contributions:
 2. Background and Related Work
 3. A Design Space for Diminished Reality under Compositing Constraints
 4. System Design and Implementation
-5. Technical Evaluation: Plan and Preliminary Results
-6. User Study Design
+5. Technical Evaluation
+6. User Study Design and Results
 7. Discussion
 8. Conclusion and Future Work
 

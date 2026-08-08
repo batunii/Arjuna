@@ -1,0 +1,32 @@
+\textbf{Row 1: H1 supported and H2b passes equivalence.} The mechanism claim would be validated on real
+hardware: peripheral diminishment reduces the performance cost of real peripheral distractors, and
+the salience-re-grading mode does not measurably degrade peripheral event detection. The claim
+remains mode-in-context (Hard Dark, workstation task; SignPop, monitoring stimulus). The design
+cannot support "dark vignettes work" in general, and the dissertation will not say it. Within that
+scope, this row would be the first performance-based demonstration of DR distraction suppression on
+consumer passthrough hardware rather than in VR simulation.
+
+\textbf{Row 2: H1 supported, H2b fails.} The focus–awareness trade-off documented in simulated DR
+(McLaughlin et al., 2025; Murph et al., 2021) would have been reproduced and \textit{quantified}
+on real hardware: the periphery's protection is bought with a measured awareness cost exceeding ten
+percentage points of peripheral hit rate. This is not a failure row. It is arguably the most
+design-relevant outcome, because it converts "mode choice" from aesthetics into a safety-relevant
+context decision: attenuation modes for closed environments where the periphery genuinely does not
+matter, salience modes, or nothing, where it does.
+
+\textbf{Row 3: H1 refuted (the CI excludes the SESOI from below).} The bounded negative: peripheral
+\textit{visual} attenuation, even at Hard Dark's maximum, reduces the error rate by less than the SESOI.
+Scientifically this would suggest that distractor interference in this paradigm is not carried
+solely by continuing visual input. Knowing the tablets are there, and the residual attentional
+set toward them, may impose costs a visual overlay cannot remove. That would be a genuinely useful
+result for the DR field, which currently extrapolates from simulation studies in which "removing"
+a distractor is total. The dissertation would report the upper bound on the error-rate reduction as its
+headline number.
+
+\textbf{Row 4: Signed but unclaimable benefit.} The estimate favours the vignette but the confidence
+interval spans both the SESOI and trivially small effects. If this occurs, the dissertation reports
+the estimate and interval as a bounded conclusion and declines to claim the pre-set effect size. The
+temptation this row exists to forbid is the retrospective discovery that a smaller effect "would also
+be meaningful". A fifth row covers the pilot gates failing and the main study not launching, which is
+included because a pre-registered frame that omits its own abort path is incomplete.
+

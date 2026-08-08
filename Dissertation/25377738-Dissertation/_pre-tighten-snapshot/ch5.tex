@@ -1,0 +1,335 @@
+\chapter{Technical Evaluation: Plan and Preliminary Results}
+
+\section{Purpose and evaluative stance}
+
+Chapter 3 argued that diminished reality (DR) on a consumer video-see-through (VST) headset is best
+understood as a design space organised by tiers of compositing access, and Chapter 4 described a
+reference implementation that occupies that space. Neither chapter, however, is entitled to its
+claims without measurement: "runs on consumer hardware", "native quality inside the window", and
+"the oracle assumption is a stated, bounded idealisation" are all empirical statements. This chapter
+specifies the benchmark protocol that will substantiate, or fail to substantiate, each of them
+(contribution C3).
+
+Two properties of the protocol are worth stating up front, because they mirror the evaluative ethos
+of the user study in Chapter 6. First, every benchmark is \textbf{falsifiable}: each defines, in advance,
+the measurement method, the metric, and the criterion or interpretation band against which the
+result will be read. A benchmark that cannot fail is marketing, not evaluation. Second, the chapter
+is written \textbf{before the benchmarks have been run}. With one exception, the offline detection bake
+reported in Section 5.8, which was required during development, no measurement below has been
+performed. All protocol text is therefore in the future tense, and no result is anticipated. The
+completed benchmark tables will replace the placeholder rows in a later revision. The criteria will
+not move.
+
+The benchmarks require no participants and are independent of the user study's own timeline, which
+is running ahead of them (Chapter 6, Section 6.11 reports its interim results). They will be executed
+against the same build version used for that collection, so that the numbers reported describe the
+exact binary participants experienced.
+
+\section{Apparatus and instrumentation}
+
+All measurements will be taken on the study hardware: a Meta Quest 3 (Snapdragon XR2 Gen 2, 8 GB
+RAM), running the Horizon OS build current at the study freeze date, with the study APK identified
+by build hash (Chapter 6, Section 6.10 pre-session checklist item 4). Instrumentation:
+
+\begin{itemize}
+\item \textbf{Perfetto system traces}, captured via the Meta developer tooling (\verb|metavr| CLI / Perfetto
+  capture), for GPU and CPU frame timing, render-stage breakdowns, and thread scheduling
+  (Meta, 2025a).
+\item \textbf{OVR Metrics Tool overlay and logcat telemetry} (Meta, 2025b) for sustained frame rate,
+  dropped/stale frame counts, battery level, and thermal warnings during long runs.
+\item \textbf{Through-the-lens photography} for the legibility benchmark: the headset mounted on a fixed
+  stand, a digital camera with manual focus and exposure positioned at the left eyepiece, and
+  printed optotype charts at marked distances under the study room's controlled lighting
+  (Chapter 6, Section 6.3.3).
+\item \textbf{The offline detection oracle}: the full-resolution YOLO11 detection set produced by
+  \verb|Tools/bake_detections.py| over the study's driving footage (Section 5.8), used as ground truth
+  for the oracle-gap benchmark.
+\end{itemize}
+
+Each benchmark will be run three times. Medians are reported with min–max ranges. Trace files,
+photographs, and analysis notebooks will be archived alongside the study data.
+
+\textbf{Reproducibility envelope.} Every result in this chapter is specific to a tuple that will be
+stated once with the results and applies to all benchmarks: device serial, Horizon OS version,
+SDK version, APK build hash, refresh rate, eye-buffer resolution, and room lighting configuration.
+The platform's history within this project, a passthrough capability deprecated mid-development
+(Chapter 4), is the argument for recording the tuple explicitly: on consumer XR hardware, a
+benchmark without its platform coordinates is unreproducible within a single OS update cycle.
+
+\section{Benchmark T1: Per-mode GPU cost and frame-budget headroom}
+
+\textbf{Claim defended.} "The system runs within the display budget of consumer hardware", the
+precondition for every other claim in the dissertation.
+
+\textbf{Method.} For each rendering configuration, a 120-second Perfetto trace will be captured in the
+study room with the headset worn (head gently moving, as tracking state affects load), and GPU
+frame time extracted per frame. Configurations:
+
+\begin{longtable}{p{0.05\textwidth}|p{0.45\textwidth}|p{0.15\textwidth}|p{0.25\textwidth}}
+\caption{Rendering configurations benchmarked for GPU cost and frame-budget headroom (T1).}\\
+\hline
+\textbf{\#} & \textbf{Configuration} & \textbf{Tier (Ch. 3)} & \textbf{Scene} \\
+\hline
+\endhead
+\hline
+1 & Baseline: passthrough scene, all effects off & n/a & \verb|CameraSphereVignette| \\
+2 & Soft Dark (overlay only, \verb|_SimpleMode|) & 2 & \verb|CameraSphereVignette| \\
+3 & Hard Dark (overlay only) & 2 & \verb|CameraSphereVignette| \\
+4 & Blur (live PCA feed, two-ring 17-tap Gaussian + desaturation) & 3 & \verb|CameraSphereVignette| \\
+5 & SignPop on video sphere (study Block B/C configuration) & 3 (applied to video) & \verb|VideoTestScene| \\
+6 & Baseline video sphere, effects off & n/a & \verb|VideoTestScene| \\
+\hline
+\end{longtable}
+
+Captures are taken worn rather than benched because head motion exercises the code paths that
+matter: tracking-state updates, the motion-suppression fade logic, and, for configuration 4, the
+per-frame camera texture updates. A benched headset with a static view under-reports all three.
+CPU main-thread and render-thread times are extracted alongside GPU time, because an overlay sphere
+is cheap on the GPU but the manager scripts (window recomputation, selection dots, logging hooks)
+spend on the CPU. A CPU-bound stale frame is indistinguishable from a GPU-bound one at the display.
+
+\textbf{Metrics.} Median and 95th-percentile GPU frame time (ms); median CPU main/render thread time
+(ms); stale-frame rate (\%); headroom against the display budget (13.9 ms at 72 Hz, 11.1 ms at
+90 Hz, if the application targets 90 Hz). The target refresh rate and eye-buffer resolution of the
+frozen build will be stated with the results, since both scale GPU cost.
+
+\textbf{Criteria.} \textit{Pass} for a configuration used in the user study (2, 3, 5, 6): 95th-percentile GPU
+frame time within budget and stale-frame rate < 1\%. Jitter in a study stimulus is a confound, not
+merely a defect. \textit{Interpretation band} for configuration 4 (Blur, not used in the study): its cost
+relative to configuration 2 quantifies the price of Tier-3 camera re-rendering versus Tier-2
+overlay compositing, a design-space datum in its own right, reported whether or not it passes.
+
+\textit{Figure 5.1: Bar chart: median and p95 GPU frame time per configuration against the frame-budget
+line.}
+
+\section{Benchmark T2: Focus-window world-locking stability}
+
+\textbf{Claim defended.} "The focus window is world-locked": the rectangle stays fixed to the room, not
+to the head, under natural head motion. If the window visibly swims or lags, the architectural
+claim of Chapter 4 fails, and the study's premise that participants attend to a stable spatial
+region weakens.
+
+\textbf{Method.} Two complementary measurements. (a) \textit{Log-level:} during scripted head sweeps
+(slow $\sim$30$^{\circ}$/s and fast $\sim$90$^{\circ}$/s yaw, three repetitions each), per-frame logs of head pose and the
+window's rendered azimuth/elevation bounds will be captured. Since the window is defined in world
+azimuth/elevation, its logged bounds should be constant while head pose varies. Any variation is
+implementation error. (b) \textit{Display-level:} through-the-lens video at the camera's highest frame
+rate, with a printed reference edge aligned to the window edge. Frame-by-frame inspection gives the
+apparent displacement of the rendered edge against the physical edge during the sweep, in degrees
+of visual angle.
+
+\textbf{Metrics.} Maximum apparent window-edge displacement ($^{\circ}$) during the fast sweep; stale-frame rate
+during sweeps.
+
+\textbf{Criteria.} \textit{Pass:} apparent displacement $\leq$ 1$^{\circ}$ during the 90$^{\circ}$/s sweep and no perceptible tearing
+in the through-lens footage. \textit{Fail} triggers an implementation fix before the pilot's dry runs.
+This benchmark is deliberately scheduled before participant-facing sessions.
+
+\section{Benchmark T3: Legibility across rendering paths}
+
+\textbf{Claim defended.} The central architectural insight of Chapter 4: routing the focus window
+through the \textit{absence} of overlay preserves native OS passthrough quality, while the Tier-3 camera
+re-render path is measurably worse. This asymmetry is the reason the architecture exists. It should
+be demonstrated, not asserted. Published psychophysics already shows Quest 3 passthrough falls
+short of natural vision acuity (Wang et al., 2026). This benchmark measures the
+further gap \textit{between the two in-headset paths}.
+
+\textbf{Method.} A printed optotype chart (Landolt C or Snellen layout, sized to span logMAR-equivalent
+steps at the test distance) will be placed at 0.6 m (the Block A task distance) and photographed
+through the left lens under three display conditions with identical placement and lighting:
+(1) through the open focus window (native OS passthrough); (2) through the Tier-3 camera-feed path
+(the PCA sphere rendering the same region, effects set to identity); (3) direct photograph without
+the headset, as reference. Two additional captures at 2 m probe the far condition. Two independent
+raters (the author and one colleague, blind to condition labels on the crops) will score the
+smallest resolvable line per image.
+
+\textbf{Metrics.} Smallest resolvable optotype line per path and distance, expressed as approximate
+logMAR steps relative to the no-headset reference; the \textit{window-versus-periphery gap} in lines.
+
+\textbf{Method limitation, stated in advance.} A camera at the eyepiece is not a human eye: it differs
+in aperture, focus behaviour, and processing, so absolute acuity values from this method are
+indicative rather than clinical. The benchmark's claim structure is deliberately \textit{relative}: the
+same camera, same chart, same lighting, same placement across the three conditions, so that the
+window-versus-periphery \textit{gap} is meaningful even where absolute values are not. Where the published
+psychophysical measurements for Quest 3 passthrough (Wang et al., 2026) overlap with condition (1),
+they serve as an external sanity check on the method.
+
+\textbf{Criteria.} \textit{Interpretation, not pass/fail:} the architecture is vindicated if the window path
+resolves at least one optotype line finer than the camera-feed path at 0.6 m. If the two paths
+measure equal, the window-as-absence design loses its quality argument (though it retains the FOV
+and latency arguments), and the dissertation will say so. The measured gap also feeds the Chapter 6
+threat analysis: it quantifies exactly how much acuity the Block A task had to be designed around.
+
+\textit{Figure 5.2: Side-by-side through-lens crops of the same chart region: native window vs Tier-3
+periphery vs no-headset reference.}
+
+\section{Benchmark T4: The oracle gap, on-device detection versus the offline oracle}
+
+\textbf{Claim defended.} Part H's oracle-perception assumption (Chapter 6, Section 6.2) is legitimate
+only if it is stated as a \textit{measured distance} from present reality, not a hand-wave. This benchmark
+produces that measurement, the single table that ties Part T to Part H.
+
+One clarification keeps this benchmark honest. The user study itself uses no \textit{live} detection
+anywhere: SignPop's colour-pop gate, its local window, and its saliency boost (Chapter 4, Section
+4.5.5) are all driven by the offline oracle track baked in advance (Section 5.8), never by a model
+running during a session, and every study stimulus is scripted (Chapter 6, Section 6.3.3). The
+oracle-gap benchmark is therefore not bounding a hypothetical future mode's idealisation. It is
+measuring how far a \textit{live} version of the exact mechanism the study tests would fall short of
+the conditions participants actually experienced. Without this number, the human-factors finding's
+claim to generalise beyond the lab is untestable optimism. With it, the size of what would have to
+close is stated.
+
+\textbf{Method.} The deployable on-device configuration (YOLO11n, Jocher \& Qiu, 2024, via Unity Sentis, Unity Technologies, 2024, FP16, at the
+camera-feed resolution the live pipeline would receive) will be run on the Quest 3 against the same
+study driving footage used for the offline bake, frame-matched to the oracle's 1,040 sampled
+frames. Oracle detections (full-resolution YOLO11 offline; Section 5.8) are treated as ground
+truth. A live detection matches an oracle detection when their boxes overlap at IoU $\geq$ 0.5 with the
+same class label.
+
+\textbf{Metrics and the oracle-gap table (template, values to be measured):}
+
+\begin{longtable}{p{0.38\textwidth}|p{0.20\textwidth}|p{0.24\textwidth}|p{0.08\textwidth}}
+\caption{The oracle-gap benchmark (T4): metrics comparing the offline detection oracle (assumption)
+against on-device live detection (reality), with the gap to be measured.}\\
+\hline
+\textbf{Metric} & \textbf{Offline oracle (assumption)} & \textbf{On-device live (reality)} & \textbf{Gap} \\
+\hline
+\endhead
+\hline
+Recall vs oracle (traffic lights + people) & 1.00 by definition & \textit{to be measured} & n/a \\
+Precision vs oracle & 1.00 by definition & \textit{to be measured} & n/a \\
+Throughput (inferences/s) & offline (not real-time) & \textit{to be measured} & n/a \\
+End-to-end latency, frame capture $\rightarrow$ detection available (ms) & 0 by assumption & \textit{to be measured} & n/a \\
+Small-target recall (boxes < 20 px at capture resolution) & 1.00 by definition & \textit{to be measured} & n/a \\
+\hline
+\end{longtable}
+
+\textbf{Matching procedure detail.} Frame correspondence is exact (both pipelines index the same video
+timestamps), so matching reduces to per-frame box assignment: greedy assignment by descending IoU,
+each oracle box matched at most once, unmatched live boxes counted as false positives against the
+oracle, unmatched oracle boxes as misses. Confidence thresholds for the live pipeline will be swept
+and the operating point reported alongside the curve, so that the headline recall number is not an
+artefact of one threshold choice.
+
+\textbf{Threat to this benchmark, inherited by its consumers.} The oracle is full-resolution YOLO11, not
+human annotation. It is a \textit{reference}, and its own errors are unknown. Treating it as ground truth
+is defensible for measuring the \textit{gap between offline and on-device pipelines}: both face the same
+footage, and the offline pipeline strictly dominates in resolution and compute. But the absolute
+detection quality of either pipeline against human-verified truth is not established here, and no
+claim in this dissertation depends on it. A 100-frame human-annotated spot check is listed as
+optional hardening if pilot-week time allows. If skipped, that is stated with the results.
+
+\textbf{Criteria.} \textit{Interpretation bands, pre-stated:} live recall $\geq$ 0.8 of oracle at $\geq$ 10 inferences/s
+would place detector-driven guidance within near-term engineering reach, and the oracle assumption
+would be a modest idealisation. Recall below 0.5 or throughput below 2 inferences/s would mean the
+assumption is a genuine idealisation of present hardware, and RQ2/H2a/H2b's findings, which
+describe SignPop's effect under oracle-quality detection, would not yet be known to transfer to a
+deployed, live-detection system. Every detector-conditioned statement in Chapter 7 inherits that
+qualifier. The small-target row exists because the development history (Section 5.8) shows small
+traffic lights are precisely where downsampled pipelines fail first.
+
+\section{Benchmark T5: Thermal and battery endurance}
+
+\textbf{Claim defended.} The deployability argument of Chapter 3, Section 3.5: the camera-free Tier-2
+dark modes, Soft Dark and Hard Dark, are claimed to be the only modes plausibly wearable for
+hour-long sessions. The prior expectation comes from the one published
+feasibility study of PCA-based on-device compositing, which projects 720p30 segmentation-based
+compositing for only 5–10 minutes before thermal throttling, a simulation-based estimate, not a
+measured on-device run (Laghari et al., 2025, arXiv:2509.18929). The present system's Tier-3 path is
+shader-only, lighter than segmentation, so the outcome is genuinely uncertain, which is what
+makes the benchmark informative.
+
+\textbf{Method.} Four 45-minute continuous runs on a fully charged, thermally rested device in the study
+room: (1) Soft Dark, passthrough scene; (2) Hard Dark, passthrough scene; (3) Blur (live PCA feed),
+passthrough scene; (4) SignPop on the video sphere. Battery percentage, thermal-warning events
+(logcat), sustained frame rate, and stale-frame rate will be logged at one-minute resolution.
+
+\textbf{Pre-stated expectation (TB1).} The camera-free configurations (1, 2, 4) complete 45 minutes
+without thermal throttling. The live-PCA configuration (3) may not. Confirmation would ground the
+dark-mode deployability claim empirically. Refutation in either direction is reported as found.
+
+\textbf{Study-feasibility criterion.} Separately from TB1: the configurations the user study actually
+uses must sustain their block durations with margin, Hard Dark for $\geq$ 18 minutes (Block A plus
+tutorial) and the video-sphere configuration for $\geq$ 19 minutes (Block B). Failure here would
+require a protocol change and would be caught before the pilot's dry runs. Note that the study, by
+design, never runs live PCA: the longest-exposure mode (Hard Dark) is a Tier-2 overlay, which is
+what makes the 48.5-minute session thermally plausible in the first place.
+
+\section{Preliminary results: the offline detection bake}
+
+One component of the technical programme has already been executed, because development required
+it: the offline detection oracle over the study's driving footage.
+
+\textbf{Why full resolution.} Detections that serve as ground truth or as pre-scripted salience input
+must be computed at a resolution the live pipeline cannot afford, which is exactly what makes them an
+\textit{oracle} in the sense of Section 5.6. Distant traffic lights are the binding case. They are fully
+visible to a human viewer but subtend few pixels, so they fall below detectable size in a downsampled
+frame.
+
+\textbf{Procedure.} \verb|Tools/bake_detections.py| ran YOLO11 at full frame resolution over 1,040
+samples at 0.5 s intervals, spanning the 8-minute-39-second study clip (\verb|study_video.mp4|),
+detecting traffic lights and people.
+
+\textbf{Results.} The bake produced \textbf{13,939 detections across the 1,040 sampled frames}, with
+\textbf{99.5\% of sampled frames containing at least one detection} (median 14 per sample, 2,952
+traffic lights and 10,987 people). Two properties of this result matter for the
+rest of the dissertation. First, it confirms the footage is genuinely event-dense, a precondition
+for its role as the Block B stimulus. Second, it establishes the oracle side of the T4 table: a fixed, versioned, full-resolution
+detection set against which the live pipeline can be scored, rather than a moving target.
+
+\textbf{What this result does not establish.} It says nothing about on-device feasibility (T4's live
+column), nothing about detection quality in absolute terms (YOLO11 at full resolution is the
+\textit{reference}, not verified truth against human annotation, a limitation inherited by T4 and stated
+there), and nothing about the user-facing system, which uses no detections at all in the study
+configuration.
+
+\section{Summary of criteria and reporting rules}
+
+\begin{longtable}{p{0.12\textwidth}|p{0.20\textwidth}|p{0.34\textwidth}|p{0.28\textwidth}}
+\caption{Summary of pre-stated criteria and reporting rules across benchmarks T1–T5.}\\
+\hline
+\textbf{Benchmark} & \textbf{Metric} & \textbf{Pre-stated criterion / band} & \textbf{On failure} \\
+\hline
+\endhead
+\hline
+T1 GPU cost & p95 frame time; stale \% & Study configs: within budget, stale < 1\% & Optimise or change study config before pilot dry runs. Report the failure \\
+T2 World-locking & Apparent edge drift ($^{\circ}$) at 90$^{\circ}$/s & $\leq$ 1$^{\circ}$, no tearing & Fix before pilot. Benchmark re-run \\
+T3 Legibility & Optotype lines, window vs Tier-3 path & Window $\geq$ 1 line finer at 0.6 m vindicates the architecture & Report that the quality argument fails. FOV/latency arguments stand or fall on their own numbers \\
+T4 Oracle gap & Recall, precision, throughput, latency vs oracle & Bands: $\geq$0.8 recall @ $\geq$10 fps = near-term; $<$0.5 or $<$2 fps = genuine idealisation & No failure mode. The measured gap conditions Chapter 7's detector-dependent statements \\
+T5 Endurance & Throttle-free minutes; battery/45 min & TB1: camera-free modes complete 45 min; study configs sustain block durations & Protocol change if study configs fail. TB1 refutation reported as a finding \\
+\hline
+\end{longtable}
+
+Three reporting rules bind the results revision of this chapter. Results will be reported for every
+benchmark attempted, including failures and anomalies, with trace archives retained. No criterion
+or band stated above will be adjusted after data are seen. And where a benchmark is dropped for
+time (the pre-agreed sacrifice order puts T5 first), the drop is
+stated rather than silently omitted.
+
+\section*{References (this chapter)}
+
+\refitem{Meta (2025a). \textit{How to Take Perfetto Traces with Meta Quest Developer Hub.}
+\url{developers.meta.com/horizon/documentation/unity/ts-perfettoguide/}}
+
+\refitem{Meta (2025b). \textit{Monitor Performance with OVR Metrics Tool.}
+\url{developers.meta.com/horizon/documentation/unity/ts-ovrmetricstool/}}
+
+\refitem{Meta (2025c). \textit{Getting Started with Passthrough Camera API in Unity.}
+\url{developers.meta.com/horizon/documentation/unity/unity-pca-documentation/}}
+
+\refitem{Laghari, M. K., Shaikh, A. A., Khan, F., \& Siddiqui, A. G. (2025). Native Mixed Reality Compositing
+on Meta Quest 3: A Quantitative Feasibility Study of ARM-Based SoCs and Thermal Headroom.
+arXiv:2509.18929. \url{https://arxiv.org/abs/2509.18929}}
+
+\refitem{Wang, J., Ping, S., Xu, K., Li, Y., \& Liang, H.-N. (2026). The perceptual gap between video
+see-through displays and natural human vision. arXiv:2601.02805. \url{https://arxiv.org/pdf/2601.02805}}
+
+\refitem{Jocher, G., \& Qiu, J. (2024). \textit{Ultralytics YOLO11} (Version 11.0.0) [Computer software]. Ultralytics.
+\url{https://github.com/ultralytics/ultralytics}. Citation per Ultralytics' own CITATION.cff / docs
+(\url{docs.ultralytics.com/models/yolo11/}); DOI not yet assigned by Ultralytics at time of writing.}
+
+\refitem{Unity Technologies (2024). \textit{Unity Sentis} (on-device neural network inference package).
+\url{https://unity.com/products/sentis}. Note: Unity has since renamed this package "Unity Inference
+Engine" (\texttt{com.unity.ai.inference}, v2.6 as of 2026); cited here under the "Sentis" name because
+that is the name under which it was integrated into this dissertation's pipeline.}
+

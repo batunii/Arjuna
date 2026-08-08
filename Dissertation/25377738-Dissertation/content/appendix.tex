@@ -1,0 +1,76 @@
+\chapter{Study Protocol Artefacts}
+
+This appendix holds the operational material of the Chapter 6 protocol: the verbatim scripts read to
+participants, the pass/fail gates the pilot had to clear before the main study launched, and the
+pre-registered exclusion rules. It is separated from Chapter 6 so the chapter can argue the design
+while the artefacts that make the design reproducible remain available in full.
+
+
+\section{Participant instructions (verbatim)}
+
+\begin{quote}
+"A panel in front of you will show one shape at a time. \textbf{After the first shape, answer whether
+each new shape is the same as the one before it}, one controller trigger for yes, the other for
+no. Respond as fast as you can without guessing. Ignore everything else in the room, only the
+panel matters. Each round lasts about four and a half minutes. There are two rounds. The rounds
+may look different from each other. Just do the same thing every round."
+\end{quote}
+
+Participants are never told which conditions belong to "our system" or what the vignette is expected
+to do. The session framing throughout is that they are "comparing display modes", a defence against
+demand characteristics (Section 6.10.2).
+
+
+\section{Participant instructions (verbatim)}
+
+\begin{quote}
+"You'll watch a driving scene. Small \textbf{ring markers will appear briefly} on things in the
+scene, sometimes in front of you, sometimes off to the side. \textbf{Press the trigger as soon as
+you notice one. That's the only thing you need to do.} Don't press for anything else. Keep watching
+the road ahead as if you were the driver, and stay seated."
+\end{quote}
+
+
+\section{Pilot study with pass/fail gates}
+
+A pilot with n = 3–5 participants (excluded from the main sample) runs in the first week. Its purpose
+is structural: to make an inconclusive main study impossible. The main study does not launch until
+all three gates pass. Pilot data never enters the main analysis. Stimulus parameters may be tuned
+between pilot participants, but hypotheses, margins, and analysis choices may not.
+
+\begin{longtable}{p{0.14\textwidth}|p{0.22\textwidth}|p{0.30\textwidth}|p{0.26\textwidth}}
+\caption{Pilot study pass/fail gates, tests, criteria, and actions on failure.}\\
+\hline
+\textbf{Gate} & \textbf{Test} & \textbf{Pass criterion} & \textbf{On fail} \\
+\hline
+\endhead
+\hline
+\textbf{G1: task form} & The forced-choice 1-back tried through passthrough & Panel fully legible; accuracy off both ceiling and floor across pilot participants & Retune timing/difficulty (SOA, answer window, lure ratio) against pilot data, then re-test. Redesign the task only if retuning cannot bring it off ceiling or floor \\
+\textbf{G2: marker calibration} & Block B with candidate marker fade timing and size & Baseline hit rate 70–90\% across the sample; unimodal RT distribution & Adjust marker timing/size, then re-test \\
+\textbf{G3: protocol dry run $\times$2} & Two full end-to-end sessions with the final configuration & Timeline within $\pm$5 minutes; zero log gaps (validator clean); battery $\geq$ 20\% at end; no sickness terminations; questionnaire flow smooth & Fix the specific failure, then re-run one dry run \\
+\hline
+\end{longtable}
+
+The pilot concludes with a one-page \textbf{lock-in memo} to the supervisor recording the chosen task
+form, the tuned stimulus parameters, and the finalised absolute SESOI for H1. After this memo,
+nothing changes until data collection ends.
+
+
+\section{Pre-registered exclusion and data-quality rules}
+
+\begin{longtable}{p{0.42\textwidth}|p{0.48\textwidth}}
+\caption{Pre-registered exclusion and data-quality rules.}\\
+\hline
+\textbf{Rule} & \textbf{Action} \\
+\hline
+\endhead
+\hline
+VR-sickness termination & Session ends under the stop rule; partial data retained but participant excluded from confirmatory analysis; replaced from spares \\
+App crash / restart during a condition & That condition void; re-run once at the end of its block if time allows; otherwise the participant contributes remaining conditions to the LMM (which tolerates missingness) and is excluded from the paired robustness test \\
+App crash / restart spanning a \textbf{new session launch}, since the ledger assigns a fresh participant ID on relaunch rather than resuming & The two IDs are reconciled into one canonical participant record before any analysis is run. Cleanly completed blocks are joined under the canonical ID, and a block attempted under both keeps only the later complete attempt. The join, both IDs, and the ledger timestamps justifying it are recorded in the incident log and not revisited afterwards \\
+Task accuracy < 60\% in NoFilter & Task not performed; exclude and replace \\
+Block B: false-alarm rate > 30\% of presses in either condition & Response strategy invalid (indiscriminate pressing); exclude Block B for that participant \\
+Log integrity failure (gaps > 1 s or missing condition markers) & Affected condition void; incident log entry; same re-run rule as crashes \\
+Participant recognises the driving footage & Noted; excluded only on reported strong familiarity affecting behaviour \\
+\hline
+\end{longtable}
