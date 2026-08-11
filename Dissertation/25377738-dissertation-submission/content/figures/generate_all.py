@@ -30,20 +30,17 @@ def fig_slopegraph():
     # Source: python3 Tools/analysis/blocka_pooled.py Dissertation/authored/raw/blocka
     # These reproduce analysis-2026-08-08-pooled-n17.md exactly: NoFilter 92.30 (SD 6.56),
     # Filter 95.39 (SD 4.17), delta +3.09, t(16) = 2.66, p = .0172, dz = 0.645, 12/17 up.
-    # P4's NoFilter value is experimenter-reported rather than measured (no CSV was
-    # exported for that arm), so P4 is drawn dashed and called out in the caption.
     pids = ['P2', 'P3', 'P4', 'P6', 'P9', 'P10', 'P13',
             'P15', 'P17', 'P20', 'P25', 'P26', 'P27', 'P30', 'P33', 'P41', 'P43']
     nf = np.array([97.6, 95.2, 98.4, 84.6, 95.0, 97.8, 100.0,
                    74.8, 91.4, 86.3, 86.3, 89.2, 96.4, 89.2, 97.6, 96.4, 92.8])
     f  = np.array([100.0, 98.8, 100.0, 92.3, 100.0, 100.0, 97.1,
                    90.6, 89.9, 91.4, 96.4, 86.3, 95.7, 93.5, 98.8, 96.4, 94.2])
-    reported = pids.index('P4')      # experimenter-reported NoFilter arm
 
     fig, ax = plt.subplots(figsize=(5, 6))
     for i in range(len(pids)):
         color = '#2c7bb6' if f[i] > nf[i] else '#757575' if f[i] == nf[i] else '#d7191c'
-        ls = '--' if i == reported else '-'
+        ls = '-'
         lw = 0.8
         ax.plot([0, 1], [nf[i], f[i]], color=color, alpha=0.5, linewidth=lw, linestyle=ls)
         ax.scatter([0], [nf[i]], color=color, s=18, zorder=3, alpha=0.7)
@@ -64,9 +61,7 @@ def fig_slopegraph():
     red_patch = mpatches.Patch(color='#d7191c', alpha=0.5, label='Declined (4)')
     grey_patch = mpatches.Patch(color='#757575', alpha=0.5, label='No change (1)')
     black_line = plt.Line2D([0], [0], color='black', linewidth=2.5, label='Group mean')
-    dashed = plt.Line2D([0], [0], color='#2c7bb6', linewidth=0.8, linestyle='--',
-                        label='P4 (NoFilter reported)')
-    ax.legend(handles=[blue_patch, red_patch, grey_patch, black_line, dashed],
+    ax.legend(handles=[blue_patch, red_patch, grey_patch, black_line],
               loc='lower right', fontsize=8)
     ax.grid(axis='y', alpha=0.3)
 
@@ -204,8 +199,11 @@ def fig_eccentricity():
         ax1.text(xi - w/2, a + 1.5, f'{a:.1f}', ha='center', fontsize=8, color='#424242')
         ax1.text(xi + w/2, b + 1.5, f'{b:.1f}', ha='center', fontsize=8, color='#00695c')
 
-    # Significance annotation on the one band whose interval excludes zero
-    ax1.annotate('* p = .014\n+17.6 pp', xy=(2, 68), ha='center', fontsize=10,
+    # Significance annotation on the one band whose interval excludes zero.
+    # The bars on this axis are POOLED rates; the +17.8 figure is the PER-PARTICIPANT
+    # difference the tests belong to, so the estimator is named in the label. Without
+    # it a reader subtracting the two bar labels gets the pooled delta instead.
+    ax1.annotate('* p = .014\n+17.8 pp (per participant)', xy=(2, 68), ha='center', fontsize=10,
                 fontweight='bold', color='#d32f2f')
 
     ax1.set_ylabel('Pooled Hit Rate (%)')
@@ -445,7 +443,7 @@ def fig_structure():
     ax.text(2.9, 0.35, 'Part H — does it help?', fontsize=10.5,
             fontweight='bold', color='#3d7a44')
     box(2.9, 0.85, 2.5, 0.95, 'Pre-registered\nstudy design (Ch 5)', '#d3e6d3', ec='#3d7a44', fs=8.8)
-    box(5.9, 0.85, 2.5, 0.95, 'Interim results,\nn = 17 / 15 (Ch 5)', '#b9d8b9', ec='#3d7a44', fs=8.8)
+    box(5.9, 0.85, 2.5, 0.95, 'Results,\nn = 17 / 15 (Ch 5)', '#b9d8b9', ec='#3d7a44', fs=8.8)
     arrow(5.4, 1.32, 5.9, 1.32)
 
     # Root feeds both parts

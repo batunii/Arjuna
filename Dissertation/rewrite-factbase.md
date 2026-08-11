@@ -8,21 +8,28 @@ This file lives outside `25377738-dissertation-submission/` on purpose. That fol
 it holds the PDF, its sources, and nothing else.
 
 **Verified at time of writing.** Both analysis scripts were re-run against the raw data and reproduce
-`Dissertation/authored/RESULTS-FROZEN-2026-08-06.md` exactly:
+the frozen results file exactly:
 
 ```
 python3 Tools/analysis/blocka_pooled.py Dissertation/authored/raw/blocka
 python3 Tools/analysis/blockb_pooled.py Dissertation/authored/raw
 ```
 
+> **Updated 2026-08-11 — authority moved forward.** Collection continued after this file was
+> written, and `Dissertation/authored/analysis-2026-08-08-pooled-n17.md` now supersedes both
+> `RESULTS-FROZEN-2026-08-06.md` and `analysis-2026-08-06-blocka-pooled.md`. The headline sections
+> below have been updated to the n = 17 / n = 15 / n = 16 set. Any section still labelled n = 13 or
+> n = 14 is a snapshot of the 2026-08-06 state, kept for the record, and must not be quoted.
+
 ---
 
 ## Rule zero
 
-`Dissertation/authored/RESULTS-FROZEN-2026-08-06.md` is the **sole authority for every statistic in
-the manuscript**. It is regenerated from the scripts above and never hand-edited. It carries its own
-"Superseded figures — do not use" table listing the earlier n = 11 / n = 10 numbers. Any figure in
-that column appearing in the rewrite is a bug.
+`Dissertation/authored/analysis-2026-08-08-pooled-n17.md` is the **sole authority for every statistic
+in the manuscript**. It is regenerated from the scripts above and never hand-edited. It carries its
+own "Superseded figures — do not use" table listing the earlier n = 14 / n = 13 numbers, which in
+turn supersedes the n = 11 / n = 10 table in `RESULTS-FROZEN-2026-08-06.md`. Any figure from either
+superseded column appearing in the rewrite is a bug.
 
 Do not re-derive Block B statistics from raw CSVs without splitting by eccentricity band. A naive
 pooled hit-rate produces a materially different and wrong picture. This has happened twice.
@@ -31,46 +38,73 @@ pooled hit-rate produces a materially different and wrong picture. This has happ
 
 ## Study shape
 
-15 people tested across an initial pilot day and four further collection days. **Block A yields 14
-usable pairs, Block B yields 13**, overlapping but not identical sets.
+**18 people tested** across an initial pilot day and six further collection days. **Block A yields 17
+usable pairs, Block B yields 15**, overlapping but not identical sets, and **16 end-of-session
+questionnaires** were completed. The arithmetic closes as 18 less P1 for Block A, and 18 less P3, P9
+and P43 for Block B.
 
-The figure **11** appears nowhere. It was the previous interim analysis and survived in four places
-in the old manuscript (ch1 twice, ch6 once, ch8 twice) after the rest was updated. Likewise Block B
-is **1,040 marker presentations** (40 markers × 2 conditions × 13 pairs), not 880 (which was the
-11-pair figure).
+The figures **11**, **14** and **13** appear nowhere as current counts. Each was a previous interim
+analysis, and 11 survived in four places in the old manuscript (ch1 twice, ch6 once, ch8 twice) after
+the rest was updated. Likewise Block B is **1,200 marker presentations** (40 markers × 2 conditions
+× 15 pairs), not 1,040 (the 13-pair figure) and not 880 (the 11-pair figure).
+
+**Block A exclusion, documented and never inferred:**
+
+| Participant | Reason |
+|---|---|
+| P1 | CPT rounds ran about 15 minutes after the Unity blocks closed, so the arm assignment cannot be verified from ledger windows. Block B retained — the pilot-era >30% false-alarm flag on P1 is not the rule the study adopted, and five retained participants have worse rates (`manuscript-p1-exclusion-audit-2026-08-11.md`). |
 
 **Block B exclusions, documented and never inferred:**
 
 | Participant | Reason |
 |---|---|
 | P3 | 539 false alarms on the filter run; hits provably looser (Mann-Whitney p = .0301). Block A retained. |
+| P43 | False-alarm counts of 81 and 54, the highest in the set by a wide margin and more than double the next participant's, on both arms. Same response-validity grounds as P3. Block A retained. |
 | P9 | Experimenter decision on the day: confused during the video blocks. Block A retained. |
-| P15 | Own Block B excluded (206 FA / 246 presses); P15 and P16 join as one participant. |
+| P15 | Own Block B excluded (206 FA / 246 presses); P15 and P16 join as one participant, with P16's arms canonical. |
 
 ---
 
-## Block A — H1, workstation focus (Hard Dark), n = 14
+## Block A — H1, workstation focus (Hard Dark), n = 17
 
 | | |
 |---|---|
-| Filter | 95.53% (SD 4.58) |
-| NoFilter | 92.19% (SD 7.13) |
-| Mean delta | **+3.34 pp** (SD 5.21, median +2.28) |
-| 95% CI | +0.33 to +6.34 (excludes zero) |
-| Paired t | t(13) = 2.40, p = .0322 |
-| Wilcoxon | W = 19.0, p = .0353 |
-| Effect size | dz = 0.641 |
-| Direction | 10/14 improved |
-| Achieved power | 60% (n = 22 needed for 80%) |
+| Filter | 95.39% (SD 4.17) |
+| NoFilter | 92.30% (SD 6.56) |
+| Mean delta | **+3.09 pp** (SD 4.79, median +2.16) |
+| 95% CI | +0.62 to +5.55 (excludes zero) |
+| Paired t | t(16) = 2.66, p = .0172 |
+| Wilcoxon | W = 21.0, p = .0151 |
+| Effect size | dz = 0.645 |
+| Direction | 12/17 improved |
+| Achieved power | **81.6%** (one-tailed; n = 17 is exactly what this effect size needs for 80%) |
 
-Pooled across the four task versions per the 2026-08-06 decision. Kruskal-Wallis across versions
+Pooled across the four task versions. The first five participants ran the short task (84 or 105
+trials) at 95.2% mean accuracy with 4.8 points of headroom; everyone from P9 onward ran 140 trials,
+which deliberately moved off that ceiling to 90.3% mean. The two halves give the same effect at the
+same size, +3.30 pp against +2.99 pp, and differ only in spread (SD 2.30 against 6.10), so pooling
+combines two measurements of one effect rather than two different effects.
+
+Robustness, from the authority file:
+
+| Subset | n | Delta | 95% CI | t p | W p | dz |
+|---|---|---|---|---|---|---|
+| **Full pool** | 17 | +3.08 | +0.62 … +5.55 | .0175 | .0174 | 0.643 |
+| Without the 3 newest | 14 | +3.34 | +0.33 … +6.35 | .0324 | .0354 | 0.640 |
+| First 5 participants | 5 | +3.30 | +0.04 … +6.56 | .0483 | .0625 | 1.257 |
+| Participants 6 onward | 12 | +2.99 | −0.54 … +6.52 | .0892 | .1172 | 0.538 |
+
+**Superseded n = 14 snapshot, kept for the record, do not quote:** Filter 95.53% (SD 4.58), NoFilter
+92.19% (SD 7.13), delta +3.34 pp, 95% CI +0.33 to +6.34, t(13) = 2.40 p = .0322, W = 19.0 p = .0353,
+dz = 0.641, 10/14 improved, power 60%. Kruskal-Wallis across the four versions at that sample was
 H = 13.59, p = .0035, driven by the deliberate v4 difficulty change (lures added, distractor reel
 switched, after v3 ceilinged at 95–100%). Within the test versions the only timing difference is
 1.8 s vs 2.0 s SOA, and median correct RT sits between 630 and 950 ms across every run, so nobody is
 response-limited under either.
 
-**Per-participant pairs** (these are what `fig_slopegraph_h1.png` plots; the figure previously
-plotted 14 *invented* values):
+**Per-participant pairs, n = 14 snapshot** (the current n = 17 set is the one
+`fig_slopegraph_h1.png` plots, and it lives in `content/figures/generate_all.py:33–38`; an earlier
+version of that figure plotted 14 *invented* values):
 
 | pid | NoFilter | Filter | delta |
 |---|---|---|---|
@@ -91,53 +125,72 @@ plotted 14 *invented* values):
 
 **P4's NoFilter value (98.4%) is experimenter-reported, not measured.** No CSV was exported for that
 arm. It is the only such value in the analysis, and the manuscript must say so where the number
-appears. Accuracy has a hard ceiling of 100% — no participant value may exceed it.
+appears. Dropping it moves the Block A result from p = .0175 to p = .0212 and leaves the effect size
+unchanged. Accuracy has a hard ceiling of 100% — no participant value may exceed it.
 
 ---
 
-## Block B — H2b, pooled safety check, n = 13
+## Block B — H2b, pooled safety check, n = 15
 
 | | |
 |---|---|
-| Filter | 55.58% (SD 9.02) |
-| NoFilter | 50.00% (SD 17.02) |
-| Mean delta | +5.58 pp (SD 13.27, median +7.50) |
-| 90% CI | −0.98 to +12.14 |
-| 95% CI | −2.44 to +13.60 |
-| Paired t | t(12) = 1.51, p = .1557 |
-| Wilcoxon | W = 21.0, p = .1753 |
-| Effect size | dz = 0.420, 7/13 positive |
-| TOST ±10 pp | p = .126 — two-sided equivalence **not** established |
-| Non-inferiority vs −10 pp | **p = .0006 — passes** |
+| Filter | 56.67% (SD 8.85) |
+| NoFilter | 50.67% (SD 16.54) |
+| Mean delta | **+6.00 pp** (SD 13.39, median +7.50) |
+| 90% CI | −0.09 to +12.09 |
+| 95% CI | −1.42 to +13.42 |
+| Paired t | t(14) = 1.74, p = .1046 |
+| Wilcoxon | W = 27.0, p = .1089 |
+| Effect size | dz = 0.448, 8/15 positive |
+| Achieved power | 50.2% (n = 33 for 80%) |
+| TOST ±10 pp | upper test p = .133 — two-sided equivalence **not** established |
+| Non-inferiority vs −10 pp | **p = .0002 — passes** |
 
 **H2b is not refuted.** Its pre-registered refuting observation requires equivalence not established
-*and* a point estimate showing a drop greater than 10 pp. The estimate is a **rise** of 5.58 pp, so
+*and* a point estimate showing a drop greater than 10 pp. The estimate is a **rise** of 6.00 pp, so
 the refuting observation did not occur.
 
-The two-sided TOST fails only on the upper test (t = −1.20, p = .126): the data cannot exclude a
-*benefit* above 10 pp. That is a specification mismatch, not a safety finding. Report both numbers.
+The two-sided TOST fails only on the upper test: the data cannot exclude a *benefit* above 10 pp.
+That is a specification mismatch, not a safety finding. Report both numbers.
 **Never substitute the non-inferiority reading for the pre-registered one after seeing the data.**
+
+**Per-participant pairs, n = 15** (NoFilter, Filter, delta): P1 67.5 / 62.5 / −5.00; P2 52.5 / 60.0 /
++7.50; P4 77.5 / 70.0 / −7.50; P6 55.0 / 65.0 / +10.00; P10 57.5 / 55.0 / −2.50; P13 55.0 / 52.5 /
+−2.50; P16 37.5 / 60.0 / +22.50; P17 17.5 / 52.5 / +35.00; P20 22.5 / 32.5 / +10.00; P25 45.0 / 52.5 /
++7.50; P26 42.5 / 55.0 / +12.50; P27 65.0 / 50.0 / −15.00; P30 42.5 / 65.0 / +22.50; P33 55.0 / 55.0 /
++0.00; P41 67.5 / 62.5 / −5.00.
+
+**Superseded n = 13 snapshot, kept for the record, do not quote:** Filter 55.58% (SD 9.02), NoFilter
+50.00% (SD 17.02), delta +5.58 pp, 90% CI −0.98 to +12.14, 95% CI −2.44 to +13.60, t(12) = 1.51
+p = .1557, W = 21.0 p = .1753, dz = 0.420, 7/13 positive, TOST upper p = .126, non-inferiority
+p = .0006.
 
 ---
 
-## Block B — eccentricity bands (mid-lifetime proxy), n = 13
+## Block B — eccentricity bands (mid-lifetime proxy), n = 15
 
-| Band | NoFilter | Filter | Pooled delta | Per-participant mean | 90% CI on per-pid diff | t p | W p |
-|---|---|---|---|---|---|---|---|
-| <10° | 62/84 = 73.8% | 57/72 = 79.2% | +5.36 | **−1.92** | [−12.6, +8.7] | .753 | .656 |
-| 10–20° | 74/179 = 41.3% | 85/185 = 45.9% | +4.61 | +5.01 | [−5.3, +15.3] | .403 | .465 |
-| **20–30°** | **39/101 = 38.6%** | **59/107 = 55.1%** | **+16.53** | **+16.36** | **[+4.2, +28.6]** | **.034** | **.049** |
-| >30° | 85/156 = 54.5% | 88/156 = 56.4% | +1.92 | +1.92 | [−6.5, +10.4] | .692 | .938 |
+| Band | NoFilter, pooled | Filter, pooled | Pooled delta | Per-participant mean | 90% CI on per-pid diff | t p | W p | dz | Power |
+|---|---|---|---|---|---|---|---|---|---|
+| <10° | 72/96 = 75.0% | 67/84 = 79.8% | +4.76 | **−2.50** | [−11.67, +6.67] | .638 | .520 | — | 12% |
+| 10–20° | 86/207 = 41.5% | 102/213 = 47.9% | +6.34 | +6.77 | [−3.80, +17.34] | .278 | .379 | 0.291 | 28% |
+| **20–30°** | **47/117 = 40.2%** | **71/123 = 57.7%** | **+17.55** | **+17.78** | **[+6.58, +28.97]** | **.014** | **.021** | **0.722** | **84%** |
+| >30° | 99/180 = 55.0% | 100/180 = 55.6% | +0.56 | +0.56 | [−6.81, +7.92] | .896 | .894 | 0.034 | 6% |
 
-20–30° dz ≈ 0.66, achieved power 59%. Only 20–30° is individually reliable, and it is three to eight
-times larger than any other band. All four bands trend positive.
+Only 20–30° is individually reliable, and it is three times larger than any other band. It is the
+only Block B measure that is both significant and adequately powered. All four bands trend positive.
 
 **Two estimators, and they disagree.** The pooled delta weights every marker presentation equally;
 the per-participant mean weights every participant equally. Participants contribute unequal numbers
-of markers to a band, so for `<10°` the two **disagree in sign** (+5.36 pooled, −1.92 per
+of markers to a band, so for `<10°` the two **disagree in sign** (+4.76 pooled, −2.50 per
 participant). The t and Wilcoxon p-values belong to the per-participant estimator. The old manuscript
 paired the pooled point estimate with the per-participant p-value in one sentence. **The rewrite must
-pick one estimator per claim and say which it is.**
+pick one estimator per claim and say which it is.** In particular, the figure annotation on the
+pooled-bar panel must name its estimator, because +17.78 is the per-participant figure while
+subtracting the pooled bar labels gives +17.55.
+
+**Superseded n = 13 snapshot, kept for the record, do not quote:** <10° 73.8% → 79.2% (+5.36 pooled,
+−1.92 per participant); 10–20° 41.3% → 45.9% (+4.61 / +5.01); 20–30° 38.6% → 55.1% (+16.53 /
++16.36, [+4.2, +28.6], t p .034, W p .049, dz ≈ 0.66, power 59%); >30° 54.5% → 56.4% (+1.92 / +1.92).
 
 Band membership uses the target's mid-lifetime position, a weak proxy: targets move, median lifetime
 swing 17.2°, and ~31% of catches land in a different band than the mid position assigns. The
@@ -165,17 +218,27 @@ case for 20–30°. **There is no bib entry supporting this.** Do not assert it 
 
 ---
 
-## End-of-session questionnaire, n = 13
+## End-of-session questionnaire, n = 16
 
-| Construct | Favourable |
-|---|---|
-| A — perceived focus benefit | 57/65 |
-| B — perceived awareness cost | 38/65 |
-| C — visual comfort | 38/52 (four answered items; C3 answered by nobody) |
+| Construct | Favourable | Rate |
+|---|---|---|
+| A — perceived focus benefit | 71/80 | 89% |
+| B — perceived awareness cost | 46/80 | 58% |
+| C — visual comfort | 45/64 (four answered items; C3 answered by nobody) | 70% |
 
-A1 12/13, A2 11/13, A3 12/13. **No longer unanimous** — the n = 10 write-up said all three were
-answered identically by every participant, and that is no longer true. The extractor reproduces the
-earlier n = 10 totals (A 47/50, B 29/50, C 30/40) exactly before adding the three 2026-08-06 sessions.
+Per item: A1 15/16, A3 15/16, A2 14/16, A5 14/16, A4 13/16. **No longer unanimous** — the n = 10
+write-up said the three focus items were answered identically by every participant, and that is no
+longer true. Section B is where participants divide: B3 ("noticed side events later") 7/16 and B4
+("comfortable not seeing everything") 7/16 both run against the filter, while B2 ("still felt
+aware") runs 13/16 in favour. The extractor reproduces the earlier n = 13 totals (A 57/65, B 38/65,
+C 38/52) exactly before the three newest forms are added, which validates the extraction.
+
+P25 is the one strong dissenter on focus benefit (A 1/5), and is also the participant with the
+unexplained Block A re-run accuracy drop (99.28% → 86.33% on the identical no-filter sequence about
+three hours later).
+
+**Superseded n = 13 snapshot, kept for the record, do not quote:** A 57/65, B 38/65, C 38/52, with
+A1 12/13, A2 11/13, A3 12/13.
 
 The subjective impression of lost awareness is **not** supported by the behavioural hit rate, which
 shows no loss. That divergence is a finding to report, not a discrepancy to resolve.

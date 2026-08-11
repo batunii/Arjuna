@@ -37,3 +37,6 @@ __pycache__/
 # Distractor-video build scratch (intermediates, downloaded backgrounds/clips)
 /Assets/_Scratch/
 .tokensave/
+
+# Local review tool, not for the repo
+Dissertation/rewrite-app/
