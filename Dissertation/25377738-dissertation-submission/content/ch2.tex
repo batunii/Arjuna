@@ -1,30 +1,33 @@
 \chapter{Background and Related Work}
 
-This chapter argues one line of reasoning rather than surveying bodies of literature side by side. Is
-the problem real, what has already been tried, has removing things instead of adding them been tried
-and did it work, can any of this be built on hardware people actually own, and how should the result
-be tested. A study earns its place here when it establishes that the problem is real, when it
-justifies a value this system actually uses, or when it supplies a method the evaluation adopts. Work
-that merely neighbours the topic is left to the surveys that cover it.
+This chapter follows one line of reasoning rather than surveying bodies of literature side by side.
+Is the problem real, what has already been tried, has removing things instead of adding them been
+tried and did it work, can any of this be built on hardware people actually own, and how should the
+result be tested. The review is selective on that basis: it includes work that establishes the
+problem, backs a value this system uses, or supplies a method the evaluation adopts, and it leaves
+work that merely neighbours the topic to the surveys that cover it.
 
 \section{Why the Periphery Costs Something}
 
 The computational account of visual attention underpinning this dissertation is the salience-map
 model of \citet{itti1998}: attention is drawn to locations whose centre--surround contrast, in
-intensity, colour opponency, or orientation, differs most from their neighbourhood. Three
-consequences recur throughout the design. First, \textit{contrast is the master variable}, so any
-manipulation raising local contrast attracts gaze and any manipulation flattening it repels gaze.
+intensity, colour opponency, or orientation, differs most from their neighbourhood. Three working
+assumptions, adopted from this model, recur throughout the design. First, the model treats
+\textit{contrast as the master variable}, so any
+manipulation raising local contrast should attract gaze and any manipulation flattening it should
+repel gaze.
 Second, salience is channel-specific and the channels are not equal: in every head-to-head comparison
 in the guidance literature, luminance manipulations outperform chromatic ones
 \citep{bailey2009,grogorick2017}. This is why every mode in this system dims before it does anything
 else. Third, salience operates \textit{pre-attentively}, so capture by a high-contrast peripheral
-event happens before, and regardless of, the observer's intentions. A periphery whose salience has
-been flattened stops issuing capture events at all, which is the mechanism the dark modes exploit.
+event happens before, and regardless of, the observer's intentions. On this account a periphery
+whose salience has been flattened should stop issuing capture events, which is the mechanism the
+dark modes aim to exploit.
 \citet{duan2022} extend the account to augmented reality and show that the opacity of AR content
 directly modulates where attention lands, which makes opacity a dose rather than a style and the
 attenuation axis of Chapter 3 an axis with a middle rather than an on/off switch.
 
-Where salience explains \textit{how} the periphery captures attention, Cognitive Load Theory explains
+Whereas salience explains \textit{how} the periphery captures attention, Cognitive Load Theory explains
 why that capture is costly. Extraneous load, the processing demanded by information irrelevant to the
 task, competes for the same limited working-memory resources as the task itself. \citet{buchner2022}
 review the evidence that AR can reduce, not only add, cognitive load when used to structure or filter
@@ -32,17 +35,18 @@ what the user must process. This is the theoretical justification for the whole 
 diminishment is an extraneous-load intervention. It does not make the user smarter or the task
 easier. It removes competing processing demands at the perceptual source.
 
-That framing also names the project's central risk, which is why this dissertation pairs two
-hypotheses rather than one. Attention capture by peripheral events is not a design flaw of the human
-visual system. It is a safety mechanism. Suppressing it trades focus against situational awareness, a
-tension documented empirically in the DR literature \citep{murph2021,mclaughlin2025} and formalised
-in Chapter 5 as an equivalence-tested safety hypothesis rather than an afterthought. The evaluation
-design refuses to measure benefit without simultaneously measuring cost.
+That framing also identifies the project's central risk, which is why this dissertation pairs a
+benefit hypothesis with a safety hypothesis rather than testing benefit alone. Attention capture by
+peripheral events is not a design flaw of the human visual system. It is a safety mechanism.
+Suppressing it trades focus against situational awareness, a tension documented empirically in the
+DR literature \citep{murph2021,mclaughlin2025} and formalised in Chapter 5 as an equivalence-tested
+safety hypothesis rather than an afterthought. The evaluation is designed to measure benefit and
+cost together.
 
-What was missing until recently was the distractor-cost baseline in immersive settings. That has now
-been supplied. Peripheral visual distractors in a virtual classroom significantly increase both
-commission errors (1.33 $\rightarrow$ 3.15) and omission errors on a Go/No-go continuous performance
-task, while leaving mean reaction time unchanged \citep[N = 66]{ai2025}. That single result does
+What was missing until recently was the distractor-cost baseline in immersive settings.
+\citet[N = 66]{ai2025} supply it: peripheral visual distractors in a virtual classroom significantly
+increase both commission errors (1.33 $\rightarrow$ 3.15) and omission errors on a Go/No-go
+continuous performance task, while leaving mean reaction time unchanged. That single result does
 double duty here: it establishes that \textit{errors, not latency}, are the sensitive currency of
 distraction cost, fixing the primary dependent variable of Chapter 5, and it quantifies the effect
 the vignette must reduce for the primary hypothesis to be supported.
@@ -56,7 +60,7 @@ The subtle gaze direction family originates with \citet{bailey2009}: a brief lum
 the viewer's periphery attracts a saccade, and the cue is terminated the moment gaze moves toward it,
 so the viewer never foveates the modulation and remains unaware of being steered. Luminance
 modulation outperformed warm--cool chromatic modulation, an early instance of the luminance-dominance
-law above. Two results from this family set hard constraints on the present design.
+regularity described in Section 2.1. Two results from this family set hard constraints on the present design.
 \citet{grogorick2018} compared five guidance methods in an immersive dome with N = 102: local
 magnification achieved the best guidance-per-noticeability ratio, while whole-periphery blur was the
 least subtle and actively irritated 59 of 102 participants. Their conclusion that no method remains
@@ -66,9 +70,9 @@ noticeability rather than chasing imperceptibility. Second, \citet{erickson2023}
 most confusing of hue, saturation and value, which is why every mode manipulates saturation and
 luminance and none shifts hue.
 
-Slow ramps are the one escape from the noticeability trade-off. \citet{hata2016} showed that a
-visual change introduced gradually enough stays below the awareness threshold while still biasing
-gaze, because the guidance threshold sits below the awareness threshold. This is the perceptual
+Previous work suggests slow ramps can escape the noticeability trade-off. \citet{hata2016} showed
+that a visual change introduced gradually enough stays below the awareness threshold while still
+biasing gaze, because the guidance threshold sits below the awareness threshold. This is the perceptual
 justification for the system's formation animation, where effects ramp in over seconds rather than
 switching on.
 
@@ -134,9 +138,10 @@ with acoustic noise cancellation, a head-worn display actively moderates the vis
 attenuating noise while passing signal \citep{hong2024}. The analogy is productive because it imports
 an architecture. Acoustic cancellation requires a microphone, a processing stage, and a speaker,
 which is precisely the camera $\rightarrow$ shader $\rightarrow$ display pipeline of a
-video-see-through headset. This dissertation can be read as the first software-defined visual noise
-cancellation system on consumer video-passthrough hardware, where each mode is a cancellation profile
-and the profiles differ in what they classify as noise. The analogy also imports a useful discipline
+video-see-through headset. Against the prior art surfaced by the structured search of Section 2.5.1,
+no software-defined visual noise cancellation system on consumer video-passthrough hardware was
+found, and this dissertation can be read as one, where each mode is a cancellation profile and the
+profiles differ in what they classify as noise. The analogy also imports a useful discipline
 from its original: noise-cancelling headphones are evaluated on measured attenuation \textit{and} on
 what they cost the wearer in awareness, which is exactly the hypothesis pairing of Chapter 5.
 
@@ -165,14 +170,15 @@ video conferencing, improving memory for meeting content.
 
 \section{What the Periphery Tolerates}
 
-Peripheral vision is not blurry central vision. It is a differently tuned system that notices
-contrast loss and motion change most, and chromatic detail loss least. One perceptual finding is
+The perception literature describes peripheral vision not as blurry central vision but as a
+differently tuned system, one that notices contrast loss and motion change most, and chromatic
+detail loss least. One perceptual finding is
 directly responsible for a parameter in this system: \citet{patney2016} established that peripheral
 blur is detected primarily through the \textit{contrast reduction} it causes, and that restoring
-local contrast after blurring roughly doubles the tolerable blur radius. That chain also explains,
-mechanistically, Grogorick et al.'s irritation finding, since naive whole-periphery blur announces
-itself through contrast collapse. It is why the dark modes attenuate luminance, which the periphery
-tolerates, rather than blurring structure, which it resents.
+local contrast after blurring roughly doubles the tolerable blur radius. That chain also offers a
+mechanistic explanation for the irritation finding of \citet{grogorick2018}, since naive
+whole-periphery blur announces itself through contrast collapse. It is why the dark modes attenuate
+luminance, which the periphery tolerates better, rather than blurring structure.
 
 A second literature approaches the periphery from the comfort side, and the manner of restriction
 matters more than its degree. \citet{fernandes2016} showed a soft, dynamically applied field-of-view
@@ -204,9 +210,9 @@ three-tier design space. Two literature points attach to it here. The one publis
 of on-device camera compositing projects 720p30 with thermal throttling within five to ten minutes, a
 simulation-based estimate rather than a measured run, which functions as a warning about sustained
 camera processing \citep{laghari2025}. And Varjo's research headsets grant full camera control, yet
-no published study was found that shader-processes their passthrough region-selectively for
-attention. Researchers with the capability have not asked this question, while the consumer platforms
-that provoke it lack the capability.
+this review found no published study that shader-processes their passthrough region-selectively for
+attention. The question appears to be unexplored so far, although work not surfaced by the search
+may exist.
 
 One further platform datum constrains not the system but its \textit{evaluation}: psychophysical
 measurement shows that no current video see-through headset reaches normal human acuity at any light
@@ -263,18 +269,9 @@ head velocity. Simulator sickness is measured with the nine-item VRSQ \citep{kim
 before \textit{and} after exposure because post-only scores are uninterpretable without a baseline
 \citep{brown2022}. The study administers no per-condition workload instrument, though the NASA-TLX
 \citep{hart1988} is the field standard, and Chapter 6 records what that costs. Finally, equivalence
-claims of the "no meaningful loss of peripheral awareness" kind require dedicated machinery: the
+claims of the ``no meaningful loss of peripheral awareness'' kind require dedicated machinery: the
 two-one-sided-tests procedure with a pre-registered margin \citep{lakens2017}, which converts a
 would-be null result into a falsifiable claim.
-
-One applied result matters structurally, because this dissertation uses driving \textit{footage} as a
-stimulus context. AR cueing of roadside hazards improves response time \textit{without} degrading
-detection of non-target objects \citep[N = 27]{rusch2013}, an early demonstration that guidance
-benefit and situational-awareness cost are separable, which is exactly the separation this
-dissertation's secondary hypotheses formalise. That literature motivates the scenario aesthetics and
-supplies the salience-engineering precedent for ColorPop's red, orange and green hierarchy. It
-licenses nothing further: per Chapter 1, no claim about driving, drivers, or road safety is made
-anywhere in this dissertation.
 
 \section{Gaps and Position}
 
@@ -316,3 +313,12 @@ participants. If the two blocks agree in direction, the simulation methodology o
 McLaughlin gains a real-hardware anchor. If they diverge, the divergence localises what simulation
 misses. Either way the evaluation assembles the field's strongest methodological norms, for the
 first time, around a deployable diminished-reality attention system.
+
+One further applied result matters to that evaluation, because it uses driving \textit{footage} as
+a stimulus context. AR cueing of roadside hazards improves response time \textit{without} degrading
+detection of non-target objects \citep[N = 27]{rusch2013}, an early demonstration that guidance
+benefit and situational-awareness cost are separable, which is the separation this dissertation's
+secondary hypotheses formalise. That literature motivates the scenario aesthetics and supplies the
+salience-engineering precedent for ColorPop's red, orange and green hierarchy. It licenses nothing
+further: per Chapter 1, no claim about driving, drivers, or road safety is made anywhere in this
+dissertation.

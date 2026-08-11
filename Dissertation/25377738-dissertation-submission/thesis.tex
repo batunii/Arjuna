@@ -5,7 +5,7 @@
 %% Built on the official TCD M.Sc. dissertation template (tcdthesis.sty).
 %% Chapters live in content/. Bibliography is refs.bib (natbib + apalike).
 %%
-%% Build:  pdflatex thesis && bibtex thesis && pdflatex thesis && pdflatex thesis
+%% Build:  pdflatex thesis && bibtex thesis && pdflatex thesis && pdflatex thesis && pdflatex thesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \documentclass[a4paper, 12pt, oneside]{report}
 \usepackage{tcdthesis}
@@ -26,6 +26,7 @@
 \renewcommand{\thesisdegreeabbreviation}{M.Sc.}
 \renewcommand{\thesistype}{Dissertation}
 
+\usepackage{lmodern}                 %% scalable T1 family, so the PDF embeds Type 1 outlines
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{textcomp}                %% \textdegree and friends
@@ -84,43 +85,45 @@
 \hypersetup{pageanchor=true}
 
 \begin{thesisabstract}
-Extended-reality headsets are normally used to add information to the real world. But this
-dissertation asks the opposite question: can we use a consumer video-see-through (VST) headset to
-subtract, dim, mute or re-grade the visual periphery and guide attention towards, and hold it on, a
-user-chosen region of the real world? The work asks one question with two halves: can we build such a
-subtractive attention guidance system on consumer XR hardware, and when delivered, does it actually
-help human attention?
+Extended-reality headsets are normally used to add information to the real world. This dissertation
+asks the opposite question: can a consumer video-see-through (VST) headset subtract, dim, mute or
+re-grade the visual periphery and guide attention towards, and hold it on, a user-chosen region of
+the real world? The work asks one question with two halves: can such a subtractive attention
+guidance system be built on consumer XR hardware, and once built, does it actually help people
+focus on a real-world task?
 
-The technical half confronts a defining constraint of the Meta Quest 3 platform: the operating system
-owns the passthrough layer, which applications may neither read nor spatially modify. The
-dissertation contributes a three-tier design space of diminished reality (DR) under this compositing
-constraint, and a working reference implementation spanning it. A world-locked \textit{focus window}
-is rendered as an absence in an overlay sphere, so native passthrough passes through it at full
-quality, while the periphery carries the manipulation. Two peripheral treatments are carried to
-confirmatory evaluation: detection-gated salience re-grading (SignPop) and full peripheral occlusion
-(Hard Dark). A structured prior-art search found no published or shipped
-precedent for the system's hybrid composite of native passthrough and a shader-processed camera feed.
-Two on-device measurements validate the architecture's central trades: the camera-free dark modes
-add no measurable GPU cost over an empty passthrough scene (95th-percentile frame time
+The technical half confronts a defining constraint of the Meta Quest 3 platform: the operating
+system owns the passthrough layer, which applications may neither read nor spatially modify. The
+dissertation contributes a three-tier design space of diminished reality (DR) under this
+compositing constraint, and a working reference implementation spanning it. A world-locked
+\textit{focus window} is rendered as an absence in an overlay sphere, so native passthrough passes
+through it at full quality, while the periphery carries the manipulation. Two peripheral treatments
+are carried to confirmatory evaluation: detection-gated salience re-grading (SignPop) and full
+peripheral occlusion (Hard Dark). A structured prior-art search found no published or shipped
+precedent for the system's hybrid composite of native passthrough and a shader-processed camera
+feed. Two on-device measurements validate the architecture's central trade-offs: the camera-free
+dark modes add no measurable GPU cost over an empty passthrough scene (95th-percentile frame time
 $\approx$3.3~ms against a 13.88~ms budget), and the native path through the window resolves a
 Landolt~C acuity chart at least two 0.1-logMAR steps finer than the camera re-render it replaces.
 
 The human half contributes a pre-registered, fully within-subjects user study, built to be
 falsifiable rather than merely hopeful: a workstation distractor-suppression paradigm carrying the
 single primary hypothesis, a driving-scene marker-detection paradigm with an equivalence-bounded
-situational-awareness safety test, and a pre-committed decision table under which every outcome is a
-conclusive result. Eighteen people were tested before the dissertation deadline closed collection,
-two short of the pre-registered twenty, a deviation reported as such; at the achieved sample of
-seventeen workstation and fifteen driving pairs, the primary contrast and the pre-registered
-eccentricity band both reach the design's 80\% power target. The results: a 3.09-point accuracy gain
-on the workstation task (95\% CI +0.62 to +5.55, $p = .017$), no loss of peripheral awareness, and a
-detection benefit of 17.8 points concentrated in the 20--30\textdegree{} eccentricity band that the
-system's own detection-gated geometry predicts. The pre-committed table is applied and two of its
-verdicts are reported exactly rather than smoothed over: the primary effect, though significant and
-adequately powered, is smaller than its pre-set smallest effect size of interest, so it is claimed as
-a real but bounded benefit rather than at the pre-set size; and the two-sided equivalence statistic
-behind the safety hypothesis is not established, only because a benefit larger than the margin cannot
-be excluded, while the one-directional safety question it encodes is answered cleanly.
+situational-awareness safety test, and a decision table committed to before the data existed, under
+which every outcome maps to a pre-committed conclusion. Eighteen people were tested before the
+deadline closed collection, two short of the pre-registered twenty, a deviation reported as such;
+at the achieved sample of seventeen workstation and fifteen driving pairs, the primary contrast and
+the pre-registered eccentricity band both reach the design's 80\% power target. Peripheral dimming
+improved workstation accuracy by 3.09 points (95\% CI +0.62 to +5.55), and the pre-registered
+trial-level test returns an odds ratio of 0.583 ($p = .0065$), a 41.7\% reduction in the odds of an
+error. Peripheral awareness showed no measured loss, and almost all of the 17.8-point detection
+benefit fell in the 20--30\textdegree{} band that the system's own detection-gated geometry
+predicts. Two verdicts are reported as they came out rather than smoothed over: the primary effect,
+though significant and adequately powered, is smaller than its pre-set smallest effect size of
+interest, so it is claimed as a real but bounded benefit rather than at the pre-set size; and the
+two-sided equivalence statistic behind the safety hypothesis is not established, only because a
+benefit larger than the margin cannot be excluded, while the one-directional safety question it
+encodes is answered cleanly.
 \end{thesisabstract}
 
 \begin{thesisacknowledgments}
@@ -128,9 +131,10 @@ I thank my supervisor, John Dingliana, for direction that repeatedly sharpened t
 work was trying to answer, and for the specific pressure that turned a hopeful demonstration into a
 study that could fail.
 
-I thank the eighteen people who put on the headset and did a repetitive task twice without being told
-what was being measured. The study depends entirely on their patience, and the pilot participants who
-sat through the versions that did not yet work deserve particular thanks.
+I thank the eighteen people who went through the long testing with the headsets, doing a repetitive
+task twice. The study owes them a huge debt. I thank my friend and roommate Sai Eeshwar Diwakar,
+together with Diksha Chottani and Yash Jain, who piloted the study before the protocol was frozen and
+sat through the versions that did not yet work to give me the initial feedback.
 
 I thank the School of Computer Science and Statistics for the facilities and the hardware, and my
 family and friends for their support through the year.

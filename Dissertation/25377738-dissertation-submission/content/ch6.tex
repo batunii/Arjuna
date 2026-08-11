@@ -3,7 +3,7 @@
 \section{The question, revisited}
 
 This dissertation asked one question with two halves: \textit{can subtractive attention guidance be
-delivered on consumer XR hardware, and when it is delivered, does it actually help human attention?}
+delivered on consumer XR hardware, and when it is delivered, does it actually help people focus?}
 
 The first half is answered in the affirmative, with precision about what delivered means. On the Meta
 Quest 3 the question reduces to a compositing-rights problem, and the access an application has
@@ -13,19 +13,21 @@ turns out to be sufficient for a working multi-mode system, built around an arch
 in which the focus region is rendered as an \textit{absence} in an overlay, so native passthrough at
 full quality serves the region that matters while the treatments occupy the periphery around it. The
 hybrid composite at the heart of the most capable mode survived a structured prior-art search with no
-published or shipped precedent found. The architecture's two central trades were then measured on
+published or shipped precedent found. The architecture's two central trade-offs were then measured on
 the device itself: the camera-free dark modes cost nothing over an empty passthrough scene, and the
 native path the window preserves resolves at least two logMAR steps finer than the camera re-render
 it spares the user from (Chapter 4, Section 4.11).
 
-The second half is answered by the study, at seventeen workstation pairs and fifteen driving pairs,
-two short of the pre-registered twenty, with the decision table applied as committed. The answers:
+The second half is answered by the study, at eighteen people tested, two short of the pre-registered
+twenty, giving seventeen workstation pairs and fifteen driving pairs, with the decision table applied
+as committed. The answers:
 a 3.09-point accuracy gain on a real-hardware task, real, significant, and adequately powered, but
 smaller than the pre-set half-the-errors bar, so claimed as a bounded benefit under the table's
 fourth row rather than at the pre-set size; peripheral awareness that was not lost, the safety
 hypothesis's refuting observation never occurring; and a detection benefit concentrated precisely in
 the 20--30$^{\circ}$ band the system's own detection-gated geometry predicts, supported at 84\%
-power. "Inconclusive" was designed out of the reachable outcomes, and the outcome that did occur is
+power. Every outcome was mapped to a pre-committed conclusion before the data existed, and the
+outcome that did occur is
 a specific, mechanistically coherent one: the system helps, by a real amount whose exact size a
 larger sample would pin more tightly.
 
@@ -37,8 +39,8 @@ At Tier 1 the platform grants global colour remapping and nothing spatial: no pe
 world-locked regions, no read access, and, since the deprecation of surface-projected passthrough at
 SDK v83, no per-surface control either. The significant fact is the \textit{absence}: a developer who
 wants to dim the periphery and spare a window cannot do it at Tier 1 at all. That absence is a
-platform-policy finding rather than an engineering one, and it shapes what DR research is possible on
-consumer hardware more than any algorithm does.
+platform-policy finding rather than an engineering one, and it arguably shapes what DR research is
+possible on consumer hardware more than any algorithm does.
 
 The system's response is an existence proof that windowed subtractive DR is achievable at Tier 2
 without OS cooperation, and that hybrid Tier-2/Tier-3 composites are achievable with Passthrough
@@ -55,8 +57,8 @@ follow the head into one that yields to it, because head-coupled restriction inc
 \citep{norouzi2018}. And \textbf{consumer-platform DR research inherits platform-policy risk}:
 surface-projected passthrough, a capability this project might have built on, was deprecated
 mid-project. Tier boundaries on consumer hardware are set by vendor policy and move without notice,
-so designs that keep a working path at every tier are robust to that movement and designs premised on
-a single capability are not.
+so designs that keep a working path at every tier are more robust to that movement than designs
+premised on a single capability.
 
 \section{Limitations}
 
@@ -127,15 +129,16 @@ diluted across the text.
 
 \textbf{To optical see-through hardware, the dark overlay does not transfer.} The Tier-2 modes work
 because a VST display is an opaque screen under full render control, and additive OST optics cannot
-darken the world. On OST, "draw black" means "draw nothing". What transfers is the taxonomy and the
+darken the world. On OST, ``draw black'' means ``draw nothing''. What transfers is the taxonomy and the
 question. On OST hardware the taxonomy collapses toward display-side attenuation, of which segmented
 dimming hardware such as the Magic Leap 2's dedicated low-resolution dimming panel \citep{magic2024}
 is the nearest existing analogue of a Tier-2 windowed dim, and toward the additive salience
-modulation demonstrated by \citet{sutton2022}. Critically, the \textbf{human-factors findings do
-transfer}, because what peripheral diminishment does to attention is a property of the human visual
-system rather than of the display that implements it. The engineering is platform-bound. The
-psychology is not. A replication of the Chapter 5 paradigm on a dimming-capable OST device would be
-the cleanest possible test of that transfer.
+modulation demonstrated by \citet{sutton2022}. Critically, the \textbf{human-factors findings are
+expected to transfer}, because what peripheral diminishment does to attention should depend on the
+human visual system more than on the display that implements it. The engineering is platform-bound.
+The psychology should be far less so, though display properties such as field of view and latency
+could still moderate the effect. A replication of the Chapter 5 paradigm on a dimming-capable OST
+device would be the cleanest test of that expectation.
 
 \textbf{From the simulation, transfer is conditional, and the conditions are enumerable.} Monoscopic
 video removes motion-in-depth, so peripheral capture by looming stimuli is untested. The passenger
@@ -160,8 +163,8 @@ claims.
 
 \textbf{Separating the bundle.} The 20--30$^{\circ}$ finding is the clearest reason this item leads.
 A three-arm design, no filter against filter with the detection gate off against filter with it on,
-would need no new code, since the gate already has a toggle. It would directly separate "dimming
-helped" from "passing the signal through helped".
+would need no new code, since the gate already has a toggle. It would directly separate ``dimming
+helped'' from ``passing the signal through helped''.
 
 \textbf{Closing the oracle gap, and finishing the measurement campaign.} SignPop is
 detector-dependent on offline oracle-quality detection. The natural next iteration replaces the
@@ -199,14 +202,13 @@ composition of the Tier-3 path with the saliency-modulation literature.
 The premise of this work was that a consumer headset can be an instrument for \textit{removing} the
 world as well as adding to it, and that both halves of that proposition deserve rigour: the systems
 half, where an OS-owned display layer had to be subtracted from by purely additive means, and the
-human half, where "it helps you focus" had to be converted from a hope into a hypothesis that could
+human half, where ``it helps you focus'' had to be converted from a hope into a hypothesis that could
 fail.
 
 The evaluation apparatus built to do that is part of the contribution. A single primary endpoint with
 a smallest effect size of interest, equivalence margins for safety claims, a gated pilot whose
 failure aborts rather than degrades the main study, and a decision table committed before data
-collection, is not standard practice at masters-project scale, where underpowered multi-hypothesis
-designs that can only end inconclusively remain common. The apparatus costs little, since its
+collection, is not yet standard practice at masters-project scale. The apparatus costs little, since its
 artefacts are documents and thresholds rather than equipment, and it converts every outcome into a
 claim with stated bounds. One of those bounds turned out to bind on the study itself: the safety
 hypothesis was written as a two-sided equivalence test when the question it encoded had only one
@@ -217,4 +219,4 @@ The system exists and runs on target hardware. The hypothesis was tested, on sev
 pairs and fifteen driving pairs, and answered under the rules committed to before the data existed:
 a real focus benefit, claimed at its bounded size rather than its hoped-for one; peripheral
 awareness kept; the mechanism confirmed exactly where its geometry said to look. The question was
-asked properly, on the hardware people actually own, and that is the standard the answer inherits.
+asked on the hardware people actually own, and that is the standard the answer inherits.

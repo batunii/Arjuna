@@ -9,19 +9,22 @@ For \textbf{space}, the instrument is the library carrel. Wooden walls on three 
 added to help anybody read. The room is simply taken away until only the page is left, and the design
 has survived for centuries because it works.
 
-For \textbf{sound}, the instrument is the noise-cancelling headphone. It does not make the lecture
-louder. It makes everything else quieter. It is a product millions of people buy, at a price they
-consider reasonable, whose entire function is removal, and its architecture is a microphone, a
-processing stage and a speaker.
+For \textbf{sound}, the instrument is the noise-cancelling headphone. It does not make the audio
+louder. It just makes all the other sounds quieter. It is a product people buy, at a reasonable
+price. And its entire function is removal, with an architecture of a microphone, a processing stage
+and a speaker.
 
-For \textbf{sight}, the oldest description of the thing we want is in the Mah\=abh\=arata. Dro\d{n}a,
-the martial teacher of the P\=a\d{n}\d{d}ava and Kaurava princes, sets up a wooden bird in a tree and
-tells his students to aim for its eye. Before each releases the arrow, he asks what they see. One
-says the tree. Another the branches, the leaves, his brothers standing beside him. Dro\d{n}a asks
-Arjuna the same question, then asks again: does he see the tree? The branches? Arjuna answers no to
-each, until only one thing remains: "I see only the eye of the bird." For that moment the tree, the
-branches, and everyone else standing there have not merely fallen out of Arjuna's interest. They have
-gone.
+For \textbf{sight} we have nothing comparable today. What we do have is a description of the
+\textit{state of mind} such an instrument would produce, and it is the oldest description of it we
+have, in the
+Mah\=abh\=arata\footnote{The Mah\=abh\=arata is an ancient Sanskrit epic of India. The archery
+lesson retold here is one of its best-known episodes.}. Dro\d{n}a, the martial teacher of the P\=a\d{n}\d{d}ava and Kaurava princes, sets up
+a wooden bird in a tree and tells his students to aim for its eye. Before each releases the arrow, he
+asks what they see. One says the tree. Another the branches and the leaves. Then Dro\d{n}a turns to
+Arjuna and puts the question to him one thing at a time. Do you see the tree? No. The branches? No.
+Your brothers standing beside you? No. ``I see only the eye of the bird.'' For that moment the tree,
+the branches, and everyone else standing there have not merely fallen out of Arjuna's interest. They
+have gone.
 
 That is three thousand years of treating removal as the definition of visual focus, and the tools we
 actually build for vision do the opposite. Every visual attention aid in common use adds something
@@ -35,9 +38,10 @@ workspaces. Streetscapes compete for a driver's gaze with advertising designed b
 win it. The cost is well documented: task-irrelevant peripheral events capture attention
 involuntarily, and each capture carries a performance penalty on the task the viewer intended to do.
 In immersive settings the effect is directly measurable. Introducing peripheral visual distractors
-into a virtual classroom more than doubled commission errors on a sustained-attention task in a
-recent study of sixty-six participants \citep{ai2025}, replicating decades of laboratory findings on
-involuntary attentional capture by peripheral motion and luminance change \citep{itti1998}.
+into a virtual classroom more than doubled commission errors, responses to stimuli that should have
+been ignored, on a sustained-attention task in a recent study of sixty-six participants
+\citep{ai2025}, replicating decades of laboratory findings on involuntary attentional capture by
+peripheral motion and luminance change \citep{itti1998}.
 
 The extended-reality (XR) community's response has been additive in exactly the way the carrel and
 the headphone are not: arrows, halos, attention funnels and highlights layered onto the world to
@@ -46,11 +50,9 @@ explored operation, \textit{subtraction}. If the periphery pulls attention away,
 re-grade it so that it pulls less. In the literature this family of operations is called diminished
 reality (DR), concealing or attenuating real-world content rather than adding to it
 \citep{mori2017,cheng2022}, and its application to distraction has recently been named \textit{visual
-noise cancellation}, by direct analogy with the acoustic kind \citep{hong2024}. The analogy is more
-than rhetoric. A headset's camera, processing stage and display are the same three components in the
-same order as a headphone's microphone, processing stage and speaker
-(Figure~\ref{fig:anc}), which is why the acoustic
-device is the right thing to reason from rather than merely the right thing to gesture at.
+noise cancellation}, by direct analogy with the acoustic kind \citep{hong2024}. The analogy is also
+architectural: a headset's camera, processing stage and display mirror a headphone's microphone,
+processing stage and speaker (Figure~\ref{fig:anc}).
 
 \begin{figure}[htbp]
 \centering
@@ -85,17 +87,36 @@ pixel control exists is therefore also the place where image quality is worst. A
 psychophysical study shows the stakes plainly: no current VST headset reaches normal human visual
 acuity through its passthrough, and the Quest 3 degrades further in low light \citep{wang2026}.
 
-Subtractive attention guidance on this platform is consequently a \textit{compositing-rights
-problem}. The effect one wants, dim everything except the region that matters without degrading the
+Subtractive attention guidance on this platform therefore poses a \textit{compositing-rights}
+problem. The effect one wants, dim everything except the region that matters without degrading the
 region that matters, cannot be obtained by editing the image the user sees, because no application is
 permitted to edit it. Chapter 3 shows that what remains is a narrow but genuinely usable design
 space, organised into three tiers of access, and Chapter 4 presents a working system exploiting an
 architectural inversion at its centre. The region that matters is rendered as an \textit{absence}, a
 transparent window in an overlay, so that the highest-quality image on the device, the native system
 passthrough, serves the focus region for free, while the manipulation is confined to the periphery
-where acuity is lower and precision matters less. On the same principle the system's most capable
-mode composites native passthrough inside the window with a shader-processed camera feed outside it,
-a hybrid for which a structured prior-art search found no published or shipped precedent.
+where acuity is lower and precision matters less.
+
+A mode is one named recipe for manipulating the periphery, and
+the system implements ten of them. Three matter for this dissertation. \textbf{Hard Dark} blacks the
+periphery out completely. \textbf{Soft Dark} dims it partially, leaving events visible through the
+veil. \textbf{SignPop} re-grades a camera copy of the periphery towards dim grey, sparing signal
+colours, and lifts a confirmed signal lamp or sign to full visibility. Figure~\ref{fig:treatments} shows the
+two evaluated modes, Hard Dark and SignPop, alongside Soft Dark, as the user sees them. The most
+capable of these configurations composites native passthrough inside the window with a
+shader-processed camera feed outside it, a hybrid for which a structured prior-art search found no
+published or shipped precedent.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{content/figures/fig_treatments.jpg}
+\caption{The two evaluated treatments and Soft Dark, seen from the user's viewpoint, from on-device
+recordings.
+SignPop is shown in the video test scene it is evaluated in; Soft Dark and Hard Dark are shown over
+live passthrough of a real room, each with the world-locked focus window revealing untouched
+passthrough.}
+\label{fig:treatments}
+\end{figure}
 
 \section{One question, two halves}
 
@@ -103,7 +124,7 @@ The dissertation asks a single question, with two distinct halves:
 
 \begin{quote}
 \textbf{Can subtractive attention guidance be delivered on consumer XR hardware? And when it is
-delivered, does it actually help human attention?}
+delivered, does it actually help people focus?}
 \end{quote}
 
 \textbf{Part T (technical): can it be built?} What degree of diminishment control is achievable on a
@@ -132,46 +153,56 @@ secondary, driving, block evaluates the concept in the simulated deployment cont
 
 \section{Research questions and hypotheses}
 
-Three research questions operationalise the spine question. They are stated here in summary, and
-their full pre-registered form, including smallest effect sizes of interest, equivalence margins,
-statistical tests, and a decision table committing the dissertation to a conclusion under every
-outcome, is given in Chapter 5.
+The dissertation's question breaks into three research questions. Each confirmatory research
+question is answered by one or more pre-registered hypotheses, a specific, testable prediction with
+a named condition and measure. \textit{Pre-registered} here means the hypotheses, margins, tests and
+decision table were frozen and lodged with the supervisor in a written memo before data collection
+began (Appendix A, Sections A.3 and A.6). No external registry was used, and the claim made throughout is that
+these choices predate the data, not that a third party holds them. RQ1 carries the single primary
+hypothesis (H1). RQ2 carries two
+secondary hypotheses, a benefit prediction (H2a) and a safety prediction (H2b). RQ3 is exploratory
+and carries no hypothesis. The full pre-registered forms, including smallest effect sizes of
+interest, equivalence margins, statistical tests, and a decision table committing the dissertation
+to a conclusion under every outcome, are given in Chapter 5.
 
 \begin{itemize}
-\item \textbf{RQ1 (primary).} Does peripheral DR dimming, using the Hard Dark mode with a
-  world-locked window, reduce the performance cost that peripheral visual distractors impose on a
-  focal workstation task?
-\item \textbf{RQ2 (secondary).} Does detection-gated salience re-grading (SignPop) improve detection
-  specifically where the gate has room to act, without degrading detection pooled across the whole
-  scene beyond an acceptable margin? The second half is a safety hypothesis tested by equivalence, so
-  failing it would be a conclusive negative finding rather than an ambiguous null.
+\item \textbf{RQ1 (primary).} Does dimming the periphery reduce the performance cost that peripheral
+  visual distractors impose on a focal task? The study tests this with the Hard Dark mode and a
+  world-locked focus window, on a workstation task.
+\item \textbf{RQ2 (secondary).} Can salience re-grading improve detection of relevant peripheral
+  events without degrading detection overall? The study tests this with SignPop on a driving scene:
+  a benefit prediction where the re-grading has room to act, and a safety prediction that detection
+  pooled across the whole scene stays within an acceptable margin of the untreated view. The safety
+  prediction is tested by equivalence, so failing it would be a conclusive negative finding rather
+  than an ambiguous null.
 \item \textbf{RQ3 (exploratory).} After experiencing the system, what do participants report about
   perceived focus benefit, perceived awareness cost, and visual comfort?
 \end{itemize}
 
-The design philosophy behind these hypotheses deserves one sentence. The study is built so that it
-cannot return "inconclusive". Distractors are already known to impose a measurable cost, on the
-evidence of the sixty-six-participant result cited above. The study takes that cost as given, asks
-whether the system reduces it, and pre-commits to the interpretation of every outcome, including
-failure.
+The study is built so that every outcome maps to a pre-committed conclusion. Distractors are already known to impose
+a measurable cost \citep[N = 66]{ai2025}. The study takes that cost as given, asks whether the
+system reduces it, and pre-commits to the interpretation of every outcome, including failure.
 
 \section{Contributions}
 
 \begin{itemize}
-\item \textbf{C1: Design space.} A taxonomy of DR capability under compositing constraints on consumer
-  VST hardware: three access tiers, with the achievable effects, ceilings and costs of each,
-  characterised from implementation experience rather than speculation (Chapter 3).
-\item \textbf{C2: Reference implementation.} An open, working multi-mode DR attention-guidance system
-  on Quest 3 passthrough, with the code publicly available at
-  \url{https://github.com/batunii/Arjuna}: the world-locked focus-window-as-absence architecture, world-direction
-  fusion sampling that lets a monocular camera feed fuse binocularly, motion-coupled comfort
-  suppression, and ten peripheral treatments spanning the three-tier space. Two of them, SignPop and
-  Hard Dark, are carried to confirmatory evaluation, with documented failure modes and with the
-  architecture's two central trades, frame cost and legibility, measured on device (Chapter 4).
-\item \textbf{C3: Pre-registered user study, carried to analysis.} A falsifiable within-subjects
-  design with a single properly powered primary hypothesis, equivalence-bounded safety testing, pilot
-  gates and a pre-committed decision table, together with the full analysis of the seventeen
-  workstation and fifteen driving pairs collected, read against that table (Chapter 5).
+\item \textbf{C1: Design space.} A taxonomy of what DR is and is not achievable under the
+  compositing constraints of consumer VST hardware, with the ceilings and costs of each kind of
+  access, characterised from implementation experience rather than speculation (Chapter 3).
+\item \textbf{C2: Reference implementation.} An open, working multi-mode DR attention-guidance
+  system on Quest 3 passthrough. Its main technical elements are a world-locked focus window
+  rendered as an absence in the overlay, a world-direction sampling scheme that lets the monocular
+  camera feed fuse binocularly, motion-coupled comfort suppression, and ten peripheral treatments
+  spanning the design space of Chapter 3. Two of them, SignPop and Hard Dark, are carried to
+  confirmatory evaluation, with documented failure cases and with the architecture's two central
+  trade-offs, frame cost and legibility, measured on device (Chapter 4). The full source code is
+  publicly available at \url{https://github.com/batunii/Arjuna}.
+\item \textbf{C3: Pre-registered user study, carried to analysis.} A within-subjects study designed
+  so that any outcome is informative: one adequately powered primary hypothesis, a safety check with
+  a pre-set margin on how much peripheral awareness may be lost, pilot checks that gate the design,
+  and a decision table committing the dissertation to a conclusion under every outcome. It is
+  reported with the full analysis of the seventeen workstation and fifteen driving pairs collected,
+  read against that table (Chapter 5).
 \end{itemize}
 
 \section{Scope: what this dissertation does not claim}
@@ -211,21 +242,10 @@ is the one reported.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{content/figures/fig_treatments.jpg}
-\caption{The three study treatments seen from the user's viewpoint, from on-device recordings.
-SignPop is shown in the video test scene it is evaluated in; Soft Dark and Hard Dark are shown over
-live passthrough of a real room, each with the world-locked focus window revealing untouched
-passthrough.}
-\label{fig:treatments}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
 \includegraphics[width=\linewidth]{content/figures/fig_dissertation_structure.png}
 \caption{The two-part structure of the dissertation.}
 \label{fig:structure}
 \end{figure}
 
-Figure~\ref{fig:treatments} shows the three treatments as the user sees them, and
-Figure~\ref{fig:structure} sets out how the two parts fit together, with the workstation block
-bridging them on real hardware.
+Figure~\ref{fig:structure} sets out how the two parts of the dissertation fit together, with the
+workstation block bridging them on real hardware.

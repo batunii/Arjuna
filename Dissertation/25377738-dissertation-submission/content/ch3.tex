@@ -36,10 +36,10 @@ The motivation for the boundary predicts its persistence. The passthrough image 
 camera view of the user's home, workplace, and bystanders. Granting arbitrary applications read
 access to it is a privacy exposure, and granting write access is a safety exposure, because an
 application could imperceptibly alter the user's view of the physical world they are walking through.
-Both concerns strengthen rather than weaken over time, so research that assumes future
-read-modify-write access to system passthrough is betting against the platform vendors' incentives.
-This dissertation makes the opposite bet. It treats the constraint as permanent and asks what can be
-built inside it, which is what gives the resulting design space its claim to durability.
+Both concerns seem likely to strengthen rather than weaken over time, so research that assumes
+future read-modify-write access to system passthrough is betting against the platform vendors'
+incentives. This dissertation makes the opposite bet. It treats the constraint as permanent and asks
+what can be built inside it, which is what gives the resulting design space its claim to durability.
 
 Subtractive attention guidance must therefore be \textit{synthesised} on consumer VST hardware
 through whatever compositing rights the platform does grant. Figure~\ref{fig:stack} shows the three
@@ -95,8 +95,8 @@ SignPop (evaluated, built on the ColorPop pipeline), ColorPop, Blur (superseded)
 
 \subsection{Tier 1: the styling ceiling}
 
-Tier 1 deserves precision because it prevents an overclaim this dissertation must not make. It is
-\textit{not} true that nothing can be done to the system passthrough layer. Meta's Passthrough
+Tier 1 needs precise description, because some adjustment of the system passthrough layer is
+possible and overlooking it would overstate the constraint. Meta's Passthrough
 Styling API allows an application to apply brightness, contrast and saturation adjustments, full 3D
 colour look-up tables, and edge tinting to the layer as a whole \citep{meta2024a}. A global
 desaturation of the entire visual field, one conceivable DR primitive, is achievable at Tier 1
@@ -171,6 +171,11 @@ the window, seamlessly surrounded by a re-graded interpretation of reality outsi
 the quality and field-of-view asymmetry between the two layers rather than suffering it.
 Figure~\ref{fig:hybrid} separates the composite into its layers and shows the single view they fuse
 into. The implementation is Chapter 4's subject.
+
+\textbf{The composite itself was never placed in front of a participant.} Hard Dark was evaluated at
+the workstation and SignPop in the video scene, so no session put a shader-processed camera periphery
+around a native passthrough window. The composite is validated on the device rather than on people
+(Chapter 4, Section 4.11), and no claim here rests on how it is experienced.
 
 \begin{figure}[htbp]
 \centering
@@ -275,7 +280,7 @@ resolved by it.
 \label{sec:novelty}
 
 The claims of this chapter are calibrated against the structured prior-art search reported in
-Chapter 2, Section 2.5.2. Three verdicts matter here.
+Chapter 2, Section~\ref{sec:priorart}. Three verdicts matter here.
 
 \begin{enumerate}
 \item \textbf{The hybrid composite}, system passthrough revealed through a window in a live
@@ -302,9 +307,9 @@ composite}, native passthrough through a world-locked focus window in an effect-
 periphery, exploiting the quality and field-of-view asymmetry between layers, \textbf{applied to
 peripheral attention guidance on a consumer standalone headset}, together with the world-direction
 fusion sampling that makes the mono feed binocularly viewable. An alpha-blended dark overlay, by
-itself, is just compositing, and is not claimed as novel. Should a refresh search before submission
-surface a concurrent system, the claim degrades gracefully to independent invention with a
-characterised design space, which is why it is worded around the space rather than the trick.
+itself, is just compositing, and is not claimed as novel. The claim is worded around the design
+space rather than the single technique. If a concurrent system were to surface, the contribution
+would remain a characterised design space with an independently built implementation.
 
 Two adjacent patents \citep{patents} describe claim-level ideas in this territory: attenuating
 external stimuli while preserving spatial awareness, and blurred external video feeds composited into
@@ -315,7 +320,8 @@ VR. Neither shows evidence of implementation. They are noted for completeness.
 On consumer VST hardware, diminished reality is not one problem but three, stratified by compositing
 access: a colour-only, spatially blind styling tier, an attenuation-and-occlusion overlay tier whose
 most powerful move is a shaped absence, and a full-control camera-copy tier that pays in fidelity,
-latency, fusion and heat. The study modes span the space this stratification creates, the hybrid
+latency, fusion and heat. The modes carried into the user study span the space this stratification
+creates, the hybrid
 composite exploits the asymmetry between its tiers, and the walls of the space, no reads, no spatial
 modulation of the native layer, no subtraction on OST, are findings in their own right. Chapter 4
 descends from this map into the machine.

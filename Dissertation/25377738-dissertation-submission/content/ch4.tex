@@ -131,12 +131,12 @@ from the feed with whatever manipulation the active mode specifies, and outputs 
 \verb|alpha = t*strength|. Inside the window, \verb|t = 0| yields transparency and the OS layer shows
 through. The seam between the two renderings is the window's soft edge, where the processed feed
 fades out over \verb|_SoftEdge| radians. Because both renderings depict the same world from nearly
-the same viewpoint, the transition reads as an effect boundary rather than as two images.
+the same viewpoint, the transition tends to read as an effect boundary rather than as two images.
 
 The construction has one honest seam-level caveat. The two renderings do not share a latency budget:
 the OS passthrough inside the window is served by the platform's dedicated low-latency reprojection
 path, while the camera-fed periphery carries the application pipeline's additional delay. In static
-or slowly moving views the mismatch is invisible. Under fast head rotation the periphery can
+or slowly moving views the mismatch is not noticeable. Under fast head rotation the periphery can
 momentarily lag the window at the seam. The motion-based suppression of Section 4.6 incidentally
 masks the worst case, since the effect fades out precisely when the head moves fast, but the residual
 mismatch is a real property of the hybrid rather than something designed away.
@@ -176,16 +176,16 @@ uv = ( (dir.rt, dir.up) / max(dir.fwd, eps) ) / tanHalfFov * 0.5 + 0.5
 \end{verbatim}
 
 Because world direction is eye-independent, both eyes sample the \textit{same} camera pixel for the
-same world point. The mono image behaves like a texture painted onto the world shell, and the visual
-system fuses it. The residual and acceptable artefact is that the painted shell has no true stereo
+same world point. The mono image behaves like a texture painted onto the world shell, which the
+visual system can fuse, as verified on device (Section 4.10). The residual and acceptable artefact is that the painted shell has no true stereo
 disparity of its own, which is consistent with the project's standing comfort constraint that a mono
 feed must never be presented as if it were geometry-correct stereo across the full field of view.
 
 Where both cameras are available, the shader samples both and selects per fragment by in-view weight,
 a \textbf{hard split} rather than an alpha crossfade, because a crossfade of two horizontally offset
 viewpoints produces exactly the ghosting the world-direction scheme exists to avoid. The two forward
-cameras share an orientation and differ only by a small horizontal baseline, so the stitch line is
-invisible in normal use. Figure~\ref{fig:fusion} contrasts the two sampling schemes on the same world
+cameras share an orientation and differ only by a small horizontal baseline, and no stitch line was
+visible in normal use. Figure~\ref{fig:fusion} contrasts the two sampling schemes on the same world
 point.
 
 \begin{figure}[htbp]
@@ -267,7 +267,7 @@ therefore placed in the gap the two populations leave.
 \textbf{The other track}, meaning non-ROG pixels, stays near-natural inside the window, with a slight
 desaturation that keeps the window from feeling artificially vivid against its own periphery, and is
 graded down to dim grey outside (\verb|_PopGreyDim| = \textbf{0.4}). The floor sits at 0.4 rather
-than lower because a periphery approaching black stops carrying peripheral events at all, and a
+than lower because a periphery approaching black would carry almost no peripheral events, and a
 monitoring mode whose own dimming floors peripheral detection would fail its safety hypothesis by
 construction rather than by finding. This track covers the great majority of peripheral pixels, so
 its floor, rather than the signal track's, is what decides whether the periphery stays usable.
@@ -281,8 +281,8 @@ signal-relevant colours remain detectable \textit{everywhere}, merely privileged
 which fits a monitoring context in which a peripheral traffic light must never become invisible.
 
 \textbf{Glare compression.} Pixels that are bright, unsaturated, and not ROG, the signature of
-headlight glare, are compressed toward a knee at \verb|_PopGlareKnee| = 0.6 luma, which is the level
-above which a light source begins veiling the detail around it rather than merely being bright. They
+headlight glare, are compressed toward a knee at \verb|_PopGlareKnee| = 0.6 luma, a level above
+which a light source tends to veil the detail around it rather than merely being bright. They
 are compressed toward that knee and never to black, so the oncoming vehicle stays legible while its
 veiling glare is attenuated. The compression is mild inside the window and strong outside it, because
 inside the window the user is looking directly at the source and needs it to remain readable, whereas
@@ -301,7 +301,7 @@ preferred over removal, and \citet{barhorstcates2016} found anxiety rising monot
 visible field narrows, so a monitoring mode that must keep a peripheral traffic light findable has
 reason to stop at roughly half natural brightness rather than push further.
 
-Because a colour and grey boundary reads perceptually harsher than a blur or darkness boundary,
+Because a colour and grey boundary tends to read harsher than a blur or darkness boundary,
 ColorPop uses a widened window edge, \verb|m_popSoftEdgeDeg| = \textbf{32$^{\circ}$} against the
 global default of 20$^{\circ}$. Figure~\ref{fig:colorpop} traces a fragment through the
 classification, the two grading tracks, and the periphery dim that merges them.
@@ -355,7 +355,7 @@ carried forward.}
 \textbf{ChromaticCool} & Warm window against a cool periphery, chromatic opposition & Luminance modulation outperforms warm–cool chromatic modulation in its own source study \citep{bailey2009} \\
 \textbf{Conspicuity\-Squeeze} & Centre–surround contrast flattened toward the local mean, after \citet{veas2011} & Brightened the periphery instead of squeezing its contrast, the opposite of the intent, confirmed by shader inspection \\
 \textbf{Granulated\-Periphery} & World-locked static noise grains with eccentricity-ramped density, after \citet{cao2021} & Grains occlude fine detail, the wrong failure mode for a driving scene where the detail is the target \\
-\textbf{OutlinedDark} & Near-blackout with luminance edges restored, after \citealp{cheng2022}'s finding that context-preserving outlines reduce anxiety & Surviving edges read as a comic-book style that early testers found more interesting than the task \\
+\textbf{OutlinedDark} & Near-blackout with luminance edges restored, following the finding of \citet{cheng2022} that context-preserving outlines reduce anxiety & Surviving edges read as a comic-book style that early testers found more interesting than the task \\
 \textbf{SpotLift} & Focus-region brightness lift over a soft peripheral dim & Cannot exist on the passthrough path at all, since OS passthrough cannot be brightened. Video path only \\
 \hline
 \end{longtable}
@@ -401,7 +401,8 @@ surround.}
 
 \subsection{Detection-gated salience re-grading (SignPop)}
 
-\textbf{SignPop} is an eleventh mode, live only in the video test scene, and it is the mode placed in
+\textbf{SignPop} is the most capable of the ten peripheral treatments, live only in the video test
+scene, and it is the mode placed in
 front of participants in the driving block (Figure~\ref{fig:signpopphoto}). It shares ColorPop's
 four-level ROG grading pipeline, but
 a confirmed detection from the offline oracle track (Section 4.8) gates a bundle of effects rather
@@ -423,7 +424,7 @@ lost. A \textbf{saliency lift} boosts saturation, brightness, and local contrast
 scaled down when the object already sits inside the focus window, since the standing window already
 reveals it there, and left at full strength in the periphery where the lift is doing the work. A
 \textbf{darkened surround} dims a soft annulus just outside the object's boundary, raising the
-object's centre–surround contrast from both sides after \citealp{veas2011}'s dual modulation. The
+object's centre–surround contrast from both sides, after the dual modulation of \citet{veas2011}. The
 saliency lift additionally oscillates at approximately 1 Hz, following \citet{waldner2014} on
 low-frequency, low-amplitude temporal modulation attracting attention with low annoyance, far below
 the 15–25 Hz photosensitivity band.
@@ -464,8 +465,8 @@ scale with the mode's intrusiveness: Blur 30$^{\circ}$/s with a 0.6 s hold, Colo
 with 0.7 s, Soft Dark 50$^{\circ}$/s with 1.0 s, Hard Dark 70$^{\circ}$/s with 1.5 s. The blackout
 mode tolerates the most motion before yielding and waits longest before returning, because wrongly
 suppressing a strong effect flashes the whole periphery back into view, while wrongly suppressing a
-gentle one costs nothing. The fade asymmetry follows the same logic: yielding must feel instantaneous
-to be trusted, and returning may be leisurely because nothing is at stake.
+gentle one costs little. The fade asymmetry follows the same logic: yielding should feel immediate
+to be trusted, and returning can be slower because little is at stake.
 
 The shader receives \verb|effectiveStrength = m_vignetteStrength * (1 - suppression)|, so suppression
 multiplies the formation state rather than resetting it, and a glance over the shoulder during the
@@ -507,7 +508,7 @@ where auto-sizing a window around a pointed target would hide a consequential pa
 heuristic. \textit{World-locking rather than head-locking}: the window belongs to the task surface
 rather than the gaze, and a head-locked window would chase attention rather than anchor it, which is
 also the comfort hazard Section 4.6 exists to avoid. \textit{Formation as transition}: the ramp
-exists because an instantaneous peripheral blackout is startling, and it doubles as the user's
+exists because an instantaneous peripheral blackout would be startling, and it doubles as the user's
 confirmation that the lock succeeded. Figure~\ref{fig:interaction} follows one placement from
 painting to locked formation.
 
@@ -604,8 +605,8 @@ rather than leaving it to the scene's saved state.
 
 \section{The Failure Museum}
 
-Documented dead ends are reusable knowledge. This section reports the failures that shaped the
-system, each with what was tried, why it failed, and what replaced it.
+This section reports the failures that shaped the system, on the view that documented dead ends are
+reusable knowledge: each with what was tried, why it failed, and what replaced it.
 
 \textbf{1. Screen-space camera sampling $\rightarrow$ double vision.} The first shader sampled the
 camera texture by screen position. Per-eye the image was correct. Binocularly it could not fuse,
@@ -760,6 +761,6 @@ per-fragment colour and alpha policy over a world-locked spherical window. Its l
 techniques, the window as absence, the hybrid composite of native passthrough and processed camera
 feed, and eye-independent world-direction sampling, are each answers to a specific platform wall, and
 its failures are documented with the same care as its successes because both are findings about
-building DR on consumer hardware. Its two central trades are measured on device: the dark modes cost
+building DR on consumer hardware. Its two central trade-offs are measured on device: the dark modes cost
 nothing over an empty scene, and the native path the window preserves resolves at least two logMAR
 steps finer than the camera copy. Chapter 5 asks whether any of it helps a person.

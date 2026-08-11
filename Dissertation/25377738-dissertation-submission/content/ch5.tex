@@ -2,7 +2,8 @@
 
 \begin{quote}
 \textbf{Status note.} This study pre-registered a target of 20 analysed participants, run to a
-frozen protocol after a formal pass/fail pilot. Collection ended at \textbf{eighteen people tested},
+frozen protocol after a formal pass/fail pilot. \textit{Pre-registered} is used throughout in the
+sense defined in Chapter 1, Section 1.4. Collection ended at \textbf{eighteen people tested},
 across an initial pilot day and six further collection days, when the dissertation deadline arrived,
 preceded by informal naive-pilot iteration used to tune stimulus parameters ahead of the frozen
 protocol. Stopping two short of target is a protocol deviation and is reported as one. The analysis
@@ -17,17 +18,17 @@ rather than repeated sentence by sentence.
 \section{What the Study Must Be Able to Conclude}
 
 The purpose of this study is to determine whether the system of Chapters 3 and 4 \textit{works},
-and just as importantly to be able to determine that it \textit{does not}. A study that can only
-confirm is not an experiment. It is a demonstration. Two design choices produce that defect: an
-underpowered between-subjects comparison, and safety hypotheses phrased as bare nulls, since a
-non-significant difference in a small sample is evidence of nothing.
+and just as importantly to be able to determine that it \textit{does not}. A study that could only
+confirm would be a demonstration rather than an experiment. Two design choices commonly produce that
+defect: an underpowered between-subjects comparison, and safety hypotheses phrased as bare nulls,
+since a non-significant difference in a small sample carries little evidential weight.
 
-The design removes the possibility of an inconclusive outcome by reframing the question around an
+The design maps every outcome to a pre-committed conclusion by reframing the question around an
 effect already established in the literature. Peripheral visual distractors reliably impose a
 measurable performance cost on a focal sustained-attention task in a head-mounted display: in a
 virtual-classroom Go/No-go study, commission errors more than doubled in the presence of peripheral
 distractor events \citep[N = 66]{ai2025}. The primary question is therefore not the unconstrained
-"does the vignette make people better?" but the falsifiable:
+``does the vignette make people better?'' but the falsifiable:
 
 \begin{quote}
 \textit{Peripheral distractors impose a measurable cost on a focal task. Does the DR vignette reduce
@@ -55,9 +56,9 @@ evaluation misses.
 The design is fully within-subjects with a high trial count per condition, following the two closest
 published DR evaluations \citep{cheng2022,mclaughlin2025} and the field norm \citet{caine2016}
 documents, where in-person studies draw their power from repeated measures rather than headcount.
-Each participant contributes 140 scored task events per Block A condition and 40 marker events per
-Block B condition, so the seventeen analysed workstation pairs contribute 4,760 scored Block A
-trials.
+Each participant contributes up to 140 task events per Block A condition and 40 marker events per
+Block B condition, so the seventeen analysed workstation pairs contribute 4,125 file-backed scored
+Block A trials (task versions and provenance: Section 5.7).
 
 \section{Research Questions and Pre-Registered Hypotheses}
 
@@ -104,8 +105,8 @@ error rate rather than a raw count, because the raw rate depends on stimulus tun
 legitimately adjusts. The 50\% default embodies a practical judgement: a vignette that removes less
 than half of the distraction-laden error rate does not justify wearing a headset to obtain it. H2b's
 10-point margin reflects the safety framing inherited from the focus-versus-awareness trade-off
-documented by \citet{mclaughlin2025} and \citet{murph2021}. In a monitoring context, losing more than
-one detection event in ten to the overlay is an unacceptable awareness cost. Equivalence testing
+documented by \citet{mclaughlin2025} and \citet{murph2021}. Losing more than one detection event in
+ten to the overlay was judged an unacceptable awareness cost for a monitoring context. Equivalence testing
 follows \citet{lakens2017}, which gives the safety hypothesis a form that can fail rather than a bare
 null.
 
@@ -139,7 +140,7 @@ confirmatory blocks. A written \textbf{stop rule} is applied without discussion:
 terminates immediately if the participant reports nausea or dizziness at a moderate or worse level,
 or if the experimenter observes distress. The Virtual Reality Sickness Questionnaire \citep{kim2018}
 is administered pre and post, because post-only scores are uninterpretable without a baseline
-\citep{brown2022}. Across the sessions run to date the stop rule has not been triggered and no
+\citep{brown2022}. Across all eighteen sessions the stop rule was never triggered and no
 session was terminated. One participant reported feeling unwell, rested during the mid-session
 break, and chose to complete their remaining runs. The session timeline, pilot gates, analysis plan, decision table, operational
 protocol, threats to validity and exclusion rules are set out in full in Appendix~A.
@@ -179,8 +180,9 @@ Figure~\ref{fig:blockalayout} gives the plan view.
 \end{figure}
 
 The two conditions are \textbf{NoFilter}, where the window is painted but invisible, and
-\textbf{Filter}, Hard Dark on. Each lasts 4 minutes 40 seconds, which is 140 trials at a 2.0 s
-stimulus onset asynchrony, run once each per participant in counterbalanced order. Before the first
+\textbf{Filter}, Hard Dark on. In the final task version each lasts 4 minutes 40 seconds, which is
+140 trials at a 2.0 s stimulus onset asynchrony, run once each per participant in counterbalanced
+order. Earlier sessions ran shorter versions of the same task (Section 5.7). Before the first
 condition the participant paints the focus window around the central task region and releases to
 lock it, and the experimenter verifies that both distractor panels fall outside it and the entire
 task region inside. The same locked window persists across both conditions. Hard Dark's job here is
@@ -188,7 +190,7 @@ to occlude the distractor panels from view entirely, not merely dim them at a di
 
 \textbf{The task is a forced-choice 1-back.} The centre of the task display, inside the focus
 window, presents one look-alike shape at a time, drawn from a set of six at $\geq$ 3$^{\circ}$
-visual angle, and the participant answers yes or no on every shape to "same as the previous shape?"
+visual angle, and the participant answers yes or no on every shape to ``same as the previous shape?''
 via trigger press. Two choices in that sentence are load-bearing. The task is seen through the
 window's untouched native passthrough and its shapes are deliberately large, because Quest 3
 passthrough does not reach normal visual acuity and a task requiring fine detail would floor out in
@@ -253,9 +255,12 @@ itself \citep{wallis2015}.}
 
 A \textbf{hit} is a trigger press while the marker is on screen, within 10$^{\circ}$ of its position
 at that instant. Presses landing on nothing are false alarms. Markers move while visible, by
-17$^{\circ}$ of travel on average, so scoring against a marker's average position would misassign a
-meaningful share of presses to the wrong analysis band. Every press is instead scored against the
-marker's reconstructed position, from the recorded scene track, at the exact instant of the press.
+17$^{\circ}$ of travel on average, so scoring against a marker's average position misassigns a
+meaningful share of presses to the wrong analysis band. The intended method is therefore to score
+every press against the marker's reconstructed position, from the recorded scene track, at the exact
+instant of the press. That reconstruction is not yet implemented in the analysis pipeline, so the
+band table reported in Section 5.7.3 assigns each target by its mid-lifetime position instead, and
+the size of the resulting misassignment is stated there as a limit on the band finding.
 
 \textbf{Eccentricity bands.} Each scored marker is assigned to one of four bands, fixed from
 published gaze landmarks before any data was seen. Driver gaze concentrates in a road-centre region
@@ -304,17 +309,19 @@ confound.
 
 The instrument is a single end-of-session questionnaire, self-completed with the headset off after
 the post-session sickness questionnaire and before the debrief, so opinions are captured before the
-hypotheses are revealed. It carries 23 rated items across three constructs, perceived focus benefit,
-perceived awareness cost and visual comfort, each mixing positively and negatively keyed items to
-counter acquiescence bias. Because it asks for one considered opinion of the whole session, it cannot
+hypotheses are revealed. It carries 21 rated items across four sections, plus a preference ranking
+and a multi-select. The three scored constructs, perceived focus benefit, perceived awareness cost
+and visual comfort, carry 15 of those items, each mixing positively and negatively keyed items to
+counter acquiescence bias. The fourth section, on acceptance and willingness to use, was not
+administered, so the study has no acceptance data. Because it asks for one considered opinion of the whole session, it cannot
 separate Hard Dark's contribution from SignPop's. It is a system-level instrument, reported as
 exploratory.
 
 \section{Results}
 
 Eighteen people were tested. The pre-registered target was twenty, and collection ended two short of
-it when the dissertation deadline arrived. That is the study's largest protocol deviation and it is
-stated first. The analysis proceeds on a specific ground rather than convenience: the 20-participant
+it when the dissertation deadline arrived. That shortfall is a protocol deviation, and the status
+note at the head of this chapter reports it as one. The analysis proceeds on a specific ground rather than convenience: the 20-participant
 target existed to buy 80\% power for the primary contrast, and the achieved sample already delivers
 it, at 82\% for the primary contrast and 84\% for the pre-registered eccentricity band (both
 one-tailed, matched to the directional hypotheses). What the shortfall does cost is stated where it
@@ -325,40 +332,47 @@ Block A yields \textbf{seventeen} usable paired participants and Block B \textbf
 overlapping but not identical because some participants contributed a usable result to one block and
 not the other. One participant is excluded from Block A: P1's task rounds ran about fifteen minutes
 after the session's Unity blocks closed, so the arm assignment cannot be verified from the session
-ledger. Three participants are excluded from Block B under documented rules, never inferred ones: P3
-for 539 false alarms on the filter run with provably looser hits (Mann-Whitney $p = .0301$), P9 by
-experimenter decision on the day, and P43 for false-alarm counts of 81 and 54 across the two arms,
-the highest in the set by a wide margin, on the same response-validity grounds as P3. A fourth,
-P15, had their own Block B excluded for 206 false alarms across 246 presses and is analysed jointly
-with P16 as one participant. Block A is retained for P3, P9 and P43, since the exclusions concern
-the marker task alone.
+ledger. That exclusion is specific to Block A, and P1's Block B pair is unaffected and is analysed.
+Three participants are excluded from Block B under documented rules, never inferred ones. Two fall
+under the pre-registered response-validity rule: P3 for 539 false alarms on the filter run with
+provably looser hits (Mann-Whitney $p = .0301$), and P43 for false-alarm counts of 81 and 54 across
+the two arms, the highest in the set by a wide margin, on the same grounds as P3. The third is P9,
+excluded by experimenter decision on the day under the task-comprehension rule: the response rule
+was not yet understood during that participant's first video block, which was their first exposure
+to the task. Separately, P15 and P16 are two ledger IDs for one participant, reconciled into a
+single record under the relaunch rule of Appendix~A, Section~A.4. That participant's P15 Block B run
+is excluded for 206 false alarms across 246 presses, so the P16 pair is their Block B record and the
+P15 pair their Block A record.
+Block A is retained for P3, P9 and P43, since those exclusions concern the marker task alone. The
+arithmetic closes on the eighteen tested: seventeen contribute a Block A pair, the eighteen less P1,
+and fifteen contribute a Block B pair, the eighteen less P3, P9 and P43.
 
-Provenance facts belong with the numbers rather than in a footnote. First, Block A is pooled
-across the four task versions used during the study. The versions differ, and a Kruskal-Wallis test
-across them is significant ($H = 16.36$, $p = .0010$), but the difference is the deliberate v4 change
-that added lures and switched the distractor reel in response to a 95--100\% ceiling on v3. Within
-the test versions the only timing difference is a 1.8 s against a 2.0 s stimulus onset asynchrony,
-and median correct reaction time across every run sits between 630 and 950 ms, so no participant is
-response-limited under either and a 200 ms difference cannot plausibly drive an accuracy gap. Second,
-and less comfortably, \textbf{one of the 34 Block A values is experimenter-reported rather than
-measured}: P4's no-filter accuracy of 98.4\% has no exported CSV. It is retained because the
-assignment is documented, but it is the only such value and every Block A figure inherits that
-qualification. Dropping it changes nothing ($p = .0175$ against $.0212$, $d_z$ unchanged).
-
-Three protocol deviations from the 2026-08-06 and 2026-08-07 sessions are reported here because the
-protocol is pre-registered. The build changed between the 7 August sessions. Two participants (P41,
-P43) removed the headset after their final block instead of pressing the completion control, so the
-session ledger lacks its final block row for each; both blocks are verified complete against the
-task's own trial-by-trial log, so no data is missing, only the ledger's bookkeeping. And P25 ran
-Block A twice: the re-run pair, taken six minutes apart so fatigue and time of day are matched, is
-canonical, and its no-filter arm re-used a slot and seed the participant had seen about three hours
-earlier. That repeat is not a familiarity confound, since a 1-back task does not reward sequence
-knowledge and the repeat scored \textit{worse} (86.3\% against 99.3\%), but the unexplained drop on
-identical trials is recorded in the incident log.
+Two provenance facts belong with the numbers rather than in a footnote. Block A pools four versions
+of the same task. The first five participants ran a short version of 84 or 105 trials that sat at
+95.2\% mean accuracy, and everyone from P9 onward ran the 140-trial version, which was changed
+deliberately to move performance off that ceiling. Pooling is justified by the robustness split
+reported below, where the two halves of the sample return the same effect at the same size. And one
+of the thirty-four Block A arms, P4's filter-off arm, is the experimenter's contemporaneous record
+rather than an exported
+file, which is why the trial count in Section 5.1 is given as file-backed. Dropping that arm changes
+nothing ($p = .0175$ against $.0212$, $d_z$ unchanged).
 
 \subsection{H1: workstation focus}
 
-Accuracy on the memory task rose from 92.30\% (SD 6.56) with the vignette off to 95.39\% (SD 4.17)
+\textbf{The pre-registered primary test.} Table~A.4 registers H1's primary test as a trial-level
+logistic model with a participant random effect, and the paired test as its robustness
+check. Across the 4,125 file-backed scored trials from seventeen participants the vignette term is
+significant: \textbf{odds ratio 0.583} (95\% CI 0.396 to 0.860, $z = -2.724$, $p = .0065$), so Hard
+Dark \textbf{reduces trial-level error odds by 41.7\%}. The estimator fitted is a logistic GEE with
+an exchangeable working correlation clustered by participant, because statsmodels offers no strict
+frequentist mixed model with p-values, a substitution already documented in
+\texttt{Tools/analysis/h1\_lmm.py}. The literal random-intercept specification agrees, at odds
+ratio 0.578 with a 95\% credible interval of 0.474 to 0.704. Trial-level models use 33 of the 34
+Block A arms, because P4's filter-off arm has no exported file. The robustness check agrees in
+direction and significance, and is the weaker of the two because it averages within participants
+before testing rather than using the trials themselves.
+
+\textbf{The registered robustness check.} Accuracy on the memory task rose from 92.30\% (SD 6.56) with the vignette off to 95.39\% (SD 4.17)
 with Hard Dark on. That is a gain of \textbf{+3.09 percentage points} (SD 4.79, median +2.16; 95\% CI
 +0.62 to +5.55, paired $t(16) = 2.66$, $p = .017$; Wilcoxon $W = 21.0$, $p = .015$; $d_z = 0.645$).
 Twelve of seventeen participants improved, four declined, one was unchanged. Achieved power at this
@@ -392,8 +406,7 @@ Figure~\ref{fig:h1} shows every participant's pair.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{content/figures/fig_slopegraph_h1.png}
-\caption{Block A per-participant accuracy, vignette off versus Hard Dark on (N = 17). P4 is drawn
-dashed because its vignette-off value is experimenter-reported rather than measured.}
+\caption{Block A per-participant accuracy, vignette off versus Hard Dark on (N = 17).}
 \label{fig:h1}
 \end{figure}
 
@@ -513,9 +526,9 @@ each run 7 of 16. Visual comfort sits at 45 of 64 across its four answered items
 items on holding attention, looking away and knowing where to look were answered favourably by 15,
 14 and 15 of the sixteen respondents. At the earlier ten-participant analysis these three were
 unanimous and they no longer are, which is a useful reminder of how little weight a unanimous result
-at that sample size could carry; the one strong dissenter on focus benefit is also the participant
-whose unexplained Block A re-run drop is recorded in Section 5.7. Figure~\ref{fig:esq} shows the
-three constructs side by side.
+at that sample size could carry. One respondent dissents strongly across the focus-benefit block,
+answering one of its five items favourably, so the construct is not uniformly endorsed even where it
+is strongest. Figure~\ref{fig:esq} shows the three constructs side by side.
 
 \begin{figure}[htbp]
 \centering
@@ -527,9 +540,9 @@ three constructs side by side.
 \textbf{The subjective impression of lost awareness is not supported by the behavioural hit rate},
 which shows no loss at all and, in the 20--30$^{\circ}$ band, an improvement. Two explanations are
 worth taking seriously rather than explaining away. First, noticing that the periphery has been
-changed is a different experience from missing something in it, and every DR manipulation studied to
-date is noticed \citep{sutton2022}. "I can tell my vision has been altered" and "I failed to detect
-something" are not the same report, even when only the first is true. Second, narrowed-field anxiety
+changed is a different experience from missing something in it, and the DR manipulations studied to
+date have all been reported as noticeable \citep{sutton2022}. ``I can tell my vision has been altered'' and ``I failed to detect
+something'' are not the same report, even when only the first is true. Second, narrowed-field anxiety
 is documented independently of task performance, rising in every restricted-field condition tested in
 the literature, including conditions where spatial learning is unaffected \citep{barhorstcates2016}.
 Reassuring people directly, for instance with a visible cue when something happens outside the
