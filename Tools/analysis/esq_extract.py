@@ -2,12 +2,16 @@
 """ESQ extraction, all forms. Answer = Y/N written in the Key column; '+'/'(R)' = unanswered.
 Favourable = agree(Y) on positively keyed items, disagree(N) on reverse-keyed items.
 Validates against the recorded 16-form totals (A 71/80, B 46/80, C 45/64) before adding
-the 2026-08-11/12 forms (P51, P90). P84 and P86 were dropped 2026-08-12: their raw session
-files and questionnaire forms are no longer present on disk."""
+the 2026-08-11/12 forms (P51, P90).
+P84/P86: see Dissertation/authored/provenance/README-p90-blocka-provenance.md."""
 import sys, zipfile, re, glob, collections
+from pathlib import Path
 sys.stdout.reconfigure(encoding='utf-8')
 
-DIR = r'C:\Users\syson\Documents\Code\Unity-PassthroughCameraApiSamples\Dissertation'
+# Resolve relative to this file so the script runs on any machine and from any working directory.
+DIR = str((Path(__file__).resolve().parents[2] / 'Dissertation'))
+if not Path(DIR).is_dir():
+    raise SystemExit(f'questionnaire directory not found: {DIR}')
 
 # True item keys, from the instrument (post-study-questionnaire.md / testing-strategy-v2 s7).
 # '+' = agreement favourable to the filter; 'R' = disagreement favourable.

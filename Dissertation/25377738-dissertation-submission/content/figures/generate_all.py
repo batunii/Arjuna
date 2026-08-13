@@ -260,8 +260,8 @@ def fig_eccentricity():
 # ============================================================
 def fig_questionnaire():
     constructs = ['Perceived\nFocus Benefit', 'Perceived\nAwareness Cost', 'Visual\nComfort']
-    # n = 20 forms; all 20 answered Section A. C3 was skipped by everyone, so C is over
-    # Section A (one respondent left it blank).
+    # n = 20 forms, all sections answered. Sections A and B: 5 items x 20 = 100 each.
+    # Item C3 was skipped by every respondent, so Section C is scored over 4 items (20 x 4 = 80).
     # Source: python3 Tools/analysis/esq_extract.py (analysis-2026-08-12-pooled-final.md)
     fav = [89, 58, 55]
     total = [100, 100, 80]

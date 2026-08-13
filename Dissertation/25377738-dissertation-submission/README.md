@@ -69,8 +69,8 @@ defaults, a rule across every body page and the page number moved into the heade
 ## Status of the work reported
 
 Data collection is complete. Twenty people were tested, all completing the full two-block
-protocol, which meets the pre-registered recruitment target exactly; no supplementary participants were
-added. Block A has nineteen usable paired participants, Block B seventeen, and twenty
+protocol, matching the planned recruitment headcount; the pre-registered target was set in analysed
+participants and is not met on either block, and no supplementary participants were added. Block A has nineteen usable paired participants, Block B seventeen, and twenty
 end-of-session questionnaires were completed.
 
 Every statistic traces to `../authored/analysis-2026-08-12-pooled-final.md`, which supersedes

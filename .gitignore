@@ -40,3 +40,7 @@ __pycache__/
 
 # Local review tool, not for the repo
 Dissertation/rewrite-app/
+
+# AI tooling — never ship inside the submission artefact
+.claude/
+.pi-subagents/

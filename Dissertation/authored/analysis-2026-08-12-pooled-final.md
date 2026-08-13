@@ -83,7 +83,7 @@ the robustness check (.0025 vs .0085).
 | Without P4 (experimenter-reported arm) | 18 | +3.15 | +0.84 … +5.45 | .0104 | .0086 | 0.678 |
 
 Same effect at the same size in both task-version halves (+3.30 vs +2.98); pooling still combines
-two measurements of one effect. Dropping P4's reported arm now *strengthens* the result slightly
+two measurements of one effect. Dropping P4's reported arm now *leaves essentially unchanged* the result slightly
 (p = .0104), so the disclosure sentence keeps its "changes nothing" conclusion with the new figures.
 
 Kruskal–Wallis across the four task versions (39 scored runs): **H = 16.70, p = .0008** — versions
@@ -167,7 +167,7 @@ Raw band counts: <10 `84/112 → 72/92`; 10–20 `95/233 → 122/243`; 20–30 `
 Band eccentricity is still the target's mid-lifetime position, a weak proxy (median lifetime
 swing 17.2°, ~31% of catches land in a different band than the mid position). Unchanged caveat.
 
-## End-of-session questionnaire, n = 18
+## End-of-session questionnaire, n = 20
 
 Extracted from the 20 completed forms by `Tools/analysis/esq_extract.py`. **Validation: the
 extractor reproduces the recorded 16-form totals exactly (A 71/80, B 46/80, C 45/64, and every

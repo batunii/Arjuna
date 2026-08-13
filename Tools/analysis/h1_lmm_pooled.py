@@ -40,7 +40,7 @@ import numpy as np
 import pandas as pd
 
 CORRECT = ("hit", "correct_reject")
-EXPECTED_TRIALS = 4125
+EXPECTED_TRIALS = 4681
 
 
 def load_blocka_pooled():
@@ -117,7 +117,7 @@ def main(argv):
     print(f"  excludes OR = 1: {np.exp(bb+1.96*sd) < 1.0}")
 
     print("\n== Registered ROBUSTNESS CHECK, for comparison (from blocka_pooled.py) ==")
-    print("  paired t(16) = 2.66, p = .0172, dz = 0.645, +3.09 pp, 95% CI +0.62..+5.55")
+    print("  paired t(18) = 2.95, p = .0085, dz = 0.678, +3.07 pp, 95% CI +0.89..+5.25")
     return 0
 
 
