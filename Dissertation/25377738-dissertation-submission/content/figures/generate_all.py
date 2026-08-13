@@ -7,6 +7,14 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 import numpy as np
 import os
+import sys
+
+# Windows consoles default to cp1252, which cannot encode the U+2713 tick used in the
+# progress lines below; without this the script dies after the first figure.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):  # pre-3.7, or a stream that cannot be reconfigured
+    pass
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(OUT, exist_ok=True)
@@ -26,16 +34,19 @@ plt.rcParams.update({
 # FIGURE 1: Slopegraph — Block A per-participant accuracy (H1)
 # ============================================================
 def fig_slopegraph():
-    # Measured per-participant accuracy, Block A, n = 17.
+    # Measured per-participant accuracy, Block A, n = 19.
     # Source: python3 Tools/analysis/blocka_pooled.py Dissertation/authored/raw/blocka
-    # These reproduce analysis-2026-08-08-pooled-n17.md exactly: NoFilter 92.30 (SD 6.56),
-    # Filter 95.39 (SD 4.17), delta +3.09, t(16) = 2.66, p = .0172, dz = 0.645, 12/17 up.
+    # These reproduce analysis-2026-08-12-pooled-final.md exactly: NoFilter 92.01 (SD 6.57),
+    # Filter 95.08 (SD 4.42), delta +3.07, t(18) = 2.95, p = .0085, dz = 0.678, 14/19 up.
     pids = ['P2', 'P3', 'P4', 'P6', 'P9', 'P10', 'P13',
-            'P15', 'P17', 'P20', 'P25', 'P26', 'P27', 'P30', 'P33', 'P41', 'P43']
+            'P15', 'P17', 'P20', 'P25', 'P26', 'P27', 'P30', 'P33', 'P41', 'P43',
+            'P51', 'P90']
     nf = np.array([97.6, 95.2, 98.4, 84.6, 95.0, 97.8, 100.0,
-                   74.8, 91.4, 86.3, 86.3, 89.2, 96.4, 89.2, 97.6, 96.4, 92.8])
+                   74.8, 91.4, 86.3, 86.3, 89.2, 96.4, 89.2, 97.6, 96.4, 92.8,
+                   95.7, 83.5])
     f  = np.array([100.0, 98.8, 100.0, 92.3, 100.0, 100.0, 97.1,
-                   90.6, 89.9, 91.4, 96.4, 86.3, 95.7, 93.5, 98.8, 96.4, 94.2])
+                   90.6, 89.9, 91.4, 96.4, 86.3, 95.7, 93.5, 98.8, 96.4, 94.2,
+                   97.8, 87.1])
 
     fig, ax = plt.subplots(figsize=(5, 6))
     for i in range(len(pids)):
@@ -47,17 +58,17 @@ def fig_slopegraph():
         ax.scatter([1], [f[i]], color=color, s=18, zorder=3, alpha=0.7)
 
     # Group means
-    ax.plot([0, 1], [92.30, 95.39], color='black', linewidth=2.5, zorder=4)
-    ax.scatter([0, 1], [92.30, 95.39], color='black', s=60, zorder=5)
+    ax.plot([0, 1], [92.01, 95.08], color='black', linewidth=2.5, zorder=4)
+    ax.scatter([0, 1], [92.01, 95.08], color='black', s=60, zorder=5)
 
     ax.set_xlim(-0.3, 1.3)
     ax.set_ylim(72, 101)          # 100% is a hard ceiling on accuracy; never pad above it
     ax.set_xticks([0, 1])
     ax.set_xticklabels(['NoFilter\n(Vignette Off)', 'Hard Dark\n(Vignette On)'])
     ax.set_ylabel('Accuracy (%)')
-    ax.set_title('Block A: Per-Participant Accuracy (N = 17)\n+3.09 pp, p = .017, $d_z$ = 0.645')
+    ax.set_title('Block A: Per-Participant Accuracy (N = 19)\n+3.07 pp, p = .009, $d_z$ = 0.678')
 
-    blue_patch = mpatches.Patch(color='#2c7bb6', alpha=0.5, label='Improved (12)')
+    blue_patch = mpatches.Patch(color='#2c7bb6', alpha=0.5, label='Improved (14)')
     red_patch = mpatches.Patch(color='#d7191c', alpha=0.5, label='Declined (4)')
     grey_patch = mpatches.Patch(color='#757575', alpha=0.5, label='No change (1)')
     black_line = plt.Line2D([0], [0], color='black', linewidth=2.5, label='Group mean')
@@ -127,7 +138,7 @@ def fig_architecture():
                  fontsize=13, fontweight='bold')
     fig.savefig(os.path.join(OUT, 'fig_architecture.png'))
     plt.close(fig)
-    print("  ok fig_architecture.png")
+    print("  ✓ fig_architecture.png")
 
 # ============================================================
 # FIGURE 2: Equivalence plot — H2b safety
@@ -142,18 +153,18 @@ def fig_equivalence():
     ax.axvline(0, color='black', linewidth=0.5, linestyle=':')
 
     # Point estimate and CI
-    ax.plot(6.00, 0.5, 'o', color='#1565c0', markersize=10, zorder=5)
-    ax.hlines(0.5, -0.09, 12.09, colors='#1565c0', linewidth=2.5, zorder=4)
-    ax.plot([-0.09, 12.09], [0.5, 0.5], '|', color='#1565c0', markersize=12, zorder=5)
+    ax.plot(7.35, 0.5, 'o', color='#1565c0', markersize=10, zorder=5)
+    ax.hlines(0.5, 1.50, 13.20, colors='#1565c0', linewidth=2.5, zorder=4)
+    ax.plot([1.50, 13.20], [0.5, 0.5], '|', color='#1565c0', markersize=12, zorder=5)
 
-    ax.annotate('+6.00 pp', (6.00, 0.55), ha='center', fontsize=10, fontweight='bold', color='#1565c0')
-    ax.annotate('90% CI: [−0.09, +12.09]', (6.00, 0.38), ha='center', fontsize=9, color='#1565c0')
+    ax.annotate('+7.35 pp', (7.35, 0.55), ha='center', fontsize=10, fontweight='bold', color='#1565c0')
+    ax.annotate('90% CI: [+1.50, +13.20]', (7.35, 0.38), ha='center', fontsize=9, color='#1565c0')
 
     ax.set_xlim(-16, 18)
     ax.set_ylim(0, 1)
     ax.set_yticks([])
     ax.set_xlabel('Paired Difference in Pooled Hit Rate (pp)')
-    ax.set_title('Block B: Pooled Hit Rate vs Safety Margin (H2b, N = 15)')
+    ax.set_title('Block B: Pooled Hit Rate vs Safety Margin (H2b, N = 17)')
     ax.legend(loc='upper left', fontsize=9)
 
     fig.savefig(os.path.join(OUT, 'fig_equivalence_h2b.png'))
@@ -164,26 +175,24 @@ def fig_equivalence():
 # FIGURE 3: Eccentricity band bar chart — H2a headline result
 # ============================================================
 def fig_eccentricity():
-    # Measured pooled hit rates per band, Block B, n = 15.
+    # Measured pooled hit rates per band, Block B, n = 17.
     # Source: python3 Tools/analysis/blockb_pooled.py Dissertation/authored/raw
-    # Reproduces analysis-2026-08-08-pooled-n17.md exactly.
-    #   <10    72/96  -> 67/84    10-20  86/207 -> 102/213
-    #   20-30  47/117 -> 71/123   >30    99/180 -> 100/180
+    # Reproduces analysis-2026-08-12-pooled-final.md exactly.
+    #   <10    84/112 -> 72/92    10-20  95/233 -> 122/243
+    #   20-30  51/131 -> 84/141   >30   111/204 -> 113/204
     bands = ['<10°', '10–20°', '20–30°', '>30°']
-    nf   = [75.0, 41.5, 40.2, 55.0]
-    filt = [79.8, 47.9, 57.7, 55.6]
+    nf   = [75.0, 40.8, 38.9, 54.4]
+    filt = [78.3, 50.2, 59.6, 55.4]
     # The lower panel is the PAIRED PER-PARTICIPANT difference, which is the estimator
     # the t/Wilcoxon tests and the CI actually belong to. It is deliberately not the
     # pooled difference of the bars above: participants contribute unequal numbers of
     # markers to a band, so the two estimators can disagree, and for <10 they disagree
-    # in sign (pooled +4.76, per-participant -2.50). Mixing them inside one glyph would
+    # in sign (pooled +3.26, per-participant -3.68). Mixing them inside one glyph would
     # put an interval around a point it was not computed for, so the panel uses the
     # per-participant mean throughout and the caption states the difference.
-    delta = [-2.50, +6.77, +17.78, +0.56]
-    dlo   = [-11.67, -3.80, +6.58, -6.81]
-    dhi   = [+6.67, +17.34, +28.97, +7.92]
-    # Colour-pop gate strength across the bands, per Chapter 6, Section 6.11.3.
-    gate_strength = [0, 20, 75, 100]
+    delta = [-3.68, +9.74, +20.82, +0.98]
+    dlo   = [-12.00, -0.20, +10.10, -5.70]
+    dhi   = [+4.60, +19.70, +31.50, +7.70]
 
     x = np.arange(len(bands))
     w = 0.35
@@ -199,27 +208,19 @@ def fig_eccentricity():
         ax1.text(xi - w/2, a + 1.5, f'{a:.1f}', ha='center', fontsize=8, color='#424242')
         ax1.text(xi + w/2, b + 1.5, f'{b:.1f}', ha='center', fontsize=8, color='#00695c')
 
-    # Significance annotation on the one band whose interval excludes zero.
-    # The bars on this axis are POOLED rates; the +17.8 figure is the PER-PARTICIPANT
+    # Significance annotation on the one band significant on both tests.
+    # The bars on this axis are POOLED rates; the +20.8 figure is the PER-PARTICIPANT
     # difference the tests belong to, so the estimator is named in the label. Without
     # it a reader subtracting the two bar labels gets the pooled delta instead.
-    ax1.annotate('* p = .014\n+17.8 pp (per participant)', xy=(2, 68), ha='center', fontsize=10,
+    ax1.annotate('* p = .004\n+20.8 pp (per participant)', xy=(2, 68), ha='center', fontsize=10,
                 fontweight='bold', color='#d32f2f')
 
     ax1.set_ylabel('Pooled Hit Rate (%)')
     ax1.set_ylim(0, 100)
-    ax1.set_title('Block B: Hit Rate by Eccentricity Band (H2a, N = 15)')
+    ax1.set_title('Block B: Hit Rate by Eccentricity Band (H2a, N = 17)')
     ax1.legend(loc='upper left', fontsize=9)
     ax1.grid(axis='y', alpha=0.3, zorder=0)
 
-    # Secondary axis: colour-pop gate strength
-    ax2 = ax1.twinx()
-    ax2.step(x, gate_strength, where='mid', color='#ff8f00', linewidth=2,
-             linestyle='--', label='Gate strength', zorder=2)
-    ax2.set_ylabel('Gate Strength (%)', color='#ff8f00')
-    ax2.tick_params(axis='y', labelcolor='#ff8f00')
-    ax2.set_ylim(0, 120)
-    ax2.legend(loc='upper center', fontsize=9)
 
     # UFOV boundary sits between the 20-30 and >30 bands
     for a in (ax1, ax3):
@@ -227,10 +228,14 @@ def fig_eccentricity():
     ax1.annotate('UFOV boundary ≈30°', xy=(2.55, 88), fontsize=8, color='#5d4037')
 
     # Lower panel: paired per-participant difference with its 90% interval.
-    # Only the 20-30 band's interval excludes zero, which is the H2a claim.
+    # Red marks the band significant on both the t and the rank test (20-30 only).
+    # The 10-20 band trends the same way at n = 17 but its 90% interval now spans
+    # zero ([-0.2, +19.7]) and its tests do not reach significance (p = .108), so
+    # ch5 reports it as a trend and the figure must not paint it as a finding.
+    significant = [False, False, True, False]
     ax3.axhline(0, color='black', linewidth=0.8, linestyle=':')
     for xi in range(len(bands)):
-        reliable = dlo[xi] > 0
+        reliable = significant[xi]
         col = '#d32f2f' if reliable else '#757575'
         ax3.vlines(xi, dlo[xi], dhi[xi], color=col, linewidth=2.2, zorder=3)
         ax3.plot([xi - 0.06, xi + 0.06], [dlo[xi]] * 2, color=col, linewidth=2.2)
@@ -255,8 +260,11 @@ def fig_eccentricity():
 # ============================================================
 def fig_questionnaire():
     constructs = ['Perceived\nFocus Benefit', 'Perceived\nAwareness Cost', 'Visual\nComfort']
-    fav = [71, 46, 45]
-    total = [80, 80, 64]
+    # n = 20 forms; all 20 answered Section A. C3 was skipped by everyone, so C is over
+    # Section A (one respondent left it blank).
+    # Source: python3 Tools/analysis/esq_extract.py (analysis-2026-08-12-pooled-final.md)
+    fav = [89, 58, 55]
+    total = [100, 100, 80]
     unfav = [t - f for f, t in zip(fav, total)]
     fav_pct = [f/t*100 for f, t in zip(fav, total)]
     unfav_pct = [u/t*100 for u, t in zip(unfav, total)]
@@ -277,7 +285,7 @@ def fig_questionnaire():
     ax.set_yticks(y)
     ax.set_yticklabels(constructs)
     ax.set_xlabel('Response Share (%)')
-    ax.set_title('End-of-Session Questionnaire (N = 16)')
+    ax.set_title('End-of-Session Questionnaire (N = 20)')
     ax.axvline(0, color='black', linewidth=0.8)
     ax.set_xlim(-50, 100)
     ax.legend(loc='lower right', fontsize=9)
@@ -443,7 +451,7 @@ def fig_structure():
     ax.text(2.9, 0.35, 'Part H — does it help?', fontsize=10.5,
             fontweight='bold', color='#3d7a44')
     box(2.9, 0.85, 2.5, 0.95, 'Pre-registered\nstudy design (Ch 5)', '#d3e6d3', ec='#3d7a44', fs=8.8)
-    box(5.9, 0.85, 2.5, 0.95, 'Results,\nn = 17 / 15 (Ch 5)', '#b9d8b9', ec='#3d7a44', fs=8.8)
+    box(5.9, 0.85, 2.5, 0.95, 'Results,\nn = 19 / 17 (Ch 5)', '#b9d8b9', ec='#3d7a44', fs=8.8)
     arrow(5.4, 1.32, 5.9, 1.32)
 
     # Root feeds both parts

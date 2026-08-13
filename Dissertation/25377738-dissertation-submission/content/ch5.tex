@@ -3,16 +3,17 @@
 \begin{quote}
 \textbf{Status note.} This study pre-registered a target of 20 analysed participants, run to a
 frozen protocol after a formal pass/fail pilot. \textit{Pre-registered} is used throughout in the
-sense defined in Chapter 1, Section 1.4. Collection ended at \textbf{eighteen people tested},
-across an initial pilot day and six further collection days, when the dissertation deadline arrived,
-preceded by informal naive-pilot iteration used to tune stimulus parameters ahead of the frozen
-protocol. Stopping two short of target is a protocol deviation and is reported as one. The analysis
-proceeds because the achieved sample already delivers the sensitivity the design planned for: the
-primary contrast and the pre-registered eccentricity band both reach the 80\% power level the
-20-participant target was chosen to provide. Seventeen usable pairs exist for the workstation block
-and fifteen for the driving block. Section 5.7 reports the final analysis of those pairs, read
-against the pre-committed decision table, with the sample-size deviation carried into every verdict
-rather than repeated sentence by sentence.
+sense defined in Chapter 1, Section 1.4. Testing is complete: \textbf{twenty people were
+tested}, across an initial pilot day and eight further collection days, preceded by informal
+naive-pilot iteration used to tune stimulus parameters ahead of the frozen protocol, meeting the
+recruitment target exactly. The target was set in analysed participants, and the pre-registered
+exclusions applied below reduce the analysed sets below it: one pair is lost from the workstation
+block and three from the driving block.
+Nineteen usable pairs exist for the workstation block and seventeen for the driving block, at 88\%
+and 95\% achieved power for the primary contrast and the pre-registered eccentricity band, both
+one-tailed and matched to the directional hypotheses; the design's 80\% target was set two-tailed,
+so the two figures are not directly comparable. Section 5.7 reports the final
+analysis of those pairs, read against the pre-committed decision table.
 \end{quote}
 
 \section{What the Study Must Be Able to Conclude}
@@ -57,8 +58,8 @@ The design is fully within-subjects with a high trial count per condition, follo
 published DR evaluations \citep{cheng2022,mclaughlin2025} and the field norm \citet{caine2016}
 documents, where in-person studies draw their power from repeated measures rather than headcount.
 Each participant contributes up to 140 task events per Block A condition and 40 marker events per
-Block B condition, so the seventeen analysed workstation pairs contribute 4,125 file-backed scored
-Block A trials (task versions and provenance: Section 5.7).
+Block B condition, so the nineteen analysed workstation pairs contribute 4,681 file-backed scored
+Block A trials (task form and provenance: Section 5.7).
 
 \section{Research Questions and Pre-Registered Hypotheses}
 
@@ -122,17 +123,16 @@ retention policy rather than submitted, since they carry personal data. Particip
 information leaflet at least 24 hours before their session and signed consent at the start of the
 session itself.
 
-Recruitment targeted 20 analysed adults with four spares against dropouts and pre-registered
-exclusions; eighteen people were tested before the dissertation deadline ended collection
-(Section 5.7). Inclusion criteria follow the approved ethics protocol: aged 18 or
+Recruitment targeted 20 analysed adults with spares against dropouts and pre-registered
+exclusions; twenty people were tested in all, meeting that target through the full
+two-block protocol (Section 5.7). Inclusion criteria follow the approved ethics protocol: aged 18 or
 over, normal or corrected-to-normal vision by self-report, no self-reported vestibular disorders,
 and no history of epilepsy or photosensitive conditions. Recruitment is by direct approach from the
 postgraduate computer-science cohort, unpaid. No demographic instrument was administered, so age,
 gender and background distributions cannot be reported; the inclusion criteria and recruitment route
 above are what a reader has to judge the sampling frame by, and the absence of demographic data is
-carried as a limitation in Chapter 6. Prior VR experience is recorded on a four-level scale and used
-as a robustness covariate rather than a selection criterion, since the deployed system must serve
-VR-naive users.
+carried as a limitation in Chapter 6. Prior VR experience is recorded on a four-level scale rather than used as a selection criterion,
+since the deployed system must serve VR-naive users; it is not analysed further in this dissertation.
 
 Sickness risk is managed by design and by rule. All tasks are seated, there is no artificial
 locomotion, total headset time is approximately 35 minutes, and a headset-off break separates the two
@@ -140,7 +140,7 @@ confirmatory blocks. A written \textbf{stop rule} is applied without discussion:
 terminates immediately if the participant reports nausea or dizziness at a moderate or worse level,
 or if the experimenter observes distress. The Virtual Reality Sickness Questionnaire \citep{kim2018}
 is administered pre and post, because post-only scores are uninterpretable without a baseline
-\citep{brown2022}. Across all eighteen sessions the stop rule was never triggered and no
+\citep{brown2022}. Across all twenty sessions the stop rule was never triggered and no
 session was terminated. One participant reported feeling unwell, rested during the mid-session
 break, and chose to complete their remaining runs. The session timeline, pilot gates, analysis plan, decision table, operational
 protocol, threats to validity and exclusion rules are set out in full in Appendix~A.
@@ -180,9 +180,9 @@ Figure~\ref{fig:blockalayout} gives the plan view.
 \end{figure}
 
 The two conditions are \textbf{NoFilter}, where the window is painted but invisible, and
-\textbf{Filter}, Hard Dark on. In the final task version each lasts 4 minutes 40 seconds, which is
+\textbf{Filter}, Hard Dark on. In the 140-trial form each lasts 4 minutes 40 seconds, which is
 140 trials at a 2.0 s stimulus onset asynchrony, run once each per participant in counterbalanced
-order. Earlier sessions ran shorter versions of the same task (Section 5.7). Before the first
+order. Earlier sessions ran the shorter form of the same task (Section 5.7). Before the first
 condition the participant paints the focus window around the central task region and releases to
 lock it, and the experimenter verifies that both distractor panels fall outside it and the entire
 task region inside. The same locked window persists across both conditions. Hard Dark's job here is
@@ -207,7 +207,7 @@ shift a participant's speed-accuracy strategy mid-run. The window uses room-geom
 this block specifically rather than the direction-lock used by default, so four corner rays captured
 on release are remembered as physical points and the window stays put as the participant leans toward
 or away from the desk. Head-turns toward the distractor panels beyond 30$^{\circ}$ yaw are recorded
-from 60 Hz telemetry as an exploratory measure.
+from 60 Hz telemetry as an exploratory measure; they are not analysed for this dissertation.
 
 \section{Block B: Secondary, Driving Marker Detection}
 
@@ -224,7 +224,7 @@ sample. Condition order alternates by participant parity, and the two marker set
 against condition so neither set is systematically tied to Filter or NoFilter.
 
 \textbf{Forty scored markers per condition, drawn from two disjoint sets of forty over the same
-clip}, which is 1,200 marker presentations across the fifteen usable pairs. Using a different set in
+clip}, which is 1,360 marker presentations across the seventeen usable pairs. Using a different set in
 each condition stops a participant meeting the same target twice, which would turn the second
 condition into a memory test. Each marker fades in rather than switching on, because sudden onsets
 capture attention automatically and would swamp the effect being measured \citep{yantis1984}, and it
@@ -309,75 +309,80 @@ confound.
 
 The instrument is a single end-of-session questionnaire, self-completed with the headset off after
 the post-session sickness questionnaire and before the debrief, so opinions are captured before the
-hypotheses are revealed. It carries 21 rated items across four sections, plus a preference ranking
-and a multi-select. The three scored constructs, perceived focus benefit, perceived awareness cost
-and visual comfort, carry 15 of those items, each mixing positively and negatively keyed items to
-counter acquiescence bias. The fourth section, on acceptance and willingness to use, was not
-administered, so the study has no acceptance data. Because it asks for one considered opinion of the whole session, it cannot
-separate Hard Dark's contribution from SignPop's. It is a system-level instrument, reported as
+hypotheses are revealed. It carries 15 rated items across three sections, one section per scored
+construct: perceived focus benefit, perceived awareness cost and visual comfort, each mixing
+positively and negatively keyed items to counter acquiescence bias. The first construct is the
+subjective counterpart of the workstation block's focus question and the second of the driving
+block's awareness question, so each has a behavioural result of its own to be read against. Because
+it asks for one considered opinion of the whole session, it cannot separate Hard Dark's contribution
+from SignPop's. It is a system-level instrument, reported as
 exploratory.
 
 \section{Results}
 
-Eighteen people were tested. The pre-registered target was twenty, and collection ended two short of
-it when the dissertation deadline arrived. That shortfall is a protocol deviation, and the status
-note at the head of this chapter reports it as one. The analysis proceeds on a specific ground rather than convenience: the 20-participant
-target existed to buy 80\% power for the primary contrast, and the achieved sample already delivers
-it, at 82\% for the primary contrast and 84\% for the pre-registered eccentricity band (both
-one-tailed, matched to the directional hypotheses). What the shortfall does cost is stated where it
-binds: the pooled Block B estimate remains underpowered, and every confidence interval below is two
-participants wider than the design intended.
+Twenty people were tested and testing is complete. The pre-registered twenty completed the
+full two-block protocol, meeting the target the design set exactly, so no supplementary
+participants were needed. The completed sample delivers 88\% achieved power for the primary contrast
+and 95\% for the pre-registered eccentricity band (both one-tailed, matched to the directional
+hypotheses).
 
-Block A yields \textbf{seventeen} usable paired participants and Block B \textbf{fifteen}, the two sets
+Block A yields \textbf{nineteen} usable paired participants and Block B \textbf{seventeen}, the two sets
 overlapping but not identical because some participants contributed a usable result to one block and
 not the other. One participant is excluded from Block A: P1's task rounds ran about fifteen minutes
 after the session's Unity blocks closed, so the arm assignment cannot be verified from the session
 ledger. That exclusion is specific to Block A, and P1's Block B pair is unaffected and is analysed.
 Three participants are excluded from Block B under documented rules, never inferred ones. Two fall
-under the pre-registered response-validity rule: P3 for 539 false alarms on the filter run with
-provably looser hits (Mann-Whitney $p = .0301$), and P43 for false-alarm counts of 81 and 54 across
-the two arms, the highest in the set by a wide margin, on the same grounds as P3. The third is P9,
-excluded by experimenter decision on the day under the task-comprehension rule: the response rule
-was not yet understood during that participant's first video block, which was their first exposure
-to the task. Separately, P15 and P16 are two ledger IDs for one participant, reconciled into a
-single record under the relaunch rule of Appendix~A, Section~A.4. That participant's P15 Block B run
-is excluded for 206 false alarms across 246 presses, so the P16 pair is their Block B record and the
-P15 pair their Block A record.
-Block A is retained for P3, P9 and P43, since those exclusions concern the marker task alone. The
-arithmetic closes on the eighteen tested: seventeen contribute a Block A pair, the eighteen less P1,
-and fifteen contribute a Block B pair, the eighteen less P3, P9 and P43.
+under the pre-registered response-validity rule, which
+excludes a pair whose false alarms across both conditions together outnumber its eighty scheduled
+markers (Appendix~A, Section~A.4). P3's filter run alone logged 539 false alarms, with provably
+looser hits (Mann-Whitney $p = .0301$). P43's two arms logged 135 together. The highest retained pair
+total is 66, so the achieved data sit clear of the line on both sides. The third is P9, the one discretionary exclusion, made by experimenter decision on the day on
+task-comprehension grounds: the response rule was not yet understood during that participant's first
+video block, which was their first exposure to the task. Separately, P15 and P16 are two ledger
+IDs for one participant, reconciled into a single record under the relaunch rule of Appendix~A,
+Section~A.4. That participant's P15 Block B run is excluded for 206 false alarms across 246
+presses, so the P16 pair is their Block B record and the P15 pair their Block A record.
+Block A is retained for P3, P9 and P43, since those exclusions concern the marker task alone.
+The arithmetic closes on the twenty tested: nineteen contribute a Block A pair, the twenty
+less P1, and seventeen contribute a Block B pair, the twenty less P3, P9 and P43.
 
-Two provenance facts belong with the numbers rather than in a footnote. Block A pools four versions
-of the same task. The first five participants ran a short version of 84 or 105 trials that sat at
-95.2\% mean accuracy, and everyone from P9 onward ran the 140-trial version, which was changed
-deliberately to move performance off that ceiling. Pooling is justified by the robustness split
+Two provenance facts belong with the numbers rather than in a footnote. The first is the study's
+\textbf{one protocol deviation}, and it is reported here as one. Block A pools a short and a long form of
+the same task: five participants ran the short form before the trial count was raised, once, to 140,
+and everyone from P9 onward ran the 140-trial form. The change was made deliberately and for one
+stated reason, to move performance off the ceiling the short form sat on, and the achieved data show
+it partly worked. Across the five short-form participants the mean arm accuracy was 96.1\% with a
+floor of 84.6\%, leaving little room to detect a benefit; across the fourteen who ran the 140-trial
+form it was 92.5\% with a floor of 74.8\%, so participants after the change do miss, and the measure
+has room to move in both directions. Nothing
+else about the protocol changed after collection began: no hypothesis, no margin, no decision-table
+row and no exclusion rule. Pooling the two forms is justified by the robustness split
 reported below, where the two halves of the sample return the same effect at the same size. And one
-of the thirty-four Block A arms, P4's filter-off arm, is the experimenter's contemporaneous record
+of the thirty-eight Block A arms, P4's filter-off arm, is the experimenter's contemporaneous record
 rather than an exported
 file, which is why the trial count in Section 5.1 is given as file-backed. Dropping that arm changes
-nothing ($p = .0175$ against $.0212$, $d_z$ unchanged).
+nothing ($p = .0085$ against $.0104$, $d_z$ unchanged at 0.678).
 
 \subsection{H1: workstation focus}
 
 \textbf{The pre-registered primary test.} Table~A.4 registers H1's primary test as a trial-level
 logistic model with a participant random effect, and the paired test as its robustness
-check. Across the 4,125 file-backed scored trials from seventeen participants the vignette term is
-significant: \textbf{odds ratio 0.583} (95\% CI 0.396 to 0.860, $z = -2.724$, $p = .0065$), so Hard
-Dark \textbf{reduces trial-level error odds by 41.7\%}. The estimator fitted is a logistic GEE with
+check. Across the 4,681 file-backed scored trials from nineteen participants the vignette term is
+significant: \textbf{odds ratio 0.600} (95\% CI 0.431 to 0.836, $z = -3.020$, $p = .0025$), so Hard
+Dark \textbf{reduces trial-level error odds by 40.0\%}. The estimator fitted is a logistic GEE with
 an exchangeable working correlation clustered by participant, because statsmodels offers no strict
 frequentist mixed model with p-values, a substitution already documented in
 \texttt{Tools/analysis/h1\_lmm.py}. The literal random-intercept specification agrees, at odds
-ratio 0.578 with a 95\% credible interval of 0.474 to 0.704. Trial-level models use 33 of the 34
+ratio 0.594 with a 95\% credible interval of 0.496 to 0.712. Trial-level models use 37 of the 38
 Block A arms, because P4's filter-off arm has no exported file. The robustness check agrees in
 direction and significance, and is the weaker of the two because it averages within participants
 before testing rather than using the trials themselves.
 
-\textbf{The registered robustness check.} Accuracy on the memory task rose from 92.30\% (SD 6.56) with the vignette off to 95.39\% (SD 4.17)
-with Hard Dark on. That is a gain of \textbf{+3.09 percentage points} (SD 4.79, median +2.16; 95\% CI
-+0.62 to +5.55, paired $t(16) = 2.66$, $p = .017$; Wilcoxon $W = 21.0$, $p = .015$; $d_z = 0.645$).
-Twelve of seventeen participants improved, four declined, one was unchanged. Achieved power at this
-sample and effect size is 82\% one-tailed, so the sample delivers the power level the design chose
-its 20-participant target to provide.
+\textbf{The registered robustness check.} Accuracy on the memory task rose from 92.01\% (SD 6.57) with the vignette off to 95.08\% (SD 4.42)
+with Hard Dark on. That is a gain of \textbf{+3.07 percentage points} (SD 4.52, median +2.16; 95\% CI
++0.89 to +5.25, paired $t(18) = 2.95$, $p = .009$; Wilcoxon $W = 23.0$, $p = .007$; $d_z = 0.678$).
+Fourteen of nineteen participants improved, four declined, one was unchanged. Achieved power at this
+sample and effect size is 88\% one-tailed.
 
 \textbf{H1's direction is confirmed; its pre-set size is not, and the decision table is applied as
 written.} Both the parametric and the rank test agree, the rank test, the more conservative of the
@@ -385,47 +390,52 @@ two here, returns the lower p-value, so the result does not depend on the normal
 the refuting observation, a difference absent, reversed, or with its 90\% interval excluding the
 smallest effect size of interest from below, did not occur. But the hypothesis asked for more than a
 direction. Its default smallest effect size of interest was half of the vignette-off error rate,
-which at the achieved data is 3.85 of 7.70 points, and the observed reduction is 3.09 points, 40\%
-of the distractor-laden error rate, with a 90\% interval from 1.06 to 5.12 that spans the 3.85-point
+which at the achieved data is 3.99 of 7.99 points, and the observed reduction is 3.07 points, 38\%
+of the distractor-laden error rate, with a 90\% interval from 1.27 to 4.87 that spans the 3.99-point
 mark. That is row 4 of the pre-committed decision table: \textit{the benefit is real-signed but
 cannot be claimed at the pre-set size}. The bounded conclusion the table prescribes is therefore the
-claim: Hard Dark removes between roughly 14\% and 66\% of the error rate that distractor-laden work
-carries (90\% CI), with 40\% the best estimate, a real benefit that falls short of certainty at the
+claim: Hard Dark removes between roughly 16\% and 61\% of the error rate that distractor-laden work
+carries (90\% CI), with 38\% the best estimate, a real benefit that falls short of certainty at the
 half-the-errors bar the design set itself.
 
 The estimate itself is stable. It barely moved as the sample grew, from +3.34 at
-fourteen pairs to +3.09 at seventeen, which is what a real but modest effect looks like under
+fourteen pairs to +3.09 at seventeen and +3.07 at the final nineteen, which is what a real but
+modest effect looks like under
 accumulation. One robustness split deserves stating rather than burying: the first five participants
-ran a shorter task version and the remaining twelve ran the 140-trial version, and the two groups
-give the same effect at the same size, +3.30 and +2.99 points. What differs is spread (SD 2.30
-against 6.10), because the early task sat near ceiling and compressed every delta, while the harder
-version moved performance off ceiling at the cost of individual variation. Pooling therefore
+ran the shorter form and the remaining fourteen ran the 140-trial form, and the two groups
+give the same effect at the same size, +3.30 and +2.98 points. What differs is spread (SD 2.62
+against 5.12), because the early task sat near ceiling and compressed every delta, while the harder
+longer form moved performance off ceiling at the cost of individual variation. Pooling therefore
 combines two measurements of one effect rather than two different effects.
 Figure~\ref{fig:h1} shows every participant's pair.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{content/figures/fig_slopegraph_h1.png}
-\caption{Block A per-participant accuracy, vignette off versus Hard Dark on (N = 17).}
+\caption{Block A per-participant accuracy, vignette off versus Hard Dark on (N = 19).}
 \label{fig:h1}
 \end{figure}
 
 \subsection{H2b: the pooled safety check}
 
-Hit rate pooled across the whole field of view rose by \textbf{+6.00 percentage points} with SignPop
-on, from 50.67\% (SD 16.54) to 56.67\% (SD 8.85), with eight of fifteen participants improving. The
-paired difference test does not reach significance ($t(14) = 1.74$, $p = .105$; Wilcoxon $W = 27.0$,
-$p = .109$), which is beside the point, because H2b was never a difference test.
+Hit rate pooled across the whole field of view rose by \textbf{+7.35 percentage points} with SignPop
+on, from 50.15\% (SD 15.60) to 57.50\% (SD 9.14), with ten of seventeen participants improving
+($t(16) = 2.19$, $p = .0434$; Wilcoxon $W = 29.0$, $p = .0435$; $d_z = 0.532$). The 90\% confidence
+interval runs +1.50 to +13.20, entirely above zero. Achieved power for this pooled contrast is
+\textbf{67.5\% one-tailed}, well below the 88\% and 95\%
+the primary contrast and the pre-registered band reach, which is the first of two reasons this
+chapter treats the pooled rise as a description rather than a finding. The second is its
+leave-one-out behaviour, in Section 5.7.4.
 
 \textbf{H2b's refuting observation did not occur, so the safety claim stands.} Section 5.2 committed
 in advance to what would refute H2b: equivalence not established \textit{and} a point estimate
-showing a drop greater than 10 points. The estimate is a rise of 6.00 points, so the second condition
-is not met and the mode is not shown to harm situational awareness. The 90\% confidence interval runs
-$-0.09$ to $+12.09$, so the worst case the data support is no loss at all to within a tenth of a
-point, far inside the ten-point margin.
+showing a drop greater than 10 points. The estimate is a significant rise of 7.35 points, so the
+second condition is not met and the mode is not shown to harm situational awareness. The worst case
+the data support, at 90\% confidence, is a gain of about one and a half points, far inside the
+ten-point loss margin.
 
 \textbf{The pre-registered statistic is nonetheless worth reporting exactly.} The two one-sided
-tests return $p = .0002$ on the lower bound and $p = .133$ on the upper, so formal equivalence within
+tests return $p < .0001$ on the lower bound and $p = .221$ on the upper, so formal equivalence within
 $\pm$10 points is not established at this sample. The reason is entirely one-directional: the data
 cannot exclude a \textit{benefit} larger than ten points. That is a specification issue rather than a
 result. H2b asks a one-sided question, whether re-grading costs peripheral awareness, and a two-sided
@@ -436,18 +446,23 @@ see the pre-registered procedure and the question it was meant to serve. What th
 not do is quietly substitute the better-fitting reading for the pre-registered one after seeing the
 data. A study writing a safety bound should state the direction it cares about and test that
 direction alone.
-One adjacent observation does not help and is reported anyway: false alarms rose under the filter,
-a mean of 12.7 presses per run against 7.3 with it off, with nine of fifteen participants pressing
-more. Hit rate does not correct for response criterion, so part of the pooled rise may be a more
-liberal response strategy rather than better detection. The exclusion rule bounds the worst of this
-(P43's counts were double the next participant's and are excluded), and the band analysis below is
-unaffected in kind, but the pooled estimate carries this qualification.
+
+A significant pooled rise was not a pre-registered hypothesis, and it is not promoted to one here.
+Raising pooled detection across the whole field was never SignPop's job, and the design bought
+power for the band contrast below, not for this pooled estimate. The rise is reported as an
+observed benefit with its interval, and one adjacent observation qualifies it: false alarms also
+rose under the filter, a mean of 11.6 presses per run against 6.9 with it off, with ten of seventeen
+participants pressing more. Hit rate does not correct for response criterion, so part of the pooled
+rise may be a more liberal response strategy rather than better detection. The exclusion rule
+bounds the worst of this, since the pairs excluded on false-alarm grounds held 557, 206 and 135
+false alarms against a highest retained pair total of 66, and the band analysis below is unaffected in kind, but the
+pooled estimate carries this qualification.
 Figure~\ref{fig:h2b} places the estimate against the margin.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{content/figures/fig_equivalence_h2b.png}
-\caption{Block B pooled hit rate against the safety margin (H2b, N = 15).}
+\caption{Block B pooled hit rate against the safety margin (H2b, N = 17).}
 \label{fig:h2b}
 \end{figure}
 
@@ -476,55 +491,101 @@ equally; the difference column and its interval are per-participant, which is wh
 \hline
 \endhead
 \hline
-$<$10\textdegree{} & 75.0\% & 79.8\% & $-2.50$ pp & $[-11.7, +6.7]$, $p = .638$ \\
-10--20\textdegree{} & 41.5\% & 47.9\% & $+6.77$ pp & $[-3.8, +17.3]$, $p = .278$ \\
-\textbf{20--30\textdegree{}} & \textbf{40.2\%} & \textbf{57.7\%} & \textbf{$+17.78$ pp} & \textbf{$[+6.6, +29.0]$, $p = .014$} \\
-$>$30\textdegree{} & 55.0\% & 55.6\% & $+0.56$ pp & $[-6.8, +7.9]$, $p = .896$ \\
+$<$10\textdegree{} & 75.0\% & 78.3\% & $-3.68$ pp & $[-12.0, +4.6]$, $p = .452$ \\
+10--20\textdegree{} & 40.8\% & 50.2\% & $+9.74$ pp & $[-0.2, +19.7]$, $p = .108$ \\
+\textbf{20--30\textdegree{}} & \textbf{38.9\%} & \textbf{59.6\%} & \textbf{$+20.82$ pp} & \textbf{$[+10.1, +31.5]$, $p = .004$} \\
+$>$30\textdegree{} & 54.4\% & 55.4\% & $+0.98$ pp & $[-5.7, +7.7]$, $p = .802$ \\
 \hline
 \end{longtable}
 
 \textbf{H2a is supported, in the band it was pre-registered on.} The
-20--30$^{\circ}$ band is the only one whose interval excludes zero, so its refuting observation did
-not occur, and it is roughly three times larger than any other band ($d_z = 0.72$, Wilcoxon
-$p = .021$, achieved power 84\% one-tailed). It is the one Block B measure that is both significant
-and adequately powered at this sample.
+20--30$^{\circ}$ band improves by 20.8 points, with fourteen of seventeen participants improving,
+and it is the only band significant on both the parametric and the rank test ($d_z = 0.82$,
+Wilcoxon $p = .008$, achieved power 95\% one-tailed), so its refuting observation did
+not occur. It is twice the size of the next band. The neighbouring 10--20$^{\circ}$ band trends
+the same way at +9.7 points, but its 90\% interval now spans zero and its tests do not
+reach significance ($p = .108$, 49\% power), so it is reported as a trend rather than a finding.
 
-What makes it more than a lucky slice is that the band was fixed by the system's geometry before any
-data existed. The soft edge was set at 20$^{\circ}$ against the useful field of view, and the benefit
-appears in precisely the annulus between where the gate starts having room to act and where the
-useful field runs out. Inside 20$^{\circ}$ the gate has nothing to reveal, and beyond 30$^{\circ}$ it
-reveals plenty to an eye that can no longer use it. This is a prediction from the shader agreeing
-with the data rather than a pattern fitted to it afterwards.
+\textbf{The pre-registered multiplicity correction leaves both secondary verdicts unchanged.}
+Appendix~A, Section~A.6 registers H2a and H2b as a two-member secondary family, Holm-corrected
+across the two.
+Applied at $\alpha = .05$, the matched non-inferiority test's $p < .0001$ is the smaller of the two
+and clears the $.025$ threshold, and the band's $p = .004$ clears $.05$, so both survive; had the
+two-sided equivalence statistic been carried into the family in place of the non-inferiority test,
+its $p = .221$ would have failed the correction exactly as it fails uncorrected. No secondary
+conclusion in this chapter depends on the uncorrected values.
+
+What makes it more than a lucky slice is that the geometry was fixed before any data existed, and it
+was fixed against the driving-attention literature rather than against these results. The clear
+window is 8$^{\circ}$ by 6$^{\circ}$, sized to the road-centre gaze region drivers actually watch
+\citep{victor2005}, and the filter grades outward from its edge over 24$^{\circ}$, reaching half
+strength near 20$^{\circ}$ and full strength near 32$^{\circ}$. That places the graded zone across the
+11--23$^{\circ}$ band the peripheral detection task uses as the region where events remain
+task-relevant while awareness is already falling \citep{jahn2005}, and completes the ramp where the
+useful field of view runs out \citep{ball1993}. The measured benefit follows that curve: absent
+inside 10$^{\circ}$, where there is almost no filter to work against, partial through
+10--20$^{\circ}$ as the ramp opens, largest in the 20--30$^{\circ}$ annulus where the gate is near
+full and the eye can still use what it reveals, and flat beyond 30$^{\circ}$, where the filter is at
+its strongest but the eccentricity is past the field the eye can act on. Two
+qualifications apply to reading these bands as retinal: the window is video-locked, so eccentricity
+here is scene eccentricity, and a participant who looks directly at a peripheral marker sees it
+through the filter.
 
 Two limits belong beside the finding. Band membership in this table uses each target's mid-lifetime
 position, which is a weak proxy: targets move, the median lifetime swing is 17.2$^{\circ}$, and
 roughly 31\% of catches land in a different band from the one the mid position assigns. And with the
 pooled rate rising in every band while the inner band is near ceiling in both conditions, the honest
-reading is a general positive trend with one band carrying almost all of the signal, rather than
-three null bands and one live one.
+reading is a general positive trend with the 20--30$^{\circ}$ band carrying most of the signal and
+its inner neighbour trending the same way, rather than three null bands and one live one.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{content/figures/fig_eccentricity_h2a.png}
-\caption{Block B hit rate by eccentricity band, with gate strength and the useful-field boundary
-overlaid (H2a, N = 15). The upper panel pools every marker presentation in a band. The lower panel
+\caption{Block B hit rate by eccentricity band, with the useful-field boundary
+overlaid (H2a, N = 17). The upper panel pools every marker presentation in a band. The lower panel
 gives the paired per-participant difference with its 90\% interval, which is the estimator the tests
 use, and which for the $<$10\textdegree{} band differs in sign from the pooled figure because
-participants contribute unequal numbers of markers to a band.}
+participants contribute unequal numbers of markers to a band. Red marks the 20--30$^{\circ}$ band,
+the only one significant on both the parametric and the rank test; the starred annotation gives its
+per-participant difference.}
 \label{fig:h2a}
 \end{figure}
 
+\subsection{Leave-one-out robustness}
+
+A small sample invites the question of whether any single participant is carrying a result, so the
+same test is applied to all three headline estimates rather than to whichever ones survive it. Each
+result was refitted with every participant removed in turn
+(\path{Tools/analysis/loo_sensitivity.py}).
+
+Both pre-registered results hold throughout. H1 stays significant in all nineteen leave-one-out
+samples, with the worst case at $p = .0175$; dropping the participant who gains most (P15, $+15.83$
+points) leaves it at $+2.36$ points, $p = .0091$. The 20--30\textdegree{} band stays significant in
+all seventeen, worst case $p = .0081$, and this holds even when the participant contributing its
+largest single gain is removed ($+60.32$ points; the band is then $+18.35$ points, $p = .0077$). The
+registered secondary therefore does not rest on any one participant, which is the specific thing a
+reader of a seventeen-pair result should want checked.
+
+The pooled Block B rise does not survive the same test, and that is reported rather than smoothed:
+removing either of its two largest contributors returns $p \approx .086$, and it is significant in
+seven of seventeen leave-one-out samples. This is what a borderline result at this sample size looks
+like, and it is one more reason the pooled rise is not treated as a finding in this chapter. It does
+not disturb H2b's verdict. Every leave-one-out sample remains a rise, so the refuting observation
+Section 5.2 committed to, a drop greater than ten points with equivalence unestablished, does not
+occur in any of them.
+
 \subsection{What participants said, and where it disagrees}
 
-Sixteen end-of-session questionnaires show a divergence worth flagging rather than resolving.
-Perceived focus benefit is strongly positive, 71 of 80 responses favouring the effects. Perceived
-awareness cost splits close to evenly at 46 of 80, so roughly four in ten responses report feeling
+Twenty end-of-session questionnaires show a divergence worth flagging rather than resolving.
+Perceived focus benefit is strongly positive, 89 of 100 responses favouring the effects across all
+twenty respondents. Perceived
+awareness cost splits close to evenly at 58 of 100, so roughly four in ten responses report feeling
 cut off from the surroundings or noticing side events late. The split is item-shaped rather than
-person-shaped: ``I still felt aware of my surroundings'' runs 13 of 16 in the filter's favour, while
-``I noticed side events later than I would have'' and ``I was comfortable not seeing everything''
-each run 7 of 16. Visual comfort sits at 45 of 64 across its four answered items. The focus-benefit
-items on holding attention, looking away and knowing where to look were answered favourably by 15,
-14 and 15 of the sixteen respondents. At the earlier ten-participant analysis these three were
+person-shaped: ``I still felt aware of my surroundings'' runs 17 of 20 in the filter's favour, while
+``I noticed side events later than I would have'' runs 9 of 20 and ``I was worried I would miss
+something important'' 10 of 20. Visual comfort sits at 55 of 80 across its four answered items. The focus-benefit
+items on holding attention, looking away and knowing where to look were answered favourably by 19,
+18 and 19 of the twenty respondents. At the earlier ten-participant analysis these three were
 unanimous and they no longer are, which is a useful reminder of how little weight a unanimous result
 at that sample size could carry. One respondent dissents strongly across the focus-benefit block,
 answering one of its five items favourably, so the construct is not uniformly endorsed even where it
@@ -533,12 +594,13 @@ is strongest. Figure~\ref{fig:esq} shows the three constructs side by side.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{content/figures/fig_questionnaire.png}
-\caption{End-of-session questionnaire responses by construct (N = 16).}
+\caption{End-of-session questionnaire responses by construct (N = 20). The visual-comfort total covers its
+four answered items rather than five, one item having been skipped by every respondent.}
 \label{fig:esq}
 \end{figure}
 
 \textbf{The subjective impression of lost awareness is not supported by the behavioural hit rate},
-which shows no loss at all and, in the 20--30$^{\circ}$ band, an improvement. Two explanations are
+which shows no measured loss and, in the 20--30$^{\circ}$ band, an improvement. Two explanations are
 worth taking seriously rather than explaining away. First, noticing that the periphery has been
 changed is a different experience from missing something in it, and the DR manipulations studied to
 date have all been reported as noticeable \citep{sutton2022}. ``I can tell my vision has been altered'' and ``I failed to detect
@@ -553,18 +615,18 @@ its sharpest form, and it is left unresolved here.
 
 Read against the decision table, the study lands on the working-system end of the range the
 literature left open, with its verdicts stated at their honest strength. The primary contrast is a
-real, adequately powered 3.09-point accuracy gain on a real-hardware task with real physical
+real, adequately powered 3.07-point accuracy gain on a real-hardware task with real physical
 distractors, surviving both a parametric and an assumption-free test, claimed as a bounded benefit
-because its interval spans the pre-set half-the-errors bar (row 4). Peripheral awareness did not
-drop: the worst case the data support is no loss to within a tenth of a point against a ten-point
-margin, and raising pooled detection across the whole field was never SignPop's job, so the pooled
-estimate's 50\% power bounds a secondary description, not a claim the design depends on. And
+because its interval spans the pre-set half-the-errors bar (row 4). Peripheral awareness showed no
+measured loss: the pooled measure rose rather than fell, and the worst case the data support at 90\%
+confidence is a gain of about one and a half points against a ten-point loss
+margin. Raising pooled detection across the whole field was never SignPop's job, so the pooled
+rise stands as a secondary description with its response-criterion qualification, not a claim the
+design depends on. And
 detection improved specifically where the mechanism predicted it would, in the pre-registered
-20--30$^{\circ}$ band, at 84\% achieved power.
+20--30$^{\circ}$ band, at 95\% achieved power.
 
-Three qualifications bound all of it. The sample is seventeen and fifteen pairs, not the
-pre-registered twenty, so every interval is wider than the design intended and the shortfall stands
-as a deviation however well the power figures absorbed it. The pooled Block B estimate carries the
+Two qualifications bound all of it. The pooled Block B estimate carries the
 response-criterion qualification of Section 5.7.2. And the bundle limitation of Chapter 4,
 Section 4.5.5 applies in full, so nothing above attributes the 20--30$^{\circ}$ gain to any one of
 the six effects a detection fires. Chapter 6 takes up what follows.

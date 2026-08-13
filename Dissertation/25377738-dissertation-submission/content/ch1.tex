@@ -173,8 +173,10 @@ to a conclusion under every outcome, are given in Chapter 5.
   events without degrading detection overall? The study tests this with SignPop on a driving scene:
   a benefit prediction where the re-grading has room to act, and a safety prediction that detection
   pooled across the whole scene stays within an acceptable margin of the untreated view. The safety
-  prediction is tested by equivalence, so failing it would be a conclusive negative finding rather
-  than an ambiguous null.
+  prediction is tested by equivalence, so a failure to establish it would carry more information than
+  an ambiguous null. As it turned out, the two-sided statistic was not established, for a
+  one-directional reason that Chapter 5, Section 5.7.2 and Chapter 6 report as a specification
+  mismatch rather than a safety result.
 \item \textbf{RQ3 (exploratory).} After experiencing the system, what do participants report about
   perceived focus benefit, perceived awareness cost, and visual comfort?
 \end{itemize}
@@ -201,7 +203,7 @@ system reduces it, and pre-commits to the interpretation of every outcome, inclu
   so that any outcome is informative: one adequately powered primary hypothesis, a safety check with
   a pre-set margin on how much peripheral awareness may be lost, pilot checks that gate the design,
   and a decision table committing the dissertation to a conclusion under every outcome. It is
-  reported with the full analysis of the seventeen workstation and fifteen driving pairs collected,
+  reported with the full analysis of the nineteen workstation and seventeen driving pairs collected,
   read against that table (Chapter 5).
 \end{itemize}
 
@@ -231,14 +233,28 @@ native passthrough path against the camera re-render. No latency, world-locking 
 thermal-endurance measurement was performed, so where those properties are argued, they are argued
 from the structure of the system rather than from a measured number.
 
-\textbf{A final sample of eighteen, not the pre-registered twenty.} Data collection ended when the
-dissertation deadline arrived, at eighteen people tested against a pre-registered target of twenty,
-giving seventeen usable pairs for the workstation block and fifteen for the driving block. That
-shortfall is a protocol deviation and Chapter 5 reports it as one, alongside the reason the analysis
-still stands: at the achieved sample the primary contrast and the pre-registered eccentricity band
-both reach the 80\% power level the design planned for. The pre-committed decision table is applied
-to this sample, and where a verdict is weaker than the headline number suggests, the weaker verdict
-is the one reported.
+\textbf{Analysed sets smaller than the tested sample.} The pre-registered twenty
+participants completed the full two-block protocol, meeting the recruitment target exactly. The workstation block
+lost one pair, P1's, whose arm assignment could not be verified from the session ledger, and the
+driving block lost three pairs to its response-validity and comprehension exclusions. The
+final counts are nineteen usable pairs for the workstation block and seventeen for the driving block,
+at 88\% and 95\% achieved power (one-tailed) for the primary contrast and the pre-registered
+eccentricity band.
+The pre-committed decision table is applied to this sample, and where a verdict is weaker than the
+headline number suggests, the weaker verdict is the one reported.
+
+\textbf{Mode-in-context claims, not mode-generalised ones.} Each mode was tested in one scenario:
+Hard Dark in the workstation block, SignPop in the driving block. Mode and scenario are therefore
+confounded by design, and nothing in the study separates them. Every confirmatory claim is a claim
+about a mode in its context, never about the mode in general.
+
+\textbf{No attribution to any single effect.} A SignPop detection fires a bundle of six visual
+changes at once, so the 20--30$^{\circ}$ benefit is attributed to the bundle and not to any one of
+its components (Chapter 4, Section 4.5.5).
+
+\textbf{Soft Dark carries no participant data.} Of the three modes that matter for this
+dissertation, only Hard Dark and SignPop were placed in front of a participant. Soft Dark is
+design-space material throughout, and no empirical claim is made about it.
 
 \begin{figure}[htbp]
 \centering

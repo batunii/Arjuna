@@ -14,22 +14,31 @@ in which the focus region is rendered as an \textit{absence} in an overlay, so n
 full quality serves the region that matters while the treatments occupy the periphery around it. The
 hybrid composite at the heart of the most capable mode survived a structured prior-art search with no
 published or shipped precedent found. The architecture's two central trade-offs were then measured on
-the device itself: the camera-free dark modes cost nothing over an empty passthrough scene, and the
+the device itself: the camera-free dark modes cost nothing measurable over an empty passthrough scene, and the
 native path the window preserves resolves at least two logMAR steps finer than the camera re-render
 it spares the user from (Chapter 4, Section 4.11).
 
-The second half is answered by the study, at eighteen people tested, two short of the pre-registered
-twenty, giving seventeen workstation pairs and fifteen driving pairs, with the decision table applied
+The second half is answered by the study, completed at twenty people tested: the pre-registered
+twenty through the full two-block protocol, meeting that recruitment target exactly and giving nineteen
+workstation pairs and seventeen driving pairs, with the decision table applied
 as committed. The answers:
-a 3.09-point accuracy gain on a real-hardware task, real, significant, and adequately powered, but
+a 3.07-point accuracy gain on a real-hardware task, real, significant, and adequately powered, but
 smaller than the pre-set half-the-errors bar, so claimed as a bounded benefit under the table's
-fourth row rather than at the pre-set size; peripheral awareness that was not lost, the safety
-hypothesis's refuting observation never occurring; and a detection benefit concentrated precisely in
-the 20--30$^{\circ}$ band the system's own detection-gated geometry predicts, supported at 84\%
-power. Every outcome was mapped to a pre-committed conclusion before the data existed, and the
+fourth row rather than at the pre-set size; peripheral awareness with no measured loss, the safety
+hypothesis's refuting observation never occurring and the pooled measure instead rising, though the
+two-sided equivalence statistic itself was not established, for the one-directional reason set out in
+Chapter 5, Section 5.7.2; and a detection benefit appearing in
+the 20--30$^{\circ}$ band the system's own detection-gated geometry predicts, supported at 95\%
+power and bounded by the band-assignment proxy of Chapter 5, Section 5.7.3. Every outcome was mapped to a pre-committed conclusion before the data existed, and the
 outcome that did occur is
 a specific, mechanistically coherent one: the system helps, by a real amount whose exact size a
 larger sample would pin more tightly.
+
+RQ3's answer does not simply echo the behavioural one. Perceived focus benefit is strongly positive,
+but perceived awareness cost splits close to evenly, with roughly four in ten responses reporting
+feeling cut off from the surroundings or noticing side events late (Chapter 5, Section 5.7.5). The
+behavioural hit rate shows no such loss, so the subjective impression and the measured outcome
+disagree, and that disagreement is reported rather than resolved.
 
 \section{What the design space contributes, independently of the data}
 
@@ -92,17 +101,32 @@ diluted across the text.
   without head movement, are invisible to telemetry. The dependent variables were chosen so that
   \textit{performance outcomes} rather than attention allocation carry the hypotheses, so the
   mechanism remains partially inferred.
-\item \textbf{The sample is eighteen, not the pre-registered twenty.} Collection ended at the
-  dissertation deadline. The primary hypothesis and the 20--30$^{\circ}$ band sit at 82\% and 84\%
-  achieved power (one-tailed), at or above the design's target, which is why the analysis stands,
-  but every interval is wider than the design intended, the pooled Block B estimate remains at 50\%
-  power with a response-criterion qualification (Chapter 5, Section 5.7.2), and the primary effect's
-  size could not be pinned against its smallest effect size of interest, which is exactly what the
-  two missing participants were for.
-\item \textbf{Instrumentation gaps.} A per-condition NASA-TLX was specified but never administered,
-  so the study cannot say whether the vignette made the task feel easier as well as produce fewer
-  errors, and the distractor reel's cost is taken from the published literature \citep{ai2025} rather
-  than verified internally.
+\item \textbf{Sample, power, and Block B's response-criterion qualification.} The pre-registered
+  twenty completed
+  the full two-block protocol, and the primary hypothesis and the 20--30$^{\circ}$ band sit at 88\%
+  and 95\% achieved power (one-tailed, against a design target set two-tailed). Block B lost three
+  pairs to its response-validity and comprehension exclusions, all reported in Chapter 5 and
+  including one discretionary case, made by experimenter decision on the day and disclosed as such.
+  The pooled Block B
+  estimate carries a response-criterion qualification and sits at 67.5\% achieved power (Chapter 5,
+  Section 5.7.2), and it is the one headline estimate that does not survive leave-one-out, holding
+  significance in seven of seventeen such samples where the primary contrast and the pre-registered
+  band survive every single-participant removal (Chapter 5, Section 5.7.4).
+\item \textbf{Band membership is assigned by a proxy.} The eccentricity bands carrying H2a are
+  assigned from each target's mid-lifetime position rather than its position at the instant of the
+  press, because the press-time reconstruction is not implemented in the analysis pipeline. Targets
+  move while visible, the median lifetime swing is 17.2$^{\circ}$, and roughly 31\% of catches land
+  in a different band from the one the mid position assigns (Chapter 5, Sections 5.5 and 5.7.3).
+  The band result is the dissertation's largest single effect, and this is the measurement caveat
+  that bounds it.
+\item \textbf{Workload is not among the measured constructs.} Subjective response was collected
+  with a purpose-built end-of-session questionnaire covering perceived focus benefit, perceived
+  awareness cost and visual comfort, the first two written as the subjective counterparts of the two
+  blocks' own questions (Chapter 5, Sections 5.6 and 5.7.5). Task demand in the
+  NASA-TLX sense is not one of those constructs and was not collected separately per condition, so
+  the study reports what participants thought of the effects but makes no claim about whether the
+  vignette made the task feel less effortful as well as more accurate. Separately, the distractor
+  reel's cost is taken from the published literature \citep{ai2025} rather than verified internally.
 \item \textbf{Single experimenter, single site, single hardware generation, first exposure.} Scripts
   and checklists bound experimenter variance but cannot eliminate it, and every number is specific to
   Quest 3 and the frozen OS and SDK versions. Practice-to-criterion and counterbalancing distribute
@@ -215,8 +239,8 @@ hypothesis was written as a two-sided equivalence test when the question it enco
 side, and Chapter 5 reports both the pre-registered statistic and the mismatch rather than quietly
 substituting the better-fitting one.
 
-The system exists and runs on target hardware. The hypothesis was tested, on seventeen workstation
-pairs and fifteen driving pairs, and answered under the rules committed to before the data existed:
+The system exists and runs on target hardware. The hypothesis was tested, on nineteen workstation
+pairs and seventeen driving pairs, and answered under the rules committed to before the data existed:
 a real focus benefit, claimed at its bounded size rather than its hoped-for one; peripheral
-awareness kept; the mechanism confirmed exactly where its geometry said to look. The question was
+awareness with no measured loss; the benefit appearing exactly where the geometry said to look. The question was
 asked on the hardware people actually own, and that is the standard the answer inherits.

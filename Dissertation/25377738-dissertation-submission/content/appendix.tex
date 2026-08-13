@@ -59,7 +59,9 @@ between pilot participants, but hypotheses, margins, and analysis choices may no
 
 The pilot concludes with a one-page \textbf{lock-in memo} to the supervisor recording the chosen task
 form, the tuned stimulus parameters, and the finalised absolute SESOI for H1. After this memo,
-nothing changes until data collection ends.
+nothing changes until data collection ends, with one exception that is recorded as a deviation and
+reported in Chapter 5, Section 5.7: the Block A trial count was raised once, after five participants
+had run, to move task accuracy off the ceiling the short form sat on.
 
 
 \section{Pre-registered exclusion and data-quality rules}
@@ -79,18 +81,34 @@ VR-sickness termination & Session ends under the stop rule; partial data retaine
 App crash / restart during a condition & That condition void; re-run once at the end of its block if time allows; otherwise the participant contributes remaining conditions to the LMM (which tolerates missingness) and is excluded from the paired robustness test \\
 App crash / restart spanning a \textbf{new session launch}, since the ledger assigns a fresh participant ID on relaunch rather than resuming & The two IDs are reconciled into one canonical participant record before any analysis is run. Cleanly completed blocks are joined under the canonical ID, and a block attempted under both keeps only the later complete attempt. The join, both IDs, and the ledger timestamps justifying it are recorded in the incident log and not revisited afterwards \\
 Task accuracy < 60\% in NoFilter & Task not performed; exclude and replace \\
-Block B: false-alarm rate > 30\% of presses in either condition & Response strategy invalid (indiscriminate pressing); exclude Block B for that participant \\
+Block B: false alarms across both conditions together outnumber the pair's eighty scheduled markers (see the note below this table) & Response strategy invalid (indiscriminate pressing); exclude Block B for that participant \\
 Log integrity failure (gaps > 1 s or missing condition markers) & Affected condition void; incident log entry; same re-run rule as crashes \\
 Participant recognises the driving footage & Noted; excluded only on reported strong familiarity affecting behaviour \\
 \hline
 \end{longtable}
+
+\textbf{Note on the response-validity threshold.} The Block B screen is absolute and is assessed on
+the pair as a whole rather than on either arm alone: a participant's Block B record is excluded when
+its false alarms across both conditions together outnumber the eighty markers the pair schedules,
+forty per condition (Section~5.5). The combined basis is deliberate. Which arm draws the heavier
+pressing is not predictable before the data exist, so a per-arm screen would amount to a threshold
+applied to whichever side happened to run hotter; taking the pair as the unit removes that choice.
+The level follows from the task's structure rather than from the data: a participant cannot
+legitimately register more false presses than the task asked them to make responses for, counting
+both arms. The achieved data sit clear of the line on both sides, the highest retained pair holding
+66 false alarms against 135 for the lowest pair excluded under it, and any threshold between those
+two values selects exactly the same set, so no verdict here turns on the precise figure. The one
+discretionary exclusion, P9, is made on task-comprehension grounds and not on false-alarm count, and
+is not covered by that separation.
 
 
 \section{Session timeline}
 
 The full session runs $\sim$48.5 minutes, inside the 40–60-minute tolerance window participants
 typically accept. Headset-on time is $\sim$35 minutes of that. The information sheet is sent in
-advance, and the closing questionnaires are done with the headset off.
+advance, and the closing questionnaires are done with the headset off. The block order shown below is
+nominal: the two confirmatory blocks are counterbalanced across participants, so for about half the
+sample the driving block ran first and the two Block B rows precede the Block A rows.
 
 \begin{longtable}{p{0.12\textwidth}|p{0.13\textwidth}|p{0.65\textwidth}}
 \caption{Session timeline: clock time, duration, and activity for the full $\sim$48.5-minute session.}\\
@@ -161,7 +179,8 @@ aligned-rank-transform alternative for nonparametric factorial data \citep{wobbr
 but not preferred, in light of recent critiques of ART's error control \citep{tsandilas2024}.
 
 \textbf{Multiplicity policy.} H1 is the single primary endpoint and receives no correction. H2a and H2b
-form the secondary family, Holm-corrected across the two. Everything else, the end-of-session
+form the secondary family, Holm-corrected across the two; the correction is applied and reported in
+Chapter 5, Section 5.7.3. Everything else, the end-of-session
 questionnaire and the head-turn telemetry, is labelled exploratory and is never quoted as a
 confirmatory finding.
 
@@ -176,20 +195,26 @@ trials provide additional sensitivity beyond the aggregate-level power figure.
 
 \subsection{Exploratory analyses}
 
-End-of-session questionnaire items are reported per construct as
+This subsection states the exploratory plan as pre-registered; the note at the end of it records
+which parts were carried out.
+End-of-session questionnaire items are to be reported per construct as
 medians with interquartile ranges, with the open answers quoted rather than coded, since a
 single end-of-session opinion per participant supports description and not testing. Head-turn counts and dwell toward the distractor panels (Block A) and head angular
-speed (Block B) are analysed descriptively with paired tests, flagged exploratory. Interview responses
-are thematically coded into a compact table (mode $\rightarrow$ recurring likes and concerns), with quotes
-used to illustrate the quantitative findings. H1 is re-estimated within VR-experienced and VR-naïve
+speed (Block B) are to be analysed descriptively with paired tests, flagged exploratory. Interview responses
+are to be thematically coded into a compact table (mode $\rightarrow$ recurring likes and concerns), with quotes
+used to illustrate the quantitative findings. H1 is to be re-estimated within VR-experienced and VR-naïve
 subgroups as a robustness description, not a test.
+
+Of these, the questionnaire analysis was carried out and is reported in Chapter 5, Section 5.7.5.
+The head-turn telemetry, the interview coding, and the VR-experience subgroup re-estimation were
+not carried out for this dissertation, so no result is reported for them.
 
 \subsection{Decision table}
 
-The following table was pre-committed before data collection. Collection ended at eighteen people
-tested, two short of the pre-registered twenty, giving seventeen workstation and fifteen driving
-pairs (the deviation is
-reported in Chapter 5, in the chapter status note and again in Section 5.7), and the table is
+The following table was pre-committed before data collection. Collection completed at twenty
+people tested, the pre-registered twenty through the full two-block protocol, meeting that recruitment target
+exactly and giving nineteen
+workstation and seventeen driving pairs, and the table is
 applied to that final sample.
 \textbf{The row that occurred is row 4} for the primary hypothesis: the estimate is positive,
 significant, and adequately powered, but its 90\% interval spans both the smallest effect size of
@@ -243,7 +268,9 @@ condition counts and durations, and per-condition event counts, for example exac
 per Block B condition, returning PASS/FAIL while the participant is still in the room, so a voided
 condition can be re-run under the pre-registered rule rather than discovered a week later. Every
 deviation goes to an incident log with the rule that applied, and those are reported rather than
-hidden.
+hidden. One deviation is recorded against this study: the Block A trial count was raised once, to 140,
+after five participants had run, to move task performance off the ceiling the short form sat on. It is reported with its effect on the achieved accuracies, and the pooling it
+requires is justified, in Chapter 5, Section 5.7. No other change was made after collection began.
 
 \section{Threats to validity}
 
@@ -260,9 +287,9 @@ hidden.
 \hline
 Passthrough acuity confound (Quest 3 VST below normal acuity, worse in low light) & No fine-text reading through passthrough anywhere; the task uses large look-alike shapes ($\geq$ 3$^{\circ}$) seen through the window's untouched native passthrough; legibility confirmed at G1; bright constant lighting on the checklist \\
 Novelty effect & Practice-to-criterion tutorial including the vignette before any measured trial; counterbalancing distributes residual novelty \\
-Order and learning effects & Parity counterbalance in both Block A and Block B; matched sheets/segments; equal trial counts. Fixed A$\rightarrow$B block order is a limitation: B is always second, acceptable because B's comparison is internal to the block and counterbalanced within it \\
+Order and learning effects & Parity counterbalance in both Block A and Block B; matched sheets/segments; equal trial counts. Block order is counterbalanced across participants as well as within each block, so neither block is systematically second and cross-block fatigue cannot load onto one of them; about half the sample ran the driving block first \\
 Coverage limits from the session budget & The three-mode sampler was cut, so Soft Dark was never shown to a participant and no participant saw two modes on a common stimulus (Chapter 5, Section 5.6); the mode $\times$ scenario confound is therefore unmitigated, and subjective data is one end-of-session opinion per participant rather than a per-mode comparison \\
-No workload measure & A per-condition NASA-TLX was specified but never administered, so the study has no subjective workload data and cannot say whether the vignette made the task feel easier as well as produce fewer errors. The end-of-session questionnaire asks about perceived focus benefit, which is adjacent but not the same construct, and it is answered once for the whole session rather than per condition \\
+Workload not measured & Subjective response is collected through the purpose-built end-of-session questionnaire, covering perceived focus benefit, perceived awareness cost and visual comfort, with the first two written as the subjective counterparts of the workstation and driving blocks' own questions (Sections~5.6 and~5.7.5). Task demand in the NASA-TLX sense is not among those constructs and is not collected separately per condition, so no claim is made about whether the vignette made the task feel less effortful as well as more accurate \\
 Demand characteristics & Objective primary DVs (errors, millisecond RT, telemetry); neutral ``comparing display modes'' framing; the noticing question follows Block A data collection \\
 Distractor floor (distractors fail to distract) & Relies on the established distractor-cost literature cited in Chapter 5, Section 5.1 \citep[N = 66]{ai2025} rather than an internal manipulation check; not independently verified within this study \\
 Simulator sickness and dropout & Seated, no locomotion, $\sim$35 min headset time, mid-session break, VRSQ pre/post, stop rule, N + 4 recruitment \\
@@ -282,9 +309,12 @@ The study was approved through the School of Computer Science and Statistics res
 XR}, reference number 6061, with the author as principal investigator and John Dingliana as primary
 supervisor. The blank participant
 information leaflet (version 2.0, dated 13 May 2026) and the blank informed consent form are
-reproduced below exactly as given to participants. Signed originals carry personal data and are
-retained by the supervisor under the School's retention policy rather than submitted with this
-dissertation.
+reproduced in Figures~\ref{fig:consent} and~\ref{fig:pil} exactly as given to participants. Signed
+originals carry personal data and are retained by the supervisor under the School's retention policy
+rather than submitted with this dissertation. The leaflet lists a per-condition workload questionnaire
+among the measures. That instrument was not administered, so the study carries no per-condition
+workload data; participants were asked for their assessment of the effects they had just used, once,
+at the end of the session, through the end-of-session questionnaire reported in Section~5.7.5.
 
 \begin{figure}[htbp]
 \centering

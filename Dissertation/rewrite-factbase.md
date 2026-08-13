@@ -15,20 +15,26 @@ python3 Tools/analysis/blocka_pooled.py Dissertation/authored/raw/blocka
 python3 Tools/analysis/blockb_pooled.py Dissertation/authored/raw
 ```
 
-> **Updated 2026-08-11 — authority moved forward.** Collection continued after this file was
-> written, and `Dissertation/authored/analysis-2026-08-08-pooled-n17.md` now supersedes both
-> `RESULTS-FROZEN-2026-08-06.md` and `analysis-2026-08-06-blocka-pooled.md`. The headline sections
-> below have been updated to the n = 17 / n = 15 / n = 16 set. Any section still labelled n = 13 or
-> n = 14 is a snapshot of the 2026-08-06 state, kept for the record, and must not be quoted.
+> **Updated 2026-08-12 — TESTING COMPLETE, authority moved forward again.** Testing completed at
+> 22 people tested: the pre-registered twenty through the full two-block protocol, plus two
+> Block-B-only supplements (P86, P90) added to offset Block B's response-validity exclusions
+> (P3, P43, and the new P84). **`Dissertation/authored/analysis-2026-08-12-pooled-final.md`**
+> now supersedes `analysis-2026-08-08-pooled-n17.md` and everything before it. The manuscript
+> is on the n = 19 / n = 18 / ESQ n = 20 set: Block A +3.07 pp (p = .0085, dz = 0.678, power
+> 88%), GEE OR 0.600 (p = .0025, 4,681 trials), Block B +7.78 pp (**now significant**, p = .026),
+> 20–30° band +20.2 pp (p = .003, dz = 0.819, power 95%), ESQ A 81/90, B 56/100, C 55/80.
+> Any section below still labelled n = 17 or earlier is a snapshot kept for the record and must
+> not be quoted.
 
 ---
 
 ## Rule zero
 
-`Dissertation/authored/analysis-2026-08-08-pooled-n17.md` is the **sole authority for every statistic
-in the manuscript**. It is regenerated from the scripts above and never hand-edited. It carries its
-own "Superseded figures — do not use" table listing the earlier n = 14 / n = 13 numbers, which in
-turn supersedes the n = 11 / n = 10 table in `RESULTS-FROZEN-2026-08-06.md`. Any figure from either
+`Dissertation/authored/analysis-2026-08-12-pooled-final.md` is the **sole authority for every statistic
+in the manuscript**. It is regenerated from the scripts above plus `Tools/analysis/esq_extract.py`
+and never hand-edited. It carries its
+own "Superseded figures — do not use" table listing the earlier n = 17 / n = 15 / n = 16 numbers,
+which in turn supersedes the earlier tables. Any figure from any
 superseded column appearing in the rewrite is a bug.
 
 Do not re-derive Block B statistics from raw CSVs without splitting by eccentricity band. A naive

@@ -1,5 +1,12 @@
 # Pooled analysis — 2026-08-08
 
+> ## SUPERSEDED — 2026-08-12
+>
+> Testing completed on 2026-08-12 at 22 people tested (P51 and P84 completed the full protocol;
+> P86 and P90 were Block-B-only supplements). The authority for every manuscript statistic is now
+> **`analysis-2026-08-12-pooled-final.md`** (Block A n = 19, Block B n = 18, ESQ n = 20).
+> Do not copy any figure from this file into the manuscript.
+
 Supersedes `analysis-2026-08-06-blocka-pooled.md` and `RESULTS-FROZEN-2026-08-06.md`.
 Regenerate with:
 

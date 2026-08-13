@@ -37,6 +37,90 @@ the abstract compression (476 → 301 words) silently reverted "at least two 0.1
 and `ch6.tex:18`. **Fixed by the parent directly and rebuilt.** All other approved fixes verified
 still present.
 
+## Second loop — NASA-TLX removal (round 1 of 3, 2026-08-11)
+
+**Target:** uncommitted NASA-TLX removal diff. Three fresh-context read-only reviewers
+(integrity/disclosure; build/bibliography/cross-refs; prose/argument/orphans). **Stopped at round 1**
+because a blocker needs an author decision.
+
+### Premise corrections (all three reviewers, independently)
+- **`thesis.tex` is NOT in the uncommitted diff.** The abstract restoration and the `appendix.tex`
+  cross-reference fix were **committed** outside the parent's turns. Reflog: commit `09a783d`,
+  `reset` to `HEAD~1`, re-commit as **`e33f492`**. The parent's earlier "nothing staged or committed"
+  is therefore **stale**, and the parent was reviewing against a wrong baseline. Uncommitted diff is
+  only: `refs.bib`, `README.md`, `content/{ch2,ch6,appendix}.tex`, `thesis.pdf`.
+- **Parent record correction:** "4 pre-existing overfull hbox" is wrong. Actual: **11 overfull, 178
+  underfull**, only 5 monospace-related. Reviewer 2 proved via differential build (`git archive HEAD`
+  → isolated build → `diff`) that **this diff introduces 0 new boxes**.
+- **Parent over-claim retracted:** the old `appendix.tex:192` "Sections 5.3 and 5.7" was **not**
+  mechanically wrong. §5.3 does report the shortfall (`ch5.tex:125–127`, "eighteen people were tested
+  before the dissertation deadline ended collection"). The edit was a **precision improvement**, not
+  an error fix. Count of broken cross-references, before and after: **zero**.
+
+### Verified clean
+- Build from clean: 0 undefined citations, 0 undefined refs, 0 unsettled cross-refs, **0 warnings of
+  any kind**, 0 Type 3 fonts, 111 pages. Bijection exact **63/63/63** (tex/bib/bbl), corroborated
+  independently against LaTeX's own `*.aux` `\citation{}` records.
+- All 63 section-like cross-references resolve, 0 dangling, 0 semantic mismatches. Figure/Table
+  callouts are 100% symbolic `\ref`.
+- Zero statistical drift: the only changed number in the whole diff is README 64→63.
+- NASA-TLX removal complete across `.tex`, `.bib`, `.md`; no orphaned `H3`, subscale, or
+  abbreviations-list entry. No excuse language; acknowledgements untouched.
+
+### Fixes applied by the parent this round (all self-inflicted regressions from the abstract rewrite)
+1. **`thesis.tex:119` band-vs-total error.** "almost all of the **17.8-point detection benefit** fell
+   in the 20–30° band" presented a **band** value as a whole-field **total**. `+17.78` pp IS the
+   20–30° band's own value (`ch5.tex:481`); whole-field pooled is **+6.00** pp (`ch5.tex:415`). The
+   sentence implied a global benefit ~3x what Chapter 5 reports. Reworded to attribute 17.8 to the
+   band's hit rate. **No statistic changed.**
+2. **`thesis.tex` power basis.** "both reach the design's 80% power target" compared **one-tailed**
+   achieved power (81.6%/84%, `ch5.tex:379,489`) against a target `appendix.tex:169` specifies as
+   **two-tailed**. Added "one-tailed and matched to the directional hypotheses", the qualifier the
+   body already carries. No number changed.
+3. **Two semicolons removed** from the abstract (style-contract violation; 46-word and 79-word
+   sentences split).
+4. **Duplicated research question** removed (the merge kept both the old framing question and the
+   new two-halves framing) plus the three-way platform-naming drift.
+5. **`README.md:74`** "Section 5.7 states it first" contradicted the appendix's own new wording;
+   now points at the Chapter 5 status note first.
+
+Post-fix: build clean, 0 warnings, 111 pages, 0 semicolons in the abstract, 514 words.
+
+### BLOCKER — awaiting author decision
+**The bound PDF still prints NASA-TLX.** `appendix.tex:300–307` reproduces the participant
+information leaflet as page images; pages 2 and 3 of `content/ethics/information-leaflet.pdf` read
+"Cognitive load scores via NASA-TLX" and "You will complete post-condition questionnaires (NASA-TLX
+and Likert scales)". Two reviewers flagged this independently. Aggravating context:
+`appendix.tex:284` states the leaflet is reproduced "exactly as given to participants", and
+`appendix.tex:245` promises deviations are "reported rather than hidden". The removed clause ("was
+specified but never administered") was the **only** text reconciling the two. Options: (a) add one
+prose sentence disclosing that the leaflet's stated workload questionnaire was not administered;
+(b) accept the inconsistency knowingly. Editing the approved ethics PDF is **rejected** by the parent.
+
+### Author's stated rationale is contradicted by the author's own files (report only, no text change)
+The removal itself remains justified (TLX was never in the frozen protocol; Table A.4 has only
+H1/H2a/H2b and the multiplicity policy corrects "across the two"). But both halves of the stated
+reason fail:
+- **Not a supervisor suggestion.** `supervisor-feedback-2026-07-17.md` and `-07-23.md` contain
+  **zero** mentions of NASA/TLX/workload. `authored/email-john-2026-07-23.md:34` is the **author**
+  declaring it: "Alongside these: **H3** (people also report lower workload, NASA-TLX...)".
+- **The ESQ did not replace it.** `post-study-questionnaire.md:3–5` calls the ESQ a "**Companion**"
+  and lists "NASA-TLX = per-condition workload" among "the existing instruments" whose gap it fills.
+- No document anywhere records the decision to drop H3/TLX.
+
+### Deferred / optional from this round
+- `ch2.tex:270` now asserts a methodological gap with **no citation**, in a paragraph where every
+  other claim is anchored. Needs an author call: re-anchor, relocate, or accept.
+- **Figures A.1 and A.2 have no in-text callout anywhere** (`fig:consent`, `fig:pil` defined, never
+  `\ref`d). Minor presentation gap.
+- `\label{sec:techval}` unused while "Section 4.11" is hardcoded 8 times; 60 of 63 section refs are
+  hardcoded (latent, all currently correct — no sweep recommended this close to submission).
+- README "self-contained ... and nothing else" is false; Contents table omits `content/figures/` and
+  `content/ethics/`.
+- `meta2024a..d` printed suffixes are **inverted** relative to the bib keys (correct BibTeX
+  behaviour, maintenance trap only).
+- Reviewer 2 deleted stale gitignored `content/ch7.aux`, `ch8.aux` (orphans of the 8→6 restructure).
+
 ### Post-cap corrections (author-requested, 2026-08-11)
 
 **1. Cross-reference audit — all 61 hardcoded `Section N.N` references checked against the built
@@ -431,3 +515,107 @@ them.
 `25377738-dissertation-submission/.pi-subagents/` — reviewer outputs, verification scripts
 (`citecheck.py`, `bblcheck.py`, `filecheck.py`, `stylecheck.py`, `overfull.py`), and two sandbox
 builds. Untracked; safe to delete.
+
+---
+
+## Third loop — re-analysis onto the completed n=19/18 dataset (2026-08-12, round 1 of 3)
+
+**STOPPED AT ROUND 1. Multiple integrity blockers require author decisions. No fixes applied.**
+
+Baseline shifted again without the parent's knowledge: `ch5.tex` (+212 lines), `ch1.tex`, `ch6.tex`,
+`appendix.tex`, `thesis.tex`, `refs.bib`, README and four regenerated figures are uncommitted.
+New authority: `authored/analysis-2026-08-12-pooled-final.md`. Sample moved 18 tested / 17 / 15
+pairs → 22 tested / 19 / 18 pairs. Three fresh reviewers (traceability; consistency; pre-registration
+integrity).
+
+### What is genuinely strong (verified, keep)
+- **Stale-number sweep is clean.** 51 old-dataset patterns across all files: zero survivors.
+- **Cross-file numeric agreement: zero disagreements** across 12 facts in 6 locations.
+- **Results reproduce from raw.** Reviewers re-ran `blocka_pooled.py`, `blockb_pooled.py`,
+  `esq_extract.py`, `h1_lmm_pooled.py`: OR 0.600 [0.431,0.836], z −3.020, p .0025, 40.0%, 4,681
+  trials, 37/38 arms, GLMM 0.594 — all exact. Trial arithmetic closes (14×278 + 789 = 4,681).
+- Build clean: 0/0/0, 0 Type 3, 112 pages, bijection exact 63/63/63.
+- Both mandatory adverse verdicts survived a *more favourable* dataset: primary still below SESOI;
+  equivalence still not established (TOST upper moved **further** away, .133 → .248). Decision table
+  byte-identical. Exclusion grounds for P3/P43/P9 did not shift.
+- `ch5.tex:448` refuses to promote the newly-significant pooled rise to a hypothesis. Correct.
+
+### BLOCKERS — author decision required
+
+**B1. An undisclosed session (P85). PARENT-VERIFIED.**
+`session_ledger_20260811.csv` holds five rows for participant **85** (PLAN `BF,V-F`; two complete
+video blocks 2026-08-11 21:53–22:25 UTC). `session_ledger_20260812.csv` holds **zero** rows for 85.
+No `authored_results_P85_*.csv` exists. P85 appears in no analysis file, no audit, no chapter.
+P86's PLAN is 5 seconds later with an identical plan string. Against `ch5.tex:323` ("Twenty-two
+people were tested and testing is complete") and `appendix.tex:260` ("those are reported rather than
+hidden"), this is currently hidden. If it is the pre-registered relaunch case (`appendix.tex:80`),
+that clause **requires** the join and both IDs in the incident log, exactly as done for P15/P16.
+
+**B2. The pooled Block B significance depends entirely on the two topped-up participants.
+PARENT-VERIFIED by recomputation from the authority's own per-participant table:**
+| set | n | mean | t | p |
+|---|---|---|---|---|
+| as reported | 18 | +7.78 | t(17)=2.439 | **.0260** |
+| drop P86+P90 | 16 | +5.94 | t(15)=1.836 | **.0863** |
+P86 = +15.0 and P90 = +30.0 are ranks **5 and 2** of 18. Both were added *after* the block's data
+were inspected (`ch5.tex:325`: "added to offset the pairs Block B was losing"). The authority states
+the mechanism openly (`:94-97`) but the manuscript promotes "significant" to the abstract, ch5, §5.8
+and ch6 without the n=16 figure. `grep -rni "optional stopping|interim|inflat|type i"` across
+`content/` returns **nothing**. H2a (the registered secondary) does **not** depend on the supplement
+— it was already significant at n=15.
+
+**B3. Six of eighteen Block B pairs are readmitted by a post-hoc rule amendment; no sensitivity
+analysis exists.** The pre-registered rule is a **rate** rule (>30% of presses, `appendix.tex:82`,
+`testing-strategy-v2.md:522`). The absolute form ("FAs > k × target count") was invented during
+collection in response to P3, with k explicitly undecided — `HANDOFF.md:205-208`: "Decide k with
+John before the freeze." This violates `appendix.tex:41` ("analysis choices may not [be tuned]") and
+`:61` ("nothing changes until data collection ends"). Credit: the amendment is **disclosed, not
+backdated** (`appendix.tex:88`). Gap: no run under the literal pre-registered rule is reported
+anywhere.
+
+**B4. "Meeting the target the design set" is false.** Target was **20 analysed**
+(`ch5.tex:4`, `testing-strategy-v2.md:114`). Achieved 19 and 18. `ch5.tex:324` claims the target was
+met; `appendix.tex:203` says "completed". Note the asymmetry an examiner sees instantly: Block A also
+lost a pair (P1) and was **not** topped up; only the block whose result was non-significant was.
+
+### FIX NOW (verified, no author judgement needed beyond approval)
+1. **`appendix.tex:98` is false as written.** "the lowest excluded holds 117" — P9 is an excluded
+   Block B pair holding **9** false alarms. Restrict to "excluded under this rule". Found
+   independently by two reviewers.
+2. **`ch5.tex:359` "95.2\% mean accuracy" is unreproducible.** Absent from the new authority; sole
+   source is the superseded n=17 file (whose header says "Do not copy any figure from this file").
+   Pipeline gives 98.3% / 88.5% / 96.5% / 96.3%. **95.2 is the *minimum* of the 84×2.5s range.** The
+   adjacent SDs were updated (2.30→2.62, 6.10→5.12); this was left. Two reviewers, independently.
+3. **Abstract dropped the deviation flag.** `grep deviation` in the abstract = **0**. HEAD carried
+   "a deviation reported as such". `appendix.tex:205` downgraded "the deviation" → "the supplement".
+4. **Abstract weakened "no measured loss" → "no loss"** (`thesis.tex:121`), undoing an approved
+   parent fix, for the hypothesis whose equivalence statistic is explicitly NOT established.
+5. **Pre-registered Holm correction never applied or mentioned.** `appendix.tex:177` mandates it
+   across the secondary family; `grep -i holm` finds only those lines. Newly load-bearing.
+6. **Power figures: every one below 80% was deleted, every one above kept.** HEAD `ch6.tex:98` had
+   "remains at 50\% power"; gone. Authority still carries 75.7%.
+7. **88%/95% are observed (post-hoc) power** at the observed effect size, never labelled as such;
+   compared against a target `appendix.tex:183` specifies as **two-tailed**. "one-tailed" qualifier
+   missing at `ch5.tex:12`, `ch1.tex:240`, `ch5.tex:583`, `ch6.tex:30`, `appendix.tex:207`.
+8. **`Tools/analysis/h1_lmm_pooled.py` is stale** — `EXPECTED_TRIALS = 4125`, prints
+   `!! Parse has drifted — stop` **against the run that produces the published OR**, and hard-codes
+   the superseded n=17 robustness footer. Also absent from the authority's regeneration list.
+9. **Two Wilcoxon statistics are float tie artefacts.** `ch5.tex:425` W=29.0 p=.024 → exact
+   **W=30.5 p=.0292**; `ch5.tex:384` W=23.0 → **23.5**. Defect propagated script → authority →
+   manuscript, so traceability "verified" a wrong number.
+10. **`ch5.tex:350` cites P15's 206/246 but the backing raw CSV is deleted** in this working tree
+    (`authored/raw/excluded_p15_20260727/`).
+11. **Appendix A.5 session timeline never updated** — still describes one uniform ~48.5-minute
+    two-block session for all 22.
+12. **ESQ: 20 forms from 22 tested; P1 and P6 returned none.** Never disclosed.
+13. **H3 was a pre-registered secondary hypothesis** (`testing-strategy-v2.md:95,484,486`:
+    "H2a/H2b/H3 form the secondary"). The frozen appendix silently has a two-member family. The
+    NASA-TLX removal deleted the last textual trace with no statement that H3 was dropped.
+
+### Deferred / optional
+Causal "so" in ch1/ch6 (P84 excluded 08-12, after both supplements ran); 10–20° band reported as
+"trend" under a two-tailed call while power is quoted one-tailed, and the discriminator changed from
+"only interval excluding zero" to "only band significant on both tests"; figure-internal N=20 vs
+81/90; `generate_all.py` "reproduce exactly" (W=24.0 vs 23.0); "four spares" → "spares";
+A.9 discloses 1 of 3 leaflet mismatches (eye tracking and the third scenario also undelivered);
+P86 order `BF` contradicts `appendix.tex:243` determinism claim.

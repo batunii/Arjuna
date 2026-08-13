@@ -71,7 +71,10 @@ consumes this single scalar. The dark modes use it directly as overlay alpha. Co
 interpolate each pixel between its inside and outside treatments.
 
 The soft edge defaults to \verb|m_softEdgeDeg| = 20$^{\circ}$, widened to 32$^{\circ}$ for ColorPop
-(Section 4.5.2). The 20$^{\circ}$ default is chosen against the useful field of view, the region
+(Section 4.5.2). These are the component defaults; the scene the user study ran serialises
+18$^{\circ}$ for the dark path and 24$^{\circ}$ for the colour-pop path, against an
+8$^{\circ}\times$6$^{\circ}$ window, which is the geometry Chapter 5, Section 5.7.3 reads its
+eccentricity bands against. The 20$^{\circ}$ default is chosen against the useful field of view, the region
 within roughly 30$^{\circ}$ of fixation from which people extract task-relevant information without
 moving their eyes or head \citep{ball1993}. Placing the soft edge inside that radius means the
 transition band falls where the eye is still resolving detail, so the effect reaches full strength
