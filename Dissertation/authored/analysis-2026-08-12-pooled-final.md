@@ -44,7 +44,7 @@ participants. P9's discretionary exclusion stands.
 | Paired t | t(18) = 2.95, **p = .0085** |
 | Wilcoxon | W = 23.0, **p = .0065** |
 | Effect size | dz = 0.678, 14/19 positive |
-| Achieved power | **88.4%** (one-tailed) |
+| Achieved power | **79.8%** (two-tailed, as registered) |
 
 Sessions added since the n = 17 analysis: P51 +2.16 pp, P90 +3.60 pp. Neither is a reversal, and
 the estimate moved by 0.02 pp — the stability-under-accumulation argument continues to hold
@@ -101,7 +101,7 @@ differ, which is the premise for the robustness split, not a threat to it.
 | Paired t | t(16) = 2.19, **p = .0434** |
 | Wilcoxon | W = 29.0, **p = .0435** |
 | Effect size | dz = 0.532, 10/17 positive |
-| Achieved power | 67.5% (one-tailed) |
+| Achieved power | 54.0% (two-tailed, as registered) |
 | **Non-inferiority vs −10 pp** | **p = .000046 — passes** |
 | TOST ±10 pp | lower p = .000046, upper p = .2206 → **equivalence not established** |
 | False alarms per run | off 6.9 vs on 11.6 (10/17 pressed more under filter) |
@@ -152,8 +152,9 @@ registered safety statistic.
 | **20–30°** | **38.9%** | **59.6%** | **+20.64** | **+20.82** | **[+10.10, +31.50]** | **.004** | **.008** | **0.824** | **95%** |
 | >30° | 54.4% | 55.4% | +0.98 | +0.98 | [−5.70, +7.70] | .802 | .916 | 0.062 | 8% |
 
-Power is one-tailed throughout, matching the primary contrast's convention. **The 20–30° band
-remains the Block B result**: +20.8 pp per participant, p = .004, dz = 0.824, 95% achieved power.
+Power is two-tailed throughout, matching the convention registered in Appendix A.6 and used for
+every reported p-value. **The 20–30° band remains the Block B result**: +20.8 pp per participant,
+p = .004, dz = 0.824, 89.0% achieved power.
 It is still by far the largest band effect. The pooled and per-participant
 estimators are close (+20.64 vs +20.82). The 10–20° band trends positive (+9.7 pp) but its 90%
 interval now spans zero ([−0.20, +19.70]) and its tests do not reach significance (p = .108),
