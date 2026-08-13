@@ -42,10 +42,20 @@ def answers(path):
                     break
     return ans
 
-OLD = ['2-P2', '3-P3', '4-P4', '9-P9', '10-P10', '13-the P13 participant',
-       '15-16-p15', '17-the P17 participant', '20-P20', '25-P25', '26-P26', '27-Josh',
-       '30-Pri', '33-P33', '41', '43']
+# Participant IDs only. P15 and P16 are one participant on a single combined form.
+# The 16 forms used for the validation total, then the four added 2026-08-11/13.
+OLD = ['2', '3', '4', '9', '10', '13', '15-16', '17', '20', '25', '26', '27',
+       '30', '33', '41', '43']
 NEW = ['51', '90', '1', '6']
+
+def form_path(pid):
+    """Locate a participant's questionnaire by ID, whatever suffix the filename carries."""
+    for pattern in (rf'\post-study-questionnaire-{pid}.docx',
+                    rf'\post-study-questionnaire-{pid}-*.docx'):
+        hits = sorted(glob.glob(DIR + pattern))
+        if hits:
+            return hits[0]
+    raise SystemExit(f'no questionnaire form found for participant {pid} in {DIR}')
 
 def favourable(ans):
     fav = {}
@@ -60,7 +70,7 @@ def tally(names, label):
     sect_n = collections.Counter()
     per_pid = {}
     for nm in names:
-        path = glob.glob(DIR + rf'\post-study-questionnaire-{nm}.docx')[0]
+        path = form_path(nm)
         ans = answers(path)
         fav = favourable(ans)
         per_pid[nm] = ans
@@ -88,7 +98,7 @@ for nm, ans in new.items():
 # strong dissenter check (P25-like: A favourable count per pid)
 print('\nA-block favourable per respondent:')
 for nm in OLD + NEW:
-    path = glob.glob(DIR + rf'\post-study-questionnaire-{nm}.docx')[0]
+    path = form_path(nm)
     fav = favourable(answers(path))
     a = sum(v for k, v in fav.items() if k.startswith('A'))
     an = sum(1 for k in fav if k.startswith('A'))
