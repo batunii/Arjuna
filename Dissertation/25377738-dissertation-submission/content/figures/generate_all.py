@@ -191,8 +191,8 @@ def fig_eccentricity():
     # put an interval around a point it was not computed for, so the panel uses the
     # per-participant mean throughout and the caption states the difference.
     delta = [-3.68, +9.74, +20.82, +0.98]
-    dlo   = [-12.00, -0.20, +10.10, -5.70]
-    dhi   = [+4.60, +19.70, +31.50, +7.70]
+    dlo   = [-13.78, -2.39, +7.83, -7.16]
+    dhi   = [+6.43, +21.88, +33.82, +9.12]
 
     x = np.arange(len(bands))
     w = 0.35
@@ -227,10 +227,12 @@ def fig_eccentricity():
         a.axvline(2.5, color='#5d4037', linewidth=1.5, linestyle=':', zorder=1)
     ax1.annotate('UFOV boundary ≈30°', xy=(2.55, 88), fontsize=8, color='#5d4037')
 
-    # Lower panel: paired per-participant difference with its 90% interval.
+    # Lower panel: paired per-participant difference with its 95% interval. Appendix A.6
+    # registers 95% two-sided by default; the 90% exception is scoped to the H1 SESOI bound
+    # and the H2b TOST, and H2a is neither.
     # Red marks the band significant on both the t and the rank test (20-30 only).
-    # The 10-20 band trends the same way at n = 17 but its 90% interval now spans
-    # zero ([-0.2, +19.7]) and its tests do not reach significance (p = .108), so
+    # The 10-20 band trends the same way at n = 17 but its 95% interval spans
+    # zero ([-2.4, +21.9]) and its tests do not reach significance (p = .108), so
     # ch5 reports it as a trend and the figure must not paint it as a finding.
     significant = [False, False, True, False]
     ax3.axhline(0, color='black', linewidth=0.8, linestyle=':')
@@ -244,7 +246,7 @@ def fig_eccentricity():
         ax3.text(xi + 0.12, delta[xi], f'{delta[xi]:+.1f}', fontsize=8,
                  va='center', color=col, fontweight='bold' if reliable else 'normal')
 
-    ax3.set_ylabel('Per-participant\ndifference (pp), 90% CI', fontsize=8)
+    ax3.set_ylabel('Per-participant\ndifference (pp), 95% CI', fontsize=8)
     ax3.set_xlabel('Eccentricity Band')
     ax3.set_xticks(x)
     ax3.set_xticklabels(bands)
