@@ -34,9 +34,7 @@ engineering excellent detection on-device.
 
 The two confirmatory blocks sit at opposite ends of that spectrum. Block A runs on \textbf{real
 passthrough with real physical distractors} and evaluates the artefact as built. Block B runs on the
-simulated video scene and evaluates the concept under the ideal-context assumption. Convergence
-strengthens both, and divergence is itself a reportable finding about what simulation-based XR
-evaluation misses.
+simulated video scene and evaluates the concept under the ideal-context assumption.
 
 The design is fully within-subjects with a high trial count per condition, following the two closest
 published DR evaluations \citep{cheng2022,mclaughlin2025} and the field norm \citet{caine2016}
@@ -72,7 +70,7 @@ out.
 \hline
 \endhead
 \hline
-\textbf{H1} & Error rate on the Block A task, with distractors present throughout, is lower with the vignette on than off, by at least the smallest effect size of interest (default $\geq$ 50\% reduction from the vignette-off error rate, finalised from pilot data). & The paired difference's 90\% CI excludes the SESOI, or the difference is absent or reversed. & Primary confirmatory \\
+\textbf{H1} & Error rate on the Block A task, with distractors present throughout, is lower with the vignette on than off, by at least the smallest effect size of interest (default $\geq$ 50\% reduction from the vignette-off error rate, finalised from pilot data). & The paired difference's 90\% CI excludes the SESOI from below, or the difference is absent or reversed. & Primary confirmatory \\
 \textbf{H2a} & With SignPop on, marker-detection hit rate in the 20–30$^{\circ}$ eccentricity band is higher than with the vignette off. This is the band where the colour-pop gate has visible room to act but the target is still within useful glance range. & Band-level difference's CI includes 0 or favours off. & Secondary confirmatory \\
 \textbf{H2b} & With SignPop on, hit rate pooled across the whole field of view is \textit{equivalent} to off within a margin of 10 percentage points (two one-sided tests). & Equivalence not established \textbf{and} the point estimate shows a drop $>$ 10 pp. A conclusive finding that the mode harms situational awareness. & Secondary confirmatory (safety) \\
 \hline
@@ -110,8 +108,8 @@ Recruitment targeted 20 analysed adults with spares against dropouts and pre-reg
 exclusions; twenty people were tested in all, completing the full two-block protocol (Section 5.7). Inclusion criteria follow the approved ethics protocol: aged 18 or
 over, normal or corrected-to-normal vision by self-report, no self-reported vestibular disorders,
 and no history of epilepsy or photosensitive conditions. Recruitment is by direct approach from the
-postgraduate computer-science cohort, unpaid. No demographic instrument was administered, so age,
-gender and background distributions cannot be reported; the inclusion criteria and recruitment route
+postgraduate computer-science cohort, unpaid. No demographic instrument was administered, so age
+and gender distributions cannot be reported; the inclusion criteria and recruitment route
 above are what a reader has to judge the sampling frame by, and the absence of demographic data is
 carried as a limitation in Chapter 6.
 
@@ -235,7 +233,7 @@ itself \citep{wallis2015}.}
 
 A \textbf{hit} is a trigger press while the marker is on screen, within 10$^{\circ}$ of its position
 at that instant. Presses landing on nothing are false alarms. Markers move while visible, by
-17$^{\circ}$ of travel on average, so scoring against a marker's average position misassigns a
+a median 17$^{\circ}$ of travel, so scoring against a marker's average position misassigns a
 meaningful share of presses to the wrong analysis band. The intended method is therefore to score
 every press against the marker's reconstructed position, from the recorded scene track, at the exact
 instant of the press. That reconstruction is not yet implemented in the analysis pipeline, so the
@@ -325,7 +323,7 @@ Block A is retained for P3, P9 and P43, since those exclusions concern the marke
 The arithmetic closes on the twenty tested: nineteen contribute a Block A pair, the twenty
 less P1, and seventeen contribute a Block B pair, the twenty less P3, P9 and P43.
 
-The first of two provenance facts is the study's \textbf{one protocol deviation}. Block A pools a short and a long form of
+The first provenance fact is the study's \textbf{one protocol deviation}. Block A pools a short and a long form of
 the same task: five participants ran the short form before the trial count was raised, once, to 140,
 and the remaining fourteen ran the 140-trial form. Participant numbers are ledger-assigned rather
 than collection order, so the split is chronological and is not read off the identifiers. The change was made to move performance off the ceiling the short form sat on, and the achieved
@@ -358,7 +356,7 @@ before testing rather than using the trials themselves.
 
 \textbf{The registered robustness check.} Accuracy on the memory task rose from 92.01\% (SD 6.57) with the vignette off to 95.08\% (SD 4.42)
 with Hard Dark on. That is a gain of \textbf{+3.07 percentage points} (SD 4.52, median +2.16; 95\% CI
-+0.89 to +5.25, paired $t(18) = 2.95$, $p = .009$; Wilcoxon $W = 23.0$, $p = .007$; $d_z = 0.678$).
++0.89 to +5.25, paired $t(18) = 2.95$, $p = .0085$; Wilcoxon $W = 23.0$, $p = .007$; $d_z = 0.678$).
 Fourteen of nineteen participants improved, four declined, one was unchanged. Achieved power at this
 sample and effect size is 79.8\% two-tailed, against the design's 80\% target.
 
@@ -492,8 +490,8 @@ its $p = .221$ would have failed the correction exactly as it fails uncorrected.
 conclusion in this chapter depends on the uncorrected values.
 
 What makes it more than a lucky slice is that the geometry was fixed before any data existed, and
-against the driving-attention literature rather than against these results \citep{victor2005,
-jahn2005, ball1993}. The measured benefit follows that curve: absent
+fixed against the driving-attention literature rather than against these results \citep{victor2005,
+jahn2005}. The measured benefit follows the filter's ramp: absent
 inside 10$^{\circ}$, where there is almost no filter to work against, partial through
 10--20$^{\circ}$ as the ramp opens, largest in the 20--30$^{\circ}$ annulus where the gate is near
 full and the eye can still use what it reveals, and flat beyond 30$^{\circ}$, where the filter is at

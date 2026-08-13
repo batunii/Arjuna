@@ -791,7 +791,8 @@ def fig_hybrid_exploded():
 def fig_band_landmarks():
     # Every landmark is a cited value: road-centre gaze ~8 deg radius (victor2005),
     # PDT probe placement 11-23 deg (jahn2005), UFOV ~30 deg conventional extent
-    # (ball1993), and the system's own soft edge at 20 deg. The bands are round
+    # (ball1993), and the system's own half-strength point at 20 deg (24 deg soft edge
+    # on an 8 deg window half-width). The bands are round
     # numbers chosen to bracket the landmarks, and the figure shows exactly that.
     fig, ax = plt.subplots(figsize=(9, 3.0))
     ax.set_xlim(0, 40)
@@ -819,7 +820,7 @@ def fig_band_landmarks():
 
     ax.annotate('', xy=(20, 3.6), xytext=(20, 4.35),
                 arrowprops=dict(arrowstyle='->', lw=1.4, color='#3d7a44'))
-    ax.text(19.4, 4.0, "focus-window soft edge, 20° (this system)",
+    ax.text(19.4, 4.0, "gate at half strength, 20° (this system)",
             fontsize=8.5, va='center', ha='right', color='#3d7a44')
 
     ax.plot([30, 30], [1.6, 4.4], color='#b65d1f', linewidth=1.4,
