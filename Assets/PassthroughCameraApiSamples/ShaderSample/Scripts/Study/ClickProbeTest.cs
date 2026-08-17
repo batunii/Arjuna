@@ -4,11 +4,10 @@
 // the YOLO bake (DebugVideo.detections.json) is done OFFLINE in Tools/analysis (a click's
 // video_t + az/el is compared against the pre-coded detections at that time).
 //
-// This is a standalone capture test: with m_autoOpenSession on, it opens a StudyLogger
-// session (pid 999, block CLICKTEST) shortly after launch, so you just launch, click on
-// lights, and pull the CSV — no session flow needed. StudyLogger flushes every frame, so
-// pulling mid-session gives a complete file. Turn m_autoOpenSession OFF when integrating
-// this into the real study flow (then clicks log into whatever session is already open).
+// Standalone capture test: with m_autoOpenSession on it opens a StudyLogger session (pid 999,
+// block CLICKTEST) shortly after launch, so launching, clicking and pulling the CSV is the
+// whole flow. StudyLogger flushes every frame, so a mid-session pull is complete. Turn
+// m_autoOpenSession off to log into a session that is already open.
 
 using System.Globalization;
 using UnityEngine;

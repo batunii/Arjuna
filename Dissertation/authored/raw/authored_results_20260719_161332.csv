@@ -1,4 +1,0 @@
-t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
-1784474012635,1,Filter,A,-1,,,,,false_alarm,,
-1784474013859,1,Filter,A,-1,,,,,false_alarm,,
-1784474033734,1,Filter,A,3,person,20.500,22.000,1.500,miss,,

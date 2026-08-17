@@ -1,32 +1,26 @@
-// Point-authoring tool (Test/PointAuthoring branch).
+// Point-authoring tool: hand-curate the pool of clickable target points for the driving study.
 //
-// Purpose: hand-curate the pool of clickable target "points" for the driving study. You point
-// EITHER controller at a real object in the playing 360° video and pull its trigger; the tool
-// matches your aim + the current video time to the nearest baked YOLO detection LIFETIME and
-// records THAT detection (its whole on-screen span) as a point, with the fields the later
+// Aim either controller at a real object in the playing 360 video and pull its trigger. The tool
+// matches the aim plus the current video time to the nearest baked YOLO detection lifetime and
+// records that detection's whole on-screen span as a point, with the fields the later
 // set-splitting step needs (class, start/end/duration, representative az/el, eccentricity, box
-// size). Points are written to authored_points_<stamp>.csv in persistentDataPath (flushed on every
-// mark, so you can pull the file mid-session).
+// size). Points go to authored_points_<stamp>.csv in persistentDataPath, flushed on every mark.
 //
-// Controls (Quest, either controller unless noted):
-//   Left OR right trigger — mark: match aim→nearest active detection and record it (green + high
-//                  beep). No detection under the aim → rejected (red + low beep). Already recorded
-//                  → dup (yellow + mid beep). Both reticles are shown so you can aim with either.
-//   X — play / pause the video (pause, aim carefully, then mark).  [when the clip has ENDED: REPLAY]
-//   B — log the CSV path to the console.                           [when the clip has ENDED: FINISH]
+// A point is a detection lifetime, not an instant: the click only identifies which tracked
+// object was meant, and its span and position come from the bake. Clicks matching no detection
+// are discarded.
 //
-// End-of-clip flow: authoring plays the clip ONCE (looping off). When it reaches the end it pauses
-// and offers: X = replay from the start and KEEP appending points, or B = finish (closes the CSV;
-// no more marking). Replaying reuses the same file and the same dedup set, so points accumulate
-// across as many passes as you like.
+// Controls (either controller unless noted):
+//   Left or right trigger   mark: record the nearest active detection under the aim (green,
+//                           high beep). No detection = rejected (red, low beep). Already
+//                           recorded = duplicate (yellow, mid beep).
+//   X                       play/pause the video; replay once the clip has ended
+//   B                       log the CSV path; finish and close the CSV once the clip has ended
 //
-// Standalone authoring mode: when present it DISABLES TestModeSequencer (the normal test harness)
-// so the two don't fight over the video/scene. Add it via the "Meta/Study/Point Authoring" editor
-// menu (which also wires the marker material), or drop the component into VideoTestScene manually.
-//
-// A "point" is a DETECTION LIFETIME, not an instant: the click only identifies which tracked object
-// you meant; its span/position come from the bake. Clicks that match no detection are discarded
-// (this tool curates real detections only — arbitrary hand-placed points are out of scope).
+// Authoring plays the clip once with looping off. At the end it pauses and offers replay, which
+// keeps appending to the same file and dedup set, or finish. Disables TestModeSequencer while
+// present. Add it via the Meta/Study/Point Authoring editor menu, which also wires the marker
+// material, or drop the component into VideoTestScene.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -105,13 +99,13 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private void Update()
         {
-            // Take over from the normal harness FIRST — while it exists it paints windows, pauses
-            // the video, and advances modes underneath us. Wait a frame for it to be gone.
+            // Take over from the harness first: while it exists it paints windows, pauses the
+            // video and advances modes. Wait a frame for it to be gone.
             if (TestModeSequencer.Instance != null) { Destroy(TestModeSequencer.Instance.gameObject); return; }
             if (m_video == null) return;
 
-            // Suppress the manager's own filter + right-trigger window painting: authoring shows RAW
-            // video, and the right trigger is free to MARK rather than paint a window.
+            // Suppress the manager's filter and window painting: authoring shows raw video, and
+            // the trigger marks rather than paints.
             m_video.StudyInputLock = true;         // disables VideoTestSceneManager's paint handler
             m_video.StudyEffectSuppressed = true;  // effectiveStrength 0 → no vignette/dim/highlights
 

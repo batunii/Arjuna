@@ -1,10 +1,11 @@
-// Custom inspector for AuthoredTargetPresenter: the run-configuration dropdowns are orthogonal,
-// but not every combination is meaningful — this editor greys out what doesn't apply (the whole
-// manual configuration in AutoSession, where the on-device ledger decides; no authored data in
-// the passthrough environment; BASELINE tagging only for no-filter video passes; the filter-mode
-// picker is video-only since passthrough is always Hard Dark) and prints a one-line summary of
-// exactly what the current configuration will run. The same rules are enforced at the data level
-// in AuthoredTargetPresenter.OnValidate().
+// Custom inspector for AuthoredTargetPresenter. The run-configuration dropdowns are orthogonal
+// but not every combination is meaningful, so this greys out what does not apply and prints a
+// one-line summary of what the current configuration will run. Disabled fields:
+//   - the whole manual configuration in AutoSession, where the ledger decides
+//   - target set in the passthrough environment, which has no authored data
+//   - BASELINE tagging outside no-filter video passes
+//   - the filter-mode picker in passthrough, which is always Hard Dark
+// The same rules are enforced in AuthoredTargetPresenter.OnValidate().
 
 using UnityEditor;
 using UnityEngine;

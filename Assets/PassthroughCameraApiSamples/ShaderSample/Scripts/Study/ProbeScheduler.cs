@@ -5,10 +5,10 @@
 // (testing-strategy-v2 §4.2). Presses are matched to probes in the ISO window 100–2500 ms;
 // everything else is a false alarm.
 //
-// Assign the two schedule TextAssets (Assets/StreamingAssets/StudySchedules/probes_B1.json /
-// probes_B2.json — drag copies imported as TextAssets, or any JSON in the same format) and a
-// probe material template. The template matters: Shader.Find is unreliable for stripped
-// shaders on Android (see CLAUDE_SESSION_SUMMARY.md) — reuse SelectionDotMat.
+// Assign the two schedule TextAssets (copies of Assets/StreamingAssets/StudySchedules/
+// probes_B1.json and probes_B2.json, or any JSON in the same format) and a probe material
+// template. The template is required: Shader.Find is unreliable for stripped shaders on
+// Android. Reuse SelectionDotMat.
 
 using System;
 using UnityEngine;
@@ -202,9 +202,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private void EnsureProbeObject()
         {
             if (m_probeGO != null) return;
-            // A thin cube, not a quad: a quad is single-sided and back-face culling can make it
-            // invisible depending on the mesh's facing convention — a solid can never be culled
-            // away. Same reason the selection dots are spheres.
+            // A thin cube, not a quad: a quad is single-sided and can be culled depending on
+            // the mesh's facing convention. Same reason the selection dots are spheres.
             m_probeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             m_probeGO.name = "StudyProbe";
             Destroy(m_probeGO.GetComponent<Collider>());

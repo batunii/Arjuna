@@ -1,5 +1,0 @@
-t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
-1784689934858,1003,Filter,P,0,traffic_light,0.000,2.500,2.500,hit,1.001,1.570
-1784689935976,1003,Filter,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,0.870
-1784689947949,1003,Filter,B,2,traffic_light,10.500,14.000,3.500,hit,2.446,1.618
-1784689957753,1003,Filter,B,3,person,20.500,22.000,1.500,miss,,

@@ -155,9 +155,9 @@ namespace PassthroughCameraSamples.ShaderSample
 
             if (m_layersPerFrame > 0)
             {
-                // Spread layer execution over frames — caps per-frame cost instead of one spike.
-                // Some model/backend combos NRE inside iterable execution (Conv layer on the
-                // CPU backend here) — degrade permanently to plain Schedule() when that happens.
+                // Spread layer execution over frames to cap per-frame cost. Some model/backend
+                // combinations throw inside iterable execution (Conv on the CPU backend), so
+                // degrade permanently to plain Schedule() when that happens.
                 var sched = m_engine.ScheduleIterable(inp);
                 int n = 0;
                 bool failed = false;
@@ -225,8 +225,8 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             if (m_engine == null) yield break;
 
-            // The CPU backend needs CPU-resident texture data — feeding a RenderTexture
-            // directly makes Conv.Execute NRE on the missing CPUTensorData.
+            // The CPU backend needs CPU-resident texture data; a RenderTexture makes
+            // Conv.Execute throw on the missing CPUTensorData.
             Texture feed = input;
             if (m_backend == BackendType.CPU && input is RenderTexture rtIn)
             {

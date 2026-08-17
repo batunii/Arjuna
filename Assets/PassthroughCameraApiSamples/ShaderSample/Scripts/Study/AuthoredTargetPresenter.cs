@@ -1,49 +1,31 @@
-// Runtime loader/presenter for the authored, split target pool (Test/PointAuthoring branch).
+// Runtime loader and presenter for the authored, split target pool.
 //
-// Loads pool_split.csv (the counterbalance sets A/B produced by Tools/analysis/split_pool.py),
-// resolves each point back to its baked YOLO detection lifetime (for per-frame position), and
-// presents ONE set as SIMULTANEOUS ring probes over the driving video while the participant clicks
-// them with either controller. Hit/miss/RT per target is logged to authored_results_*.csv.
+// Loads pool_split.csv (counterbalance sets A/B, produced by Tools/analysis/split_pool.py),
+// resolves each point back to its baked YOLO detection lifetime for per-frame position, and
+// presents one set as simultaneous ring probes over the driving video while the participant
+// clicks them with either controller. Hit/miss/RT per target goes to authored_results_*.csv.
 //
-// RUN FLOW (one build = one configuration; change the dropdowns in the inspector and rebuild):
-//   boot  -> video paused at 0, HUD shows the mode + "Press X to start".
-//   X     -> video restarts from 0. The practice targets (pool set P — the two temporally-first
-//            points) ramp in, then the video PAUSES and the HUD asks the participant to pull
-//            EITHER trigger on each highlighted ring. It resumes only when both are clicked.
-//   play  -> the set's targets present as rings; clicks score hit/miss/false_alarm as before.
-//   end   -> when the video ends (no looping) the pass is over: unresolved targets log as miss,
-//            the CSV is closed, HUD shows the tally. X starts a fresh pass (new CSV, same mode).
+// Run flow:
+//   boot   video paused at 0, HUD shows the mode and "Press X to start".
+//   X      video restarts from 0; practice targets (pool set P) ramp in, then the video
+//          pauses until the participant triggers each highlighted ring.
+//   play   the set's targets present as rings; clicks score hit/miss/false_alarm.
+//   end    the clip ending ends the pass: unresolved targets log as miss, the CSV closes and
+//          the HUD shows the tally. X starts a fresh pass in the same mode.
 //
-// Run configuration (homogenised 2026-07-20 — three orthogonal dropdowns instead of the old
-// 10-value mode enum; a custom inspector greys out what doesn't apply, see
-// Assets/Editor/AuthoredTargetPresenterEditor.cs):
-//   Environment  DrivingVideo (authored-pool test in this scene) or MetaPassthrough (Block A —
-//                X scene-loads CameraSphereVignette and configures its vignette manager).
-//   TargetSet    video only — Auto (participant-id parity: even pid Filter->A/NoFilter->B,
-//                odd swapped) or forced A/B for piloting. No data exists in passthrough.
-//   Filter       WithFilter (video: m_filterMode over the locked window; passthrough:
-//                world-anchored Hard Dark) or NoFilter (identical procedure,
-//                StudyEffectSuppressed — the baseline pattern).
-//   + m_baselineScreening (video + NoFilter only): tag the pass BASELINE in the results CSV —
-//     the per-set clickability screening stage, distinct from experimental NoFilter passes.
+// Configuration is three orthogonal dropdowns, with a custom inspector greying out what does
+// not apply (Assets/Editor/AuthoredTargetPresenterEditor.cs):
+//   Environment  DrivingVideo (this scene) or MetaPassthrough (Block A - X loads
+//                CameraSphereVignette and configures its vignette manager)
+//   TargetSet    video only: Auto (participant-id parity) or forced A/B for piloting
+//   Filter       WithFilter (m_filterMode over the locked window, or world-anchored Hard
+//                Dark in passthrough) or NoFilter (same procedure, effect suppressed)
+//   m_baselineScreening   video + NoFilter only: tag the pass BASELINE in the results CSV
 //
-// In MetaPassthrough the participant paints the window with the right trigger (world-anchor
-// depth raycast, EnvironmentRaycastManager); minimal-UI mode disables everything else. Nothing
-// of the authored harness runs there. Back to the video scene = relaunch the app.
-//
-// Participant id -1 = experimenter pilot; results file is named authored_results_PILOT_<mode>_
-// <stamp>.csv. Real participants (pid >= 0) get authored_results_P<pid>_<mode>_<stamp>.csv.
-// Every pass gets its own timestamped file either way.
-//
-// Practice: pool rows with set=P are shown in EVERY run as warm-up. They behave like normal
-// probes but log set=P, so analysis drops them (the participant's first two clicks never score).
-//
-// Condition drives the filter: NoFilter/Baseline suppress the vignette (raw video); Filter forms
-// the vignette (m_filterMode) over the locked window. Probes are composited AFTER the filter, so a
-// target in a defocused area is filtered too (supervisor Point 3). Window painting is locked off.
-//
-// pool_split.csv is loaded from persistentDataPath (adb push it there) with a StreamingAssets
-// fallback (editor/standalone only). Disables TestModeSequencer so the two don't fight.
+// Practice rows (set=P) run in every pass and are dropped by analysis. Probes composite after
+// the filter, so a target in a defocused area is filtered too. Window painting is locked off.
+// pool_split.csv loads from persistentDataPath, falling back to StreamingAssets in the editor.
+// Disables TestModeSequencer so the two don't fight.
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -109,11 +91,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         [Header("Probe (ring) — THE STUDY RAN THE ROPE (VideoTestScene serializes segments 4, behind-filter ON)")]
         [SerializeField, Range(0.2f, 8f)] private float m_probeSizeDeg = 1.6f;
-        // With m_ringSegments > 0 the shader IGNORES this RGB (the rope's arcs are pure
-        // black/white) and keeps only the alpha (0.4 = the study's translucent rope). The yellow
-        // RGB is retained for the segments = 0 solid-ring fallback only. History: a plain black
-        // ring (filter-invariant) was tried 2026-07-22 and floored the no-filter baseline
-        // (48% hit, 3.55 s median RT); the rope's alternating polarity is the durable fix.
+        // With m_ringSegments > 0 the shader ignores this RGB (the rope's arcs are black and
+        // white) and keeps only the alpha. The colour applies to the segments = 0 solid-ring
+        // fallback only.
         [SerializeField] private Color m_ringColor = new(1f, 0.85f, 0.1f, 0.4f);
         [SerializeField, Range(0.02f, 0.2f)] private float m_ringWidth = 0.06f;
         [Tooltip("0 = solid ring colour (fallback). >0 = 'rope' ring with this many alternating black/white arc PAIRS. THE MAIN STUDY RAN 4 (serialized in VideoTestScene.unity with alpha 0.4, width 0.06): achromatic, so the filter's desaturation is a no-op on it; polarity-alternating, so some arc contrasts with any background; and the multiplicative dim preserves its internal Michelson contrast, so it dims honestly under the filter (Point 3). An early 2026-07-22 in-headset note judged the translucent rope prone to fragmenting; the study configuration kept it regardless, and the dissertation reports that configuration (ch5, fig:ring). This field's code default (0) is overridden by the scene.")]
@@ -221,21 +201,17 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private string ModeTag => $"{(IsBaseline ? "BASELINE" : IsFilterCondition ? "FILTER" : "NOFILTER")}-{m_setForRun}";
 
-        // pids >= 900 are experimenter pilots (the old ClickProbeTest 999 convention): they run
-        // full sessions with their own resume, but are named PILOT<pid> and excluded from the
-        // ledger balancing and from auto-assignment — personal runs can never occupy a real
-        // participant's counterbalance cell.
+        // pids >= 900 are experimenter pilots: full sessions with their own resume, named
+        // PILOT<pid>, and excluded from ledger balancing and auto-assignment.
         private const int k_pilotPidFloor = 900;
 
         private string WhoTag => m_participantId < 0 ? "PILOT"
             : m_participantId >= k_pilotPidFloor ? $"PILOT{m_participantId}"
             : $"P{m_participantId}";
 
-        // The presenter marks itself DontDestroyOnLoad to survive the Block A round-trip, so the
-        // reloaded video scene contains a SECOND presenter. Without this guard both instances ran
-        // every subsequent block in lockstep (PILOT1002, 2026-07-22: duplicate result CSVs 1 ms
-        // apart, doubled ledger BLOCK rows). The travelling instance owns the session state and
-        // wins; the scene's fresh copy destroys itself before its Start can run.
+        // The presenter is DontDestroyOnLoad so it survives the Block A round-trip, which means
+        // the reloaded video scene contains a second presenter. The travelling instance owns the
+        // session state and wins; the scene's fresh copy destroys itself before Start can run.
         private static AuthoredTargetPresenter s_instance;
 
         private void Awake()
@@ -253,9 +229,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private void Start()
         {
             BuildHUD();
-            // A silent Start() failure leaves a dark paused scene with no HUD, no input lock and
-            // no ledger row (seen 2026-07-21) — surface any boot exception in-headset and on
-            // disk, and park the presenter so Update doesn't throw every frame on an empty plan.
+            // A silent Start() failure would leave a dark paused scene with no HUD and no ledger
+            // row, so surface any boot exception in-headset and on disk, and park the presenter
+            // so Update doesn't throw on an empty plan.
             try { StartCore(); }
             catch (System.Exception e)
             {
@@ -361,9 +337,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                     case Phase.Armed:
                         if (!m_blockAInit)
                         {
-                            // Boot-time only: hold the video scene quiet behind the launch HUD.
-                            // Lock free-play input too — without this, A cycles the manager's
-                            // vignette modes while the participant waits for X (seen 2026-07-21).
+                            // Boot-time only: hold the video scene quiet behind the launch HUD,
+                            // and lock free-play input so A cannot cycle modes while the
+                            // participant waits for X.
                             m_blockAInit = true;
                             if (m_video != null)
                             {
@@ -394,8 +370,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             else AdvanceBlock();
         }
 
-        // Pushed at block setup AND at every pass start, so ring tweaks made in the inspector
-        // during play mode take effect on the next X (live probe-tuning loop in the Editor).
+        // Pushed at block setup and at every pass start, so inspector tweaks during play mode
+        // take effect on the next X.
         private void PushProbeStatics()
         {
             m_video.SetBlobProbeStatics(3 /*ring*/, 0.18f, 0.7f, 0.08f, 0.6f, 0.45f,
@@ -420,11 +396,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         }
 
         // ---- session driver (AutoSession) ----
-        // One participant = 4 X-gated blocks (rest as long as needed in every gap): the video
-        // pair (filter/no-filter on opposite sets) and the Block A pair, condition order
-        // ABBA-mirrored across the two pairs. Assignment (which set gets the filter + block
-        // order) is greedy-balanced across participants from the on-device ledger, pid rotation
-        // breaking ties. Block A blocks complete on X (the task itself runs outside the app).
+        // One participant = 4 X-gated blocks: the video pair (filter/no-filter on opposite sets)
+        // and the Block A pair, condition order ABBA-mirrored across the two pairs. Assignment
+        // is greedy-balanced across participants from the on-device ledger, pid rotation
+        // breaking ties. Block A blocks complete on X, since that task runs outside the app.
 
         private void SetupVideoBlock(Block b)
         {
@@ -442,9 +417,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_video.SetBlobProbes(0, m_data, m_flash);
             if (m_reticleL == null)
             {
-                // The video sphere hides the participant's real controllers, and the manager's
-                // own cursor dot is hidden under StudyInputLock — these reticles are the only
-                // aim feedback. (Used to come from ClickProbeTest on the old StudyRig.)
+                // The video sphere hides the real controllers and StudyInputLock hides the
+                // manager's cursor dot, so these reticles are the only aim feedback.
                 m_reticleL = CreateReticle("AimReticleL", m_reticleColorLeft);
                 m_reticleR = CreateReticle("AimReticleR", m_reticleColorRight);
             }
@@ -518,10 +492,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             ApplyPassthroughConfig(mgr, Current.filter);
             m_phase = Phase.PassthroughRunning;
-            // Instructions only linger a few seconds — during the block itself the view must be
-            // clean (same rule as the manager's minimal-UI debug text). X still completes it.
-            // The CPT tool's participant field is hand-typed — surface the id at exactly the
-            // moment the experimenter needs it, so Unity data and CPT data join on the same pid.
+            // Instructions linger only a few seconds; the view must be clean during the block
+            // itself. X still completes it. The pid is surfaced here because the CPT tool's
+            // participant field is hand-typed and both datasets must join on the same pid.
             SetHUDTimed(AutoBlockHud(Current,
                 $"CPT tool participant id:  {(m_participantId < 0 ? 0 : m_participantId)}\n"
               + $"CPT tool filter state:  {(Current.filter ? "Filter ON" : "Filter OFF")}\n"
@@ -702,9 +675,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             }
             catch (System.UnauthorizedAccessException)
             {
-                // An adb-pushed ledger is owned by `shell` and read-only to the app (bricked
-                // every boot on 2026-07-21). The app owns the DIRECTORY, so it may delete the
-                // file and rewrite it — content is already in m_ledger, nothing is lost.
+                // An adb-pushed ledger is owned by shell and read-only to the app. The app owns
+                // the directory, so delete and rewrite the file; the content is in m_ledger.
                 Debug.LogWarning("[AuthoredPresenter] ledger not writable (adb-pushed?) — rewriting it app-owned.");
                 var lines = new List<string>();
                 foreach (var f in m_ledger) lines.Add(string.Join(",", f));
@@ -720,12 +692,10 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                          b.filter ? "Filter" : "NoFilter", b.set);
 
         // ---- Block A launcher (m_environment = MetaPassthrough) ----
-        // X performs a full scene load into the passthrough scene. The launcher survives the load
-        // (DontDestroyOnLoad) just long enough to configure the CameraSphereVignetteManager there:
-        // both arms get mode HardDark and free painting (right trigger — with the scene's
-        // EnvironmentRaycastManager wired, the painted window world-anchors onto real geometry),
-        // and the NoFilter arm suppresses the effect so the procedure is identical but invisible
-        // (the standard baseline pattern). Then it shows brief instructions and destroys itself.
+        // X loads the passthrough scene. The launcher survives the load (DontDestroyOnLoad) just
+        // long enough to configure CameraSphereVignetteManager: both arms get HardDark and free
+        // painting with the right trigger, and the NoFilter arm suppresses the effect so the
+        // procedure is identical but invisible. Then it shows instructions and destroys itself.
 
         private bool m_launchingBlockA;
         private bool m_blockAInit;
@@ -740,8 +710,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         {
             if (!m_blockAInit)
             {
-                // Same first-Update timing the normal path uses: hold the video scene quiet
-                // behind the launcher HUD (the manager boots with the clip looping).
+                // Hold the video scene quiet behind the launcher HUD.
                 m_blockAInit = true;
                 if (m_video == null) m_video = FindObjectOfType<VideoTestSceneManager>();
                 if (m_video != null) { m_video.VideoLooping = false; m_video.SetVideoPlaying(false); }

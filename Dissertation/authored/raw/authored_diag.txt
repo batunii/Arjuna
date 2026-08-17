@@ -1,6 +1,0 @@
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=0.3 targets=29
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=1.3 targets=29
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=2.3 targets=29
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=3.3 targets=29
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=4.3 targets=29
-cond=Filter mode=SignPop effStrength=1.00 suppressed=False inputLock=True vt=5.3 targets=29

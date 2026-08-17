@@ -1,6 +1,6 @@
-// Builds the study APK with ALL enabled Build Settings scenes (VideoTestScene boot +
-// CameraSphereVignette), unlike the older BuildAndDeploy.RunBuild which hardcodes a single
-// scene. Menu: Meta > Study > Build Study APK. Output: Builds/Android/study.apk.
+// Builds the study APK with every enabled Build Settings scene, in that order, so the first
+// enabled scene is the boot scene. BuildAndDeploy.RunBuild hardcodes a single scene instead.
+// Menu: Meta > Study > Build Study APK. Output: Builds/Android/study.apk.
 
 using System.IO;
 using System.Linq;

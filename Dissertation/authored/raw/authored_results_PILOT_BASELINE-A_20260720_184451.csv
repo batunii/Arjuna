@@ -1,7 +1,0 @@
-t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
-1784569491365,-1,BASELINE,P,0,traffic_light,0.000,2.500,2.500,hit,1.001,1.224
-1784569496980,-1,BASELINE,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,1.283
-1784569501647,-1,BASELINE,A,-1,,,,,false_alarm,,
-1784569504964,-1,BASELINE,A,1,traffic_light,6.500,23.000,16.500,hit,2.442,1.349
-1784569512504,-1,BASELINE,A,-1,,,,,false_alarm,,
-1784569512932,-1,BASELINE,A,-1,,,,,false_alarm,,

@@ -15,7 +15,6 @@
 //   39 K      skip Block C (fatigue rule §4.3)           37 I  log INCIDENT marker
 //   33 E      end session                                7–16  digits 0–9 (participant ID)
 //   66 ENTER  confirm typed participant ID and open the session log
-// Controller fallback for SPACE: click both thumbsticks and hold ~1 s.
 //
 // Configuration guards run when the session opens: missing references refuse to run
 // (GUARD_FAIL); fixable flags (m_enableMotion for Block B) are forced + logged when
@@ -136,9 +135,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         private bool AdvancePressed()
         {
-            // Keyboard SPACE only. (A thumbstick-click chord used to live here but a
-            // headset-wearing solo operator triggers it by accident while adjusting the
-            // controllers — it kept jumping the session into a block. Removed.)
+            // Keyboard SPACE only: a controller chord was too easy to trigger by accident.
             return Input.GetKeyDown(KeyCode.Space);
         }
 
@@ -219,10 +216,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             for (var k = KeyCode.Alpha0; k <= KeyCode.Alpha9; k++)
                 if (Input.GetKeyDown(k)) m_pidEntry.Append((char)('0' + (k - KeyCode.Alpha0)));
 
-            // ENTER only (not SPACE) opens a session — a stray SPACE keycode (any input
-            // device, including a controller's HID-mapped buttons) must never silently
-            // start a session; ENTER with no digits typed already falls back to the
-            // default pid below, so SPACE added no unique capability, only accidental-open risk.
+            // ENTER only, never SPACE: a stray SPACE keycode from any input device must not
+            // silently open a session. ENTER with no digits falls back to the default pid.
             bool confirm = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
             if (!confirm) return;
 

@@ -265,8 +265,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_eqUOffsetId         = Shader.PropertyToID("_EqUOffset");
         private static readonly int s_eqVOffsetId         = Shader.PropertyToID("_EqVOffset");
 
-        // Blob probe (Route B) — a low-salience click-target composited as a local modulation
-        // of the scene pixels inside the vignette shader (BlobTargetController drives these).
+        // Blob probe: a click-target composited into the vignette shader as a local
+        // modulation of the scene pixels. Driven by BlobTargetController.
         private const int k_maxBlobs = 12;
         private readonly Vector4[] m_blobData  = new Vector4[k_maxBlobs];
         private readonly Vector4[] m_blobFlash = new Vector4[k_maxBlobs];
@@ -293,10 +293,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static readonly int s_flatSurroundId = Shader.PropertyToID("_Surround");
         private static readonly int s_flatFlipYId    = Shader.PropertyToID("_FlipY");
 
-        // A-button cycle — every mode in the enum, in enum order, matching the passthrough
-        // scene's cycle so the same button walks the same list in both. The study still uses
-        // only ColorPop / SoftDark / HardDark; the rest are free-play/demo modes. SignPop
-        // (detection-gated ColorPop) is video's own, gated by the baked track.
+        // A-button cycle: every mode in enum order, matching the passthrough scene's cycle.
+        // SignPop is video-only — it is gated by the baked detection track.
         private static readonly VignetteMode[] k_modeCycle =
         {
             VignetteMode.Blur, VignetteMode.SoftDark, VignetteMode.HardDark,
@@ -328,11 +326,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private const float   k_dotDistance = 4f;
 
         private Vector4 m_activeRect = k_fullSphere;
-        // The window the person gate/grading actually tests against: the painted rect when
-        // one exists, else the pop-mode gaze auto-follow rect (which previously only reached
-        // the shader — so with nothing painted, m_activeRect stayed full-sphere and
-        // PassesPersonGate failed closed: persons were NEVER highlighted in free-play/
-        // TestModeSequencer SignPop. Now the gaze window counts as "the region".)
+        // The window the person gate and grading test against: the painted rect when one
+        // exists, otherwise the pop-mode gaze auto-follow rect.
         private Vector4 m_effectiveRect = k_fullSphere;
         private VideoDetectionTrack m_bakedTrack;
 
@@ -355,32 +350,24 @@ namespace PassthroughCameraSamples.ShaderSample
         private const float k_modeUIShowTime = 2.8f;
         private const float k_modeUIFadeDur  = 0.35f;
 
-        // 16 slots (matches _DetectionRects[16] in the shader): the full-res bake finds a
-        // median of 12 lights/signs per sample, so 8 slots dropped ~a third of them.
+        // 16 slots, matching _DetectionRects[16] in the shader.
         private const int k_maxDetections = 16;
         private readonly Vector4[] m_detectionRects      = new Vector4[k_maxDetections];
         private readonly float[]   m_detectionTimestamps = new float[k_maxDetections];
         private readonly float[]   m_detectionFade       = new float[k_maxDetections];
-        // COCO: 9 = traffic light, 11 = stop sign, 0 = person. Person detections pass this
-        // class filter but are then further gated by PassesPersonGate (below) — only people
-        // near the focus-window edge AND close to the camera are ever shown.
+        // COCO classes: 9 = traffic light, 11 = stop sign, 0 = person. Persons pass this
+        // filter but are gated again by PassesPersonGate.
         private static readonly HashSet<int> k_targetClasses = new() { 0, 9, 11 };
         private const int k_personClassId = 0;
 
-        // SignPop detection tracker: bake samples are 0.25-0.5 s apart, so raw per-sample
-        // slot fills blink as boxes come and go. Identities are matched across the two
-        // bracketing samples (class + centre proximity), lerped between them, and held
-        // for m_signDetHoldSec after they vanish. Boxes tracked in normalized video space.
-        // `presence` (0..1) drives the shader's fade in/out (see m_detectionFadeInSeconds/
-        // m_detectionFadeOutSeconds below) — it ramps toward 1 while the track is live/held
-        // and toward 0 once the hold window expires, so the "window" around a detection
-        // opens/closes smoothly instead of popping. Only removed from the list once it has
-        // fully faded out (presence <= 0), not the instant the hold window expires.
-        // `lifeStart`/`lifeEnd` are the full baked lifetime of the real-world object this
-        // track belongs to, precomputed at load (BuildRuntimeLifetimeSpans) — visibility is
-        // decided from them instantly (lifetime >= m_detectionMinAgeSec shows from its first
-        // frame; a blip never shows), replacing the old wait-out-the-debounce approach whose
-        // lead-time compensation drew boxes at future positions, ahead of the object.
+        // SignPop detection tracker. Bake samples are 0.25-0.5 s apart, so identities are
+        // matched across the two bracketing samples (class + centre proximity), lerped
+        // between them, and held for m_signDetHoldSec after they vanish. Boxes are in
+        // normalized video space.
+        //   presence        0..1, drives the shader's fade in/out. The track is removed
+        //                   once it reaches 0, not when the hold window expires.
+        //   lifeStart/End   the object's full baked lifetime, from BuildRuntimeLifetimeSpans.
+        //                   Visibility is decided from it, so a blip never shows.
         private struct TrackedDet { public Vector4 box; public int cls; public float lifeStart; public float lifeEnd; public float lastSeenVt; public float presence; }
         private readonly List<TrackedDet> m_trackedDets = new();
         private float m_lastVideoVt = -1f;
@@ -391,17 +378,16 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- Study/BlobTargetController support ----
 
-        /// <summary>One real-world object's full on-screen lifetime, reconstructed by walking the
-        /// whole baked track once (offline pass, not tied to the live playhead — contrast with
-        /// m_trackedDets, which is the rolling live tracker). Same identity heuristic as
-        /// UpsertTracked/FindMatch: same class, nearest centre within a radius scaled to box size.</summary>
+        /// <summary>One real-world object's full on-screen lifetime, reconstructed by walking
+        /// the whole baked track once. Identity heuristic matches UpsertTracked/FindMatch:
+        /// same class, nearest centre within a radius scaled to box size.</summary>
         public struct DetectionLifetime
         {
             public int cls;
             public float tStart;
             public float tEnd;
-            /// <summary>Raw normalized boxes at each sample this instance was seen, in order —
-            /// bracket-lerp between the two samples straddling a given time, same as the live tracker.</summary>
+            /// <summary>Raw normalized boxes at each sample this instance was seen, in order.
+            /// Bracket-lerp between the two samples straddling a given time.</summary>
             public List<(float t, Vector4 box)> samples;
         }
 
@@ -413,10 +399,9 @@ namespace PassthroughCameraSamples.ShaderSample
             public List<(float t, Vector4 box)> samples = new();
         }
 
-        /// <summary>Reconstructs every DetectionLifetime for the given classes across the entire
-        /// baked track (e.g. {9, 11} for traffic lights + stop signs — SignPop's "lights & signs").
-        /// Call once (it's an O(samples) pass, not per-frame) — e.g. when a test-mode blob
-        /// controller first needs a pool of real candidates to select from.</summary>
+        /// <summary>Reconstructs every DetectionLifetime for the given classes across the whole
+        /// baked track (e.g. {9, 11} for traffic lights and stop signs). An O(samples) pass:
+        /// call it once, not per frame.</summary>
         public List<DetectionLifetime> BuildDetectionLifetimes(HashSet<int> classIds, float holdSeconds)
         {
             var closed = new List<DetectionLifetime>();
@@ -483,16 +468,14 @@ namespace PassthroughCameraSamples.ShaderSample
             return closed;
         }
 
-        /// <summary>Same normalized-box → az/el-rect (radians: azMin,azMax,elMin,elMax) conversion
-        /// UpdateBakedDetections uses to draw boxes — so a blob placed via this lines up exactly
-        /// with "where the box would have been".</summary>
+        /// <summary>Normalized box to az/el rect (radians: azMin,azMax,elMin,elMax), the same
+        /// conversion UpdateBakedDetections uses, so a placement lines up with the drawn
+        /// box.</summary>
         public Vector4 DetectionBoxToAzElRect(Vector4 box) => BoxToAzElRectEQ(box, Vector2Int.one);
 
-        // Precompute every target-class detection's full lifetime (same identity heuristic as
-        // the live tracker: same class, nearest centre within a size-scaled radius, closed
-        // after m_signDetHoldSec unseen) and stamp (tStart, tEnd) onto each raw entry — the
-        // tracker then decides visibility the moment an object first appears, from its whole
-        // (offline-known) future instead of waiting out a real-time debounce.
+        // Precompute every target-class detection's full lifetime and stamp (tStart, tEnd)
+        // onto each raw entry, so the tracker can decide visibility the moment an object
+        // appears. Identity heuristic matches the live tracker.
         private void BuildRuntimeLifetimeSpans()
         {
             var samples = m_bakedTrack.samples;
@@ -584,8 +567,7 @@ namespace PassthroughCameraSamples.ShaderSample
             InitSelectionDots();
             InitModeUI();
 
-            // The cycle now covers the whole enum, so this only catches a genuinely invalid
-            // serialized value.
+            // Catches an invalid serialized value.
             if (Array.IndexOf(k_modeCycle, m_vignetteMode) < 0)
                 m_vignetteMode = VignetteMode.ColorPop;
 
@@ -597,8 +579,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_flipYId,          m_flipVideoY ? 1f : 0f);
             m_material.SetInt(s_detectionCountId,   0);
 
-            // All mode toggles are driven per-frame by UpdateModeUniforms now that the cycle
-            // covers the whole enum — no stale-value zeroing needed here.
+            // Mode toggles are driven per-frame by UpdateModeUniforms.
             m_material.SetInt(s_blobCountId,      0); // no blob probes until a controller pushes some
 
             if (Camera.main != null) m_lastHeadRot = Camera.main.transform.rotation;
@@ -609,8 +590,8 @@ namespace PassthroughCameraSamples.ShaderSample
             ShowModeToast();
         }
 
-        // Prefer the baked detection track (offline pre-scan of the video — stable coordinates,
-        // zero runtime inference); fall back to live YOLO when no track file exists.
+        // Prefer the baked detection track (stable coordinates, no runtime inference);
+        // fall back to live YOLO when no track file exists.
         private IEnumerator InitDetections()
         {
             var baker = FindObjectOfType<VideoDetectionBaker>();
@@ -648,9 +629,8 @@ namespace PassthroughCameraSamples.ShaderSample
             if (m_yoloRunner == null) m_yoloRunner = GetComponent<YoloRunner>();
             if (m_yoloRunner != null)
             {
-                // Feed a small RT to YOLO instead of the 4K video RT.
-                // TextureConverter reading 3840x2160 on the GPU competes with rendering and causes stutter.
-                // Blitting down to 640x360 first is cheap; YOLO inference then reads ~36x fewer pixels.
+                // Feed YOLO a small RT rather than the 4K video RT: TextureConverter reading
+                // 3840x2160 on the GPU competes with rendering and stutters.
                 m_yoloRT = new RenderTexture(640, 360, 0, RenderTextureFormat.ARGB32);
                 m_yoloRT.Create();
                 m_yoloRunner.SetOverrideRT(m_yoloRT);
@@ -698,22 +678,20 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void SetupVideoSphere()
         {
-            // 2:1 equirectangular target — matches the 360 study clip so the shader's
-            // [0,1] UVs map 1:1 onto the sphere (no letterbox/stretch distortion).
-            // 6K (5760x2880) preserves the higher-res transcode instead of squeezing to 4K;
-            // if this costs framerate on-device, step back down to 3840x1920.
+            // 2:1 equirectangular target, matching the 360 clip so the shader's [0,1] UVs
+            // map 1:1 onto the sphere. Drop to 3840x1920 if 6K costs framerate on device.
             m_videoRT = new RenderTexture(5760, 2880, 0, RenderTextureFormat.ARGB32);
             m_videoRT.Create();
 
-            // The vignette sphere is the only renderer — no separate background sphere.
-            // VideoPlayer decodes into the RT; the vignette shader samples it directly.
+            // The vignette sphere is the only renderer: VideoPlayer decodes into the RT and
+            // the vignette shader samples it directly.
             m_videoPlayer               = gameObject.AddComponent<VideoPlayer>();
             m_videoPlayer.playOnAwake   = false;
             m_videoPlayer.renderMode    = VideoRenderMode.RenderTexture;
             m_videoPlayer.isLooping     = true;
             m_videoPlayer.skipOnDrop    = true;
-            // Prefer a sideloaded video (adb push to persistentDataPath) so large clips
-            // stay OUT of the APK; fall back to the bundled StreamingAssets file.
+            // Prefer a sideloaded video (adb push to persistentDataPath) so large clips stay
+            // out of the APK; fall back to the bundled StreamingAssets file.
             string overrideName = m_flatClipMode ? "flat_clip.mp4" : "study_video.mp4";
             string bundledName  = !string.IsNullOrEmpty(m_videoFileNameOverride)
                 ? m_videoFileNameOverride
@@ -729,10 +707,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
             if (m_flatClipMode)
             {
-                // Flat clip: decode into a native-res RT (created once dimensions are
-                // known), then reproject into the equirect RT every frame — everything
-                // downstream (vignette shader, focus window, detection mapping) keeps
-                // working in unchanged equirect space.
+                // Flat clip: decode into a native-res RT, then reproject into the equirect
+                // RT every frame so everything downstream stays in equirect space.
                 var flatShader = Resources.Load<Shader>("FlatClipToEquirect");
                 if (flatShader != null) m_flatCompositeMat = new Material(flatShader);
                 else Debug.LogError("[VideoTestScene] FlatClipToEquirect shader not found in Resources.");
@@ -749,9 +725,8 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetTexture(s_mainTexLId, m_videoRT);
         }
 
-        // Second decoder: the standard 360 clip fills the periphery around the flat
-        // clip, so the DR modes have real visual noise to suppress — an empty dark
-        // surround gives the vignette nothing to do and kills immersion.
+        // Second decoder: the 360 clip fills the periphery around the flat clip, so the
+        // DR modes have real visual noise to suppress.
         private void SetupSurroundVideo()
         {
             string overridePath = System.IO.Path.Combine(Application.persistentDataPath, "study_video.mp4");
@@ -759,8 +734,8 @@ namespace PassthroughCameraSamples.ShaderSample
                 ? overridePath
                 : System.IO.Path.Combine(Application.streamingAssetsPath, "DebugVideo.mp4");
 
-            // Half-res equirect target — periphery sits at low visual acuity, and this
-            // keeps the extra decode+blit cost modest on the XR2.
+            // Half-res equirect target: the periphery sits at low visual acuity, so this
+            // keeps the extra decode and blit cost modest.
             m_surroundRT = new RenderTexture(2880, 1440, 0, RenderTextureFormat.ARGB32);
             m_surroundRT.Create();
 
@@ -786,10 +761,9 @@ namespace PassthroughCameraSamples.ShaderSample
             Debug.Log($"[VideoTestScene] Flat clip {vp.width}x{vp.height}, hfov {m_flatHFovDeg}°.");
         }
 
-        // Draw the flat clip into the forward sector of the equirect RT (pinhole →
-        // equirect reprojection, FlatClipToEquirect.shader). Only the sector's az/el
-        // bounding box is rasterized each frame; the rest of the RT keeps the surround
-        // colour from a one-time clear.
+        // Draw the flat clip into the forward sector of the equirect RT (pinhole to equirect
+        // reprojection, FlatClipToEquirect.shader). Only the sector's az/el bounding box is
+        // rasterized each frame.
         private void CompositeFlatToEquirect()
         {
             if (m_flatRT == null || m_flatCompositeMat == null || m_videoRT == null) return;
@@ -805,8 +779,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_flatCompositeMat.SetColor(s_flatSurroundId, m_flatSurroundColor);
             m_flatCompositeMat.SetFloat(s_flatFlipYId, m_flatFlipY ? 1f : 0f);
 
-            // Periphery fill: live 360 video when available (real suppressible
-            // noise), else a one-time flat-colour clear.
+            // Periphery fill: live 360 video when available, else a one-time colour clear.
             bool surroundLive = m_flatSurround360 && m_surroundRT != null
                              && m_surroundPlayer != null && m_surroundPlayer.isPrepared;
             if (surroundLive) Graphics.Blit(m_surroundRT, m_videoRT);
@@ -819,9 +792,8 @@ namespace PassthroughCameraSamples.ShaderSample
                 m_flatCleared = true;
             }
 
-            // Sector bounding box in RT uv space — mirrors the vignette shader's
-            // u = 0.5 + az/2π + uOffset, v = 0.5 + el/π + vOffset mapping, so the clip
-            // lands exactly where the shader (and the converter's boxes) expect it.
+            // Sector bounding box in RT uv space, mirroring the vignette shader's
+            // u = 0.5 + az/2π + uOffset, v = 0.5 + el/π + vOffset mapping.
             float u0 = 0.5f - azHalf / (2f * Mathf.PI) + m_videoUOffset;
             float u1 = 0.5f + azHalf / (2f * Mathf.PI) + m_videoUOffset;
             float v0 = 0.5f + (elC - elHalf) / Mathf.PI + m_videoVOffset;
@@ -879,16 +851,14 @@ namespace PassthroughCameraSamples.ShaderSample
         {
             Transform head = Camera.main != null ? Camera.main.transform : transform;
             transform.position = head.position;
-            // Lock world rotation to identity — sphere may be parented to OVRCameraRig which
-            // rotates with the head. Without this, the vertex world positions rotate and the
-            // world-space az/el UV mapping rotates the video with the head.
+            // Lock world rotation to identity: the sphere may be parented to OVRCameraRig,
+            // and rotating its vertices would rotate the video with the head.
             transform.rotation = Quaternion.identity;
             m_material.SetVector(s_sphereCenterId, head.position);
         }
 
-        // In video mode: drive the vignette shader's camera uniforms from the head transform.
-        // The equirectangular sampling path uses these for YOLO-style detection only; the actual
-        // UV computation ignores them. Set a wide FOV so CamUV fallback is safe if ever toggled.
+        // Drive the vignette shader's camera uniforms from the head transform. The equirect
+        // sampling path uses these for detection only; the UV computation ignores them.
         private void UpdateCameraUniforms()
         {
             Transform head = Camera.main != null ? Camera.main.transform : transform;
@@ -905,10 +875,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateFilterUniforms()
         {
-            // ColorPop/SignPop get a wider soft edge: a colour/grey boundary reads harsher
-            // than a blur or dark boundary, so the transition needs to be more gradual.
-            // Hard Dark goes the other way — a narrow edge so the black-out reads as an
-            // almost-binary "selection vs everything else" rather than a wide buffer zone.
+            // ColorPop/SignPop use a wider soft edge (a colour boundary reads harsher than a
+            // blur or dark one); Hard Dark uses a narrow one so the blackout reads as binary.
             float softEdgeDeg = IsPopMode(m_vignetteMode) ? m_popSoftEdgeDeg
                                : m_vignetteMode == VignetteMode.HardDark ? m_hardDarkSoftEdgeDeg
                                : m_softEdgeDeg;
@@ -944,19 +912,15 @@ namespace PassthroughCameraSamples.ShaderSample
                 if (classId == k_personClassId && !PassesPersonGate(rect)) continue;
                 m_detectionRects[slot]      = rect;
                 m_detectionTimestamps[slot] = Time.time;
-                m_detectionFade[slot]       = 1f; // live YOLO fallback has no persistent tracking to fade against yet
+                m_detectionFade[slot]       = 1f; // live YOLO has no tracking to fade against
                 slot++;
             }
         }
 
-        // A detected person is shown only if close to the camera (apparent box height above
-        // threshold — a monocular distance proxy). Given that, they're shown either because
-        // they're ALREADY inside the focus window (position within it doesn't matter — dead
-        // center counts the same as just inside the wall), OR because they're outside it but
-        // near enough to the boundary to read as entering/exiting. Traffic-light/stop-sign
-        // detections never call this — they're always shown, inside or outside the window,
-        // same as this eventually is for people too. No active region = fail closed, since
-        // "the region" is undefined without one.
+        // A person is shown only if close to the camera (apparent box height above a
+        // threshold, as a monocular distance proxy) and either inside the focus window or
+        // near enough to its boundary to read as entering or leaving. Traffic lights and stop
+        // signs never call this. No active region fails closed.
         private bool PassesPersonGate(Vector4 azElRect)
         {
             if (m_effectiveRect == k_fullSphere) return false;
@@ -970,30 +934,26 @@ namespace PassthroughCameraSamples.ShaderSample
             float dyOutside = Mathf.Max(0f, m_effectiveRect.z - cy, cy - m_effectiveRect.w);
             if (dxOutside <= 0f && dyOutside <= 0f) return true; // inside the window: always shown
 
-            // Outside the window: only near enough to the boundary to read as entering/exiting.
-            // The acceptance widens with closeness (box height) — see m_personCloseWideningDegPerDeg.
+            // Outside the window: accepted only near the boundary. The band widens with
+            // closeness (box height); see m_personCloseWideningDegPerDeg.
             float edgeDistRad = Mathf.Sqrt(dxOutside * dxOutside + dyOutside * dyOutside);
             return edgeDistRad * Mathf.Rad2Deg <= m_personMaxEdgeDistDeg + PersonWidenDeg(heightDeg);
         }
 
-        // Extra cone width earned by closeness: proportional to apparent size above the minimum,
-        // so the highlight follows a pedestrian outward as the car approaches instead of dropping
-        // them at their nearest (widest-angle) moment.
+        // Extra cone width from closeness, proportional to apparent size above the minimum,
+        // so the highlight follows a pedestrian outward as the car approaches.
         private float PersonWidenDeg(float heightDeg) =>
             Mathf.Max(0f, heightDeg - m_personMinBoxHeightDeg) * m_personCloseWideningDegPerDeg;
 
-        // Graded person-effect strength by position relative to the focus window: floor at
-        // the window CENTRE ramping to full at the edge (relax only when the person is
-        // actually in front of the user), full while entering/leaving near the edge, then
-        // tapering to zero by m_personMaxEdgeDistDeg outside. Multiplied into the per-slot
-        // fade so the whole effect (carve-out + highlight) breathes with position.
+        // Person-effect strength graded by position relative to the focus window: a floor at
+        // the centre ramping to full at the edge, full near the edge, then tapering to zero
+        // by m_personMaxEdgeDistDeg outside. Multiplied into the per-slot fade.
         private float PersonRegionScale(Vector4 azElRect) =>
             PersonRegionScaleFor(azElRect, m_effectiveRect);
 
-        /// <summary>Predicted person-effect strength for a box against the CURRENT painted
-        /// window (falls back to the frame's effective window). Public so BlobTargetController
-        /// can select person targets the runtime will actually visibly highlight — call it
-        /// after the window is locked (TestModeSequencer locks before activating blobs).</summary>
+        /// <summary>Predicted person-effect strength for a box against the current painted
+        /// window, falling back to the frame's effective window. Call it after the window
+        /// is locked.</summary>
         public float PersonPredictedStrength(Vector4 azElRect) =>
             PersonRegionScaleFor(azElRect, m_activeRect != k_fullSphere ? m_activeRect : m_effectiveRect);
 
@@ -1006,9 +966,8 @@ namespace PassthroughCameraSamples.ShaderSample
             float dy = Mathf.Max(window.z - cy, cy - window.w);
             if (dx <= 0f && dy <= 0f)
             {
-                // Inside: rect-normalized distance from window centre — 0 dead-centre,
-                // 1 at the edge — so "in front" means literally central, independent of
-                // how big the window is.
+                // Inside: rect-normalized distance from the window centre, 0 at the centre
+                // and 1 at the edge, so the result is independent of window size.
                 float winCx = (window.x + window.y) * 0.5f;
                 float winCy = (window.z + window.w) * 0.5f;
                 float halfW = Mathf.Max((window.y - window.x) * 0.5f, 1e-4f);
@@ -1017,10 +976,9 @@ namespace PassthroughCameraSamples.ShaderSample
                                         Mathf.Abs(cy - winCy) / halfH);
                 return Mathf.Lerp(m_personInsideScale, 1f, Mathf.Clamp01(tEdge));
             }
-            // Outside: full strength out to m_personFullStrengthDeg, then linear taper to
-            // zero at the gate's own acceptance limit (m_personMaxEdgeDistDeg). Both bands
-            // widen with closeness (box height) in lockstep with PassesPersonGate, so a close
-            // pedestrian keeps full highlight at angles where a far one has faded out.
+            // Outside: full strength out to m_personFullStrengthDeg, then a linear taper to
+            // zero at m_personMaxEdgeDistDeg. Both bands widen with closeness, in step with
+            // PassesPersonGate.
             float outDeg = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
                                     + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f)) * Mathf.Rad2Deg;
             float widen = PersonWidenDeg((azElRect.w - azElRect.z) * Mathf.Rad2Deg);
@@ -1062,35 +1020,30 @@ namespace PassthroughCameraSamples.ShaderSample
                     }
                     if (det.c == k_personClassId && !PassesPersonGate(BoxToAzElRectEQ(box, Vector2Int.one)))
                         continue;
-                    // The entry's full baked lifetime, precomputed at load — lets the tracker
-                    // decide visibility instantly instead of waiting out a real-time debounce.
+                    // The entry's full baked lifetime, precomputed at load.
                     Vector2 span = m_entryLifeSpan != null ? m_entryLifeSpan[i0][j] : new Vector2(0f, float.MaxValue);
                     UpsertTracked(box, det.c, vt, span);
                 }
             }
 
-            // Ramp presence toward 1 while still within the hold window (still "on screen" or
-            // recently so), toward 0 once past it — a track is only actually removed after it
-            // has fully faded out, so the window/highlight closes smoothly instead of popping.
+            // Ramp presence toward 1 while inside the hold window and toward 0 once past it.
+            // A track is only removed once it has fully faded out.
             for (int i = 0; i < m_trackedDets.Count; i++)
             {
                 var tr = m_trackedDets[i];
-                // Hold bridges mid-lifetime bake gaps; once the KNOWN lifetime end passes,
-                // the window stays open only for the explicit user-tunable tail
-                // (m_detectionHoldPastEndSec, box frozen at its last position), then fades.
+                // Hold bridges mid-lifetime bake gaps. Past the known lifetime end the window
+                // stays open only for m_detectionHoldPastEndSec, box frozen, then fades.
                 bool withinLife = vt <= tr.lifeEnd + 0.001f;
                 bool inEndTail  = !withinLife && vt <= tr.lifeEnd + m_detectionHoldPastEndSec + 0.001f;
                 bool active = (withinLife && vt - tr.lastSeenVt <= m_signDetHoldSec) || inEndTail;
-                // Blip filter + onset delay: visibility requires the object's FULL baked
-                // lifetime (known offline) to reach m_detectionMinAgeSec — a real detection
-                // shows m_detectionOnsetDelaySec after it arrives (0 = instantly), a blip
-                // never shows at all. No waiting-out-a-debounce, no position lead.
+                // Blip filter and onset delay: visibility needs the object's full baked
+                // lifetime to reach m_detectionMinAgeSec, and starts m_detectionOnsetDelaySec
+                // after it arrives. A blip never shows.
                 bool mature = tr.lifeEnd - tr.lifeStart >= m_detectionMinAgeSec
                               && vt - tr.lifeStart >= m_detectionOnsetDelaySec;
                 // Size gate: a speck-sized box would be inflated to the shader's ~2° minimum
-                // halo — a visible circle around nothing discernible — so stay silent until
-                // the object is actually big enough to see. Boxes are normalized equirect:
-                // az extent spans 360°, el extent 180°.
+                // halo, so stay silent until the object is big enough to see. Boxes are
+                // normalized equirect: az spans 360°, el spans 180°.
                 float sizeDeg = Mathf.Max((tr.box.z - tr.box.x) * 360f, (tr.box.w - tr.box.y) * 180f);
                 bool bigEnough = tr.cls == k_personClassId || sizeDeg >= m_detectionMinSizeDeg;
                 bool visible = active && mature && bigEnough;
@@ -1113,8 +1066,7 @@ namespace PassthroughCameraSamples.ShaderSample
                     : tr.presence;
                 slot++;
             }
-            // Expire unused tail slots so the count drops immediately instead of
-            // ghosting stale rects for m_detectionLifetime.
+            // Expire unused tail slots so the count drops immediately.
             for (int i = slot; i < k_maxDetections; i++)
             {
                 m_detectionTimestamps[i] = float.NegativeInfinity;
@@ -1164,10 +1116,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private void UpdateDetectionUniforms()
         {
             int count = 0;
-            // StudyEffectSuppressed means "effect forced invisible" — the detection-highlight
-            // boost below is part of that effect (it saturates/brightens detected objects
-            // independently of _VignetteStrength), so it must be suppressed too, or a
-            // baseline/no-filter condition would still visibly highlight lights and signs.
+            // StudyEffectSuppressed forces the effect invisible. The detection-highlight boost
+            // is independent of _VignetteStrength, so it has to be suppressed here too.
             if (!StudyEffectSuppressed)
             {
                 for (int i = 0; i < k_maxDetections; i++)
@@ -1218,11 +1168,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- motion disable ----
 
-        // The video scene keeps only three motion profiles, so the modes added to the cycle
-        // map onto the nearest one. TintedDark/ChromaticCool land on profiles whose defaults
-        // already match their passthrough counterparts; Blur and Squeeze use ColorPop's 35°/0.7s
-        // rather than passthrough's dedicated 30°/0.6s m_motionBlur. Moot by default anyway —
-        // m_enableMotion is false here, so UpdateMotionDisable returns before reading this.
+        // The video scene has three motion profiles, so every mode maps onto the nearest one.
+        // Moot by default: m_enableMotion is false here.
         private MotionSettings CurrentMotionSettings => m_vignetteMode switch
         {
             VignetteMode.ColorPop            => m_motionColorPop,
@@ -1270,7 +1217,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_motionSuppression = Mathf.MoveTowards(m_motionSuppression, target, fadeSpeed * Time.deltaTime);
         }
 
-        // ---- study API (IStudyVignetteControl — driven by Study/ConditionSequencer) ----
+        // ---- study API (IStudyVignetteControl) ----
 
         public VignetteMode CurrentMode => m_vignetteMode;
         public Vector4 ActiveRect => m_activeRect;
@@ -1281,12 +1228,12 @@ namespace PassthroughCameraSamples.ShaderSample
         public bool StudyEffectSuppressed { get; set; }
         public bool MotionEnabled { get => m_enableMotion; set => m_enableMotion = value; }
 
-        // ---- blob-probe support (BlobTargetController, Route B) ----
+        // ---- blob-probe support (BlobTargetController) ----
 
-        /// <summary>Static blob-probe shape/amount — set once when the blob task activates. The
-        /// probe is a scene-pixel modulation composited in the vignette shader (soft desaturation
-        /// + gentle dim), so a probe in a defocused area is filtered too (supervisor Point 3);
-        /// for the style-3 ring that behaviour is gated by ringBehindFilter.</summary>
+        /// <summary>Static blob-probe shape and amount, set once when the blob task activates.
+        /// The probe is a scene-pixel modulation composited in the vignette shader, so a probe
+        /// in a defocused area is filtered too. For the ring style that behaviour is gated by
+        /// ringBehindFilter.</summary>
         public void SetBlobProbeStatics(int style, float sigmaFrac, float desat, float dim,
                                         float rim, float lens, Color ringColor, float ringWidth,
                                         Color flashColor, int ringSegments = 0, float ringOutline = 0f,
@@ -1388,8 +1335,7 @@ namespace PassthroughCameraSamples.ShaderSample
         /// <summary>Clip length in seconds (0 if no player / not prepared).</summary>
         public double VideoLength => m_videoPlayer != null ? m_videoPlayer.length : 0.0;
 
-        /// <summary>Loop the primary video. Authoring turns this off so the clip ends (offering
-        /// replay/finish); the normal test harness leaves it on (blob targets reset per loop).</summary>
+        /// <summary>Loop the primary video. Authoring turns this off so the clip ends.</summary>
         public bool VideoLooping
         {
             get => m_videoPlayer != null && m_videoPlayer.isLooping;
@@ -1400,7 +1346,7 @@ namespace PassthroughCameraSamples.ShaderSample
         public void RestartVideo()
         {
             if (m_videoPlayer == null) return;
-            m_videoPlayer.Stop(); // resets playback time to 0 — a stopped/ended player ignores a bare time=0
+            m_videoPlayer.Stop(); // resets time to 0; an ended player ignores a bare time = 0
             m_videoPlayer.Play();
         }
 
@@ -1419,9 +1365,8 @@ namespace PassthroughCameraSamples.ShaderSample
         public void StudySetWindow(Vector4 azElRadians)
         {
             m_activeRect = azElRadians;
-            // Null-guard: TestModeSequencer calls this from OnSceneLoaded, which fires
-            // BEFORE this manager's Start() creates m_material — Start() pushes
-            // m_activeRect to the material itself, so skipping the SetVector here is safe.
+            // Null-guard: this can be called from OnSceneLoaded, before Start() creates
+            // m_material. Start() pushes m_activeRect itself, so skipping here is safe.
             if (m_material != null) m_material.SetVector(s_focusRectId, m_activeRect);
             m_isPainting = false;
             CancelDotHide();
@@ -1446,9 +1391,8 @@ namespace PassthroughCameraSamples.ShaderSample
         private static bool IsPopMode(VignetteMode mode) =>
             mode == VignetteMode.ColorPop || mode == VignetteMode.SignPop;
 
-        // "Camera" modes render the source texture (instant, no formation animation).
-        // Same set as CameraSphereVignetteManager.IsCameraMode — the dark-overlay family
-        // (SoftDark/HardDark/TintedDark/OutlinedDark/Grain) is what animates in.
+        // "Camera" modes render the source texture with no formation animation. Same set as
+        // CameraSphereVignetteManager.IsCameraMode; the dark-overlay family animates in.
         private static bool IsCameraMode(VignetteMode mode) =>
             IsPopMode(mode) || mode == VignetteMode.Blur || mode == VignetteMode.ChromaticCool
             || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
@@ -1601,16 +1545,13 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_popDetFallbackId,   m_signRogFallback);
             m_material.SetFloat(s_vignetteStrengthId, effectiveStrength);
             m_material.SetFloat(s_maxVignetteAlphaId, maxAlpha);
-            // Hard Dark: once a selection is locked in, that exact painted rect is the only
-            // thing that's ever clear — suppress the generic per-detection carve-out/highlight
-            // entirely so a detected light/person elsewhere can't poke a hole in the black-out.
+            // Hard Dark: the painted rect is the only clear region, so suppress the generic
+            // per-detection carve-out and highlight entirely.
             m_material.SetFloat(s_suppressDetectionWindowsId, m_vignetteMode == VignetteMode.HardDark ? 1f : 0f);
 
-            // ColorPop/SignPop: when no selection is painted, auto-follow head gaze so the
-            // effect is always visible without needing to hold trigger first. The gaze rect
-            // also becomes the effective window for the person gate/grading — previously it
-            // only reached the shader, so with nothing painted the person gate failed closed
-            // and persons were never highlighted at all in free-play/TestModeSequencer runs.
+            // ColorPop/SignPop: with no selection painted, auto-follow head gaze so the effect
+            // is always visible. The gaze rect also becomes the effective window for the
+            // person gate and grading.
             m_effectiveRect = m_activeRect;
             if (isPop && m_activeRect == k_fullSphere)
             {
@@ -1752,10 +1693,10 @@ namespace PassthroughCameraSamples.ShaderSample
             m_modeUIGroup = m_modeUIRoot.AddComponent<CanvasGroup>();
             m_modeUIGroup.alpha = 0f; m_modeUIGroup.blocksRaycasts = false; m_modeUIGroup.interactable = false;
 
-            // The vignette sphere renders on the Transparent queue (3000) with its bounds
-            // centered on the head, so it sorts closer than the toast and draws over it —
-            // default UI is also queue 3000. Queue 4100 puts the toast above the sphere
-            // and the selection dots (4000). GetDefaultCanvasMaterial survives build stripping.
+            // The vignette sphere renders on the Transparent queue (3000) centred on the head,
+            // so it draws over default UI, which is also queue 3000. Queue 4100 puts the toast
+            // above the sphere and the selection dots (4000). GetDefaultCanvasMaterial
+            // survives build stripping.
             m_modeUIMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
 
             var bg = CreateChild(m_modeUIRoot, "BG");

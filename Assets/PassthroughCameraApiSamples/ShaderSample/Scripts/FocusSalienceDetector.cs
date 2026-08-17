@@ -16,9 +16,8 @@ namespace PassthroughCameraSamples.ShaderSample
     /// rectangles. The shader uses them to locally remove the peripheral blur/desaturation and add a
     /// brightness/contrast boost, so safety-relevant objects pop out of the dimmed periphery.
     ///
-    /// Unlike the MultiObjectDetection sample's SentisInferenceRunManager, this does NOT use spatial
-    /// anchors, environment raycasting, or the detection-menu graph — we only need 2D boxes.
-    /// Place this on the same GameObject as the FocusVignette MeshRenderer.
+    /// Only 2D boxes are needed, so there are no spatial anchors, environment raycasting or
+    /// detection menu. Place this on the same GameObject as the FocusVignette MeshRenderer.
     /// </summary>
     [MetaCodeSample("PassthroughCameraApiSamples-ShaderSample")]
     public class FocusSalienceDetector : MonoBehaviour

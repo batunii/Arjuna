@@ -1,111 +1,119 @@
-# Unity-PassthroughCameraAPISamples
+# Arjuna — Diminished Reality attention guidance on Quest 3
 
-## Project Overview
+MSc dissertation prototype (TCD, 25377738). A Diminished Reality (DR) system that guides
+visual attention by *suppressing* the periphery rather than adding overlays: the region a
+user is looking at stays clear while everything outside it is progressively darkened,
+desaturated, blurred or flattened in contrast.
 
-The **Unity-PassthroughCameraAPISamples** project helps Unity developers access Quest camera data using the **PassthroughCameraAccess** component from the Mixed Reality Utility Kit (MRUK). This component provides direct access to headset cameras with enhanced functionality including:
-- **Precise timestamps** for better camera-world alignment
-- **Simultaneous access to both cameras** (left and right)
-- **Complete camera metadata** including intrinsics, extrinsics, and pose information
+The prototype runs on Quest 3 / 3S passthrough via the Meta Passthrough Camera API (PCA),
+and ships with the experiment harness and analysis pipeline used to evaluate it.
 
-The project includes **five sample scenes** demonstrating various use cases:
+## What's here
 
-| CameraToWorld | BrightnessEstimation | MultiObjectDectection | ShaderSample |
-|:-------------:|:--------------------:|:---------------------:|:------------:|
-| ![GIF 1](./Media/CameraToWorld.gif) | ![GIF 2](./Media/BrightnessEstimation.gif) | ![GIF 3](./Media/ObjectDetectionSentis.gif) | ![GIF 4](./Media/ShaderSample.gif) |
+| Path | Contents |
+|---|---|
+| `Assets/CameraSphereVignette.unity` | Live passthrough scene. The filter is applied to a head-locked sphere over the real world. |
+| `Assets/VideoTestScene.unity` | Video scene. A 360°/flat driving clip replaces passthrough so conditions are identical across participants. |
+| `Assets/PassthroughCameraApiSamples/ShaderSample/` | The filter itself — shaders, materials and the two scene managers. |
+| `.../ShaderSample/Scripts/Study/` | Experiment harness: session driver, probe presentation, logging. |
+| `Assets/Editor/` | Editor menus for scene wiring, builds and pulling data off the headset. |
+| `Tools/` | Python + PowerShell pipeline: video encoding, detection baking, session validation, analysis. |
+| `PilotTools/` | Browser-based Block A tasks (n-back CPT, distractor reel). |
+| `Dissertation/` | Manuscript, raw study data, analysis records. |
 
-## Documentation
+## Filter modes
 
-For comprehensive guides, API reference, and tutorials, visit the official Meta Developers documentation:
+`VignetteMode` (`CameraSphereVignetteManager.cs`) defines eleven peripheral treatments.
+The two used in the study are marked:
 
-- **[Passthrough Camera API Overview](https://developers.meta.com/horizon/documentation/unity/unity-pca-overview)** - Introduction and key concepts
-- **[Getting Started Guide](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation)** - Setup, configuration, and usage instructions
-- **[Unity Inference Engine Integration](https://developers.meta.com/horizon/documentation/unity/unity-pca-sentis)** - Using ML/CV models with PCA
-- **[Migration Guide](https://developers.meta.com/horizon/documentation/unity/unity-pca-migration-from-webcamtexture)** - Migrating from WebCamTexture
+| Mode | Effect |
+|---|---|
+| `Blur` | Blurred, desaturated periphery with contrast restored |
+| `SoftDark` | Soft dark overlay (~75 % alpha) |
+| **`HardDark`** | Full peripheral blackout — **Block A condition** |
+| `TintedDark` | Dark overlay in a configurable colour |
+| `ChromaticCool` | Periphery shifts cool, focus shifts warm |
+| `ColorPop` | Grey periphery, saturated colours boosted |
+| `ConspicuitySqueeze` | Peripheral contrast flattened toward the local mean |
+| `GranulatedPeriphery` | World-locked noise grains, density rising with eccentricity |
+| `OutlinedDark` | Near-blackout with luminance edges preserved |
+| `SpotLift` | Focus window brightened, periphery softly dimmed |
+| **`SignPop`** | `ColorPop` gated by baked detections, so only real signs and lights pop — **Block B condition** |
+
+The clear region ("focus window") is painted by the user with the right trigger and, in the
+passthrough scene, world-anchors onto real geometry through MRUK's
+`EnvironmentRaycastManager`. In the study it is instead locked to a fixed size so window
+geometry is constant across participants.
+
+`SignPop` needs to know which objects are worth highlighting. Detections come from a YOLO
+model run through the Unity Inference Engine — live via `YoloRunner`, or pre-baked per video
+frame via `VideoDetectionBaker` so the study runs at a stable frame rate.
+
+## Experiment harness
+
+`AuthoredTargetPresenter` is the single entry point for a participant session. It presents
+ring probes over the video, scores hits and misses per target, and writes one timestamped
+CSV per pass.
+
+- **Block A** — peripheral detection under live passthrough (`HardDark` vs. no filter),
+  with the n-back task from `PilotTools/` on a separate display.
+- **Block B** — probe detection over the driving video (`SignPop` vs. no filter), with
+  targets drawn from a hand-authored, screened and counterbalanced pool (`pool_split.csv`).
+
+Each participant runs four X-gated blocks: the video pair on opposite target sets and the
+Block A pair, condition order mirrored between the two. Assignment is balanced across
+participants from an on-device session ledger, so a session can be resumed after a relaunch.
+
+Baseline arms keep the mode, window and procedure identical and force effect strength to
+zero, so the only difference between arms is whether the filter is visible.
+
+`TestModeSequencer` is a separate quick-preview harness for stepping through modes outside
+a session. `AuthoredTargetPresenter` destroys it on startup, so only one of the two runs at
+a time.
 
 ## Requirements
 
-- **Unity:** 6000.0.38f1 or newer
-- **Packages:**
-  - [Meta MRUK](https://assetstore.unity.com/packages/tools/integration/meta-mr-utility-kit-272450) (v81 or higher)
-  - [Unity Inference Engine](https://unity.com/sentis) (v2.2.1 for MultiObjectDetection sample)
-- **Hardware:** Quest 3 / Quest 3S with Horizon OS v74 or higher
-- **Permissions:** `horizonos.permission.HEADSET_CAMERA`
-- **Passthrough:** Must be enabled in your project
+- **Unity** 6000.0.61f1
+- **Packages** — Meta MR Utility Kit (`com.meta.xr.mrutilitykit` 201.0.0), Unity Inference
+  Engine (`com.unity.ai.inference` 2.2.1)
+- **Hardware** — Quest 3 or Quest 3S, Horizon OS v74+
+- **Permission** — `horizonos.permission.HEADSET_CAMERA`
+- **Player settings** — Active Input Handling must include the old Input Manager;
+  experimenter keys arrive through `UnityEngine.Input`
 
-> [!NOTE]
-> You must use a physical headset or Meta Horizon Link v2.1 or later to preview the passthrough camera. XR Simulator does not currently support Passthrough Camera API.
+Passthrough camera access needs a physical headset or Meta Horizon Link v2.1+. The XR
+Simulator does not support PCA.
 
-## Download the Project
+Large media stays out of the APK: the driving clip and its baked detection track are pushed
+to `persistentDataPath` on the device, with a `StreamingAssets` fallback for Editor runs.
 
-First, ensure you have Git LFS installed by running this command:
+## Running a session
 
-```bash
-git lfs install
-```
+1. Build both scenes: **Meta > Study > Build Study APK (both scenes)**.
+2. Push the clip, detection track and `pool_split.csv` to the app's `persistentDataPath`.
+3. Launch, set the participant ID on `AuthoredTargetPresenter`, and gate each block with X.
+4. Pull results with **Meta > Study > Pull Study Data**, or `adb pull` the app's files
+   directory.
+5. Validate before the participant leaves: `python Tools/validate_session.py <csv>`.
+   A failure triggers the pre-registered re-run rule.
 
-Then, clone this repo using the "Code" button above, or this command:
+Analysis lives in `Tools/analysis/` — `blocka_pooled.py`, `blockb_pooled.py`, `h1_lmm.py`,
+`h2_tost.py`, `t1_framecost.py` and friends. The CSV contract is documented in
+`Tools/README-study-tools.md`; the C# writers and Python readers must change together.
 
-```bash
-git clone https://github.com/oculus-samples/Unity-PassthroughCameraApiSamples
-```
+## Origin and licence
 
-## Project Content
+The project began as Meta's Unity Passthrough Camera API samples. Only the parts still in
+use remain — `PassthroughCamera/` (camera access, permissions, input) and `ShaderSample/`,
+which has been rewritten into the DR filter. The other sample scenes were removed.
 
-The project contains **five sample scenes** that demonstrate how to use the **PassthroughCameraAccess** component to access Quest camera data. All sample code and resources are located in the [**`PassthroughCameraApiSamples`**](./Assets/PassthroughCameraApiSamples/) folder:
+The [`Oculus License`](./LICENSE.txt) applies to the SDK and supporting material. The
+[`MIT License`](./Assets/PassthroughCameraApiSamples/LICENSE.txt) applies to certain clearly
+marked documents. The YOLO model in
+[`ShaderSample/Models`](./Assets/PassthroughCameraApiSamples/ShaderSample/Models) is licensed
+under [`MIT`](https://github.com/MultimediaTechLab/YOLO/blob/main/LICENSE).
 
-### Samples
-
-* **[`CameraViewer`](./Assets/PassthroughCameraApiSamples/CameraViewer)** - Displays a 2D canvas with camera feed
-* **[`CameraToWorld`](./Assets/PassthroughCameraApiSamples/CameraToWorld)** - Aligns RGB camera pose with Passthrough and transforms 2D coordinates to 3D world space rays
-* **[`BrightnessEstimation`](./Assets/PassthroughCameraApiSamples/BrightnessEstimation)** - Adapts the experience based on environment brightness
-* **[`MultiObjectDetection`](./Assets/PassthroughCameraApiSamples/MultiObjectDetection)** - Uses Unity Inference Engine for real-world object recognition
-* **[`ShaderSample`](./Assets/PassthroughCameraApiSamples/ShaderSample)** - Applies custom GPU effects to camera texture
-
-### Additional Components
-
-* **[`PassthroughCamera`](./Assets/PassthroughCameraApiSamples/PassthroughCamera)** - C# classes and utilities for camera access
-* **[`StartScene`](./Assets/PassthroughCameraApiSamples/StartScene)** - Menu scene for switching between samples
-
-## Getting Started
-
-1. Clone the GitHub project as described [above](#download-the-project)
-2. Open the project with **Unity 6000.0.38f1** or newer
-3. Open a sample scene from the **[`PassthroughCameraApiSamples`](./Assets/PassthroughCameraApiSamples/)** folder
-4. Use **Meta > Tools > Project Setup Tool** to fix any configuration issues
-5. Build and deploy to your Quest 3/3S device
-
-For detailed setup instructions, API reference, and usage examples, see the **[Getting Started Guide](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation)**.
-
-## Learn More
-
-For comprehensive information about using the Passthrough Camera API:
-
-- **Setup & Configuration** - [Getting Started Guide](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation)
-- **Unity Inference Engine Integration** - [ML/CV with PCA](https://developers.meta.com/horizon/documentation/unity/unity-pca-sentis)
-- **Troubleshooting** - See the troubleshooting section in the [Getting Started Guide](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation#troubleshooting)
-
-## Report an Issue
-
-If you encounter any issues, please report them with:
-
-- **Unity Engine version**
-- **XR plugin** (Oculus XR or Open XR) and version number
-- **Quest device** model and **Horizon OS version**
-- **Logcat logs** (use `adb logcat >> log.txt`)
-- **Video or screenshot** of the issue
-- **Relevant information** about your use case
-
-## License
-
-The [`Oculus License`](./LICENSE.txt) applies to the SDK and supporting material. The [`MIT License`](./Assets/PassthroughCameraApiSamples/LICENSE.txt) applies to only certain, clearly marked documents. If an individual file does not indicate which license it is subject to, then the Oculus License applies.
-
-However,
-* Files from [`Assets/PassthroughCameraApiSamples/MultiObjectDetection/SentisInference/Model`](./Assets/PassthroughCameraApiSamples/MultiObjectDetection/SentisInference/Model) are licensed under [`MIT`](https://github.com/MultimediaTechLab/YOLO/blob/main/LICENSE).
-
-See the [`CONTRIBUTING`](./CONTRIBUTING.md) file for how to help out.
-
-## AI coding agents
-
-This repo is wired up for AI coding agents — `AGENTS.md`, `.vscode/extensions.json`, `.mcp.json`, `.cursor/rules/`, and a few client-specific dotfiles surface the **Meta Horizon** VS Code/Cursor extension, the `hzdb` MCP server, and the Meta Quest skill set automatically.
-
-Full toolchain, including Unity skills and per-client install instructions: [github.com/meta-quest/agentic-tools](https://github.com/meta-quest/agentic-tools).
+Meta's PCA documentation remains the reference for the camera layer:
+[overview](https://developers.meta.com/horizon/documentation/unity/unity-pca-overview) ·
+[getting started](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation) ·
+[inference engine](https://developers.meta.com/horizon/documentation/unity/unity-pca-sentis).

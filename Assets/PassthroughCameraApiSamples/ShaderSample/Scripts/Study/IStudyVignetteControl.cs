@@ -18,10 +18,8 @@ namespace PassthroughCameraSamples.ShaderSample
         Vector4 ActiveRect { get; }
 
         /// <summary>
-        /// Default focus-window half-width (deg), applied symmetrically to az/el. Seeds both
-        /// the free-play painted-brush size and the fixed Blocks B/C windscreen window, so
-        /// there is one shared, Inspector-tunable source for "how big is the window by default"
-        /// (see CameraSphereVignetteManager/VideoTestSceneManager, Filter header).
+        /// Default focus-window half-width (deg), applied symmetrically to az/el. Seeds both the
+        /// free-play brush size and the fixed study window.
         /// </summary>
         float DefaultWindowHalfWidthDeg { get; }
 
@@ -32,9 +30,8 @@ namespace PassthroughCameraSamples.ShaderSample
         float CurrentEffectiveStrength { get; }
 
         /// <summary>
-        /// True: participant A/B/paint input is ignored. MUST be true while any condition
-        /// runs — the trigger belongs to the task (CPT / probe presses) and would otherwise
-        /// repaint the focus window.
+        /// True: participant A/B/paint input is ignored. Must be true while a condition runs,
+        /// since the trigger belongs to the task and would otherwise repaint the window.
         /// </summary>
         bool StudyInputLock { get; set; }
 
@@ -46,8 +43,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         /// <summary>
         /// Motion-based suppression availability. The video manager's serialized default is
-        /// FALSE — the sequencer's configuration guard asserts/fixes this for Block B.
-        /// The passthrough manager has motion suppression always on (returns true).
+        /// false; the passthrough manager always returns true.
         /// </summary>
         bool MotionEnabled { get; set; }
 
@@ -55,9 +51,9 @@ namespace PassthroughCameraSamples.ShaderSample
         void StudySetMode(VignetteMode mode);
 
         /// <summary>
-        /// Explicit on/off toggle, independent of StudySetMode: true ramps the effect in via
-        /// the same gradual formation free-play uses (instant for camera modes — ColorPop/
-        /// SignPop/Blur/etc. — which have no formation animation); false resets to 0 instantly.
+        /// Explicit on/off toggle, independent of StudySetMode. True ramps the effect in with the
+        /// same gradual formation free-play uses, instantly for camera modes, which have no
+        /// formation animation. False resets to 0 immediately.
         /// </summary>
         void StudySetActive(bool active);
 

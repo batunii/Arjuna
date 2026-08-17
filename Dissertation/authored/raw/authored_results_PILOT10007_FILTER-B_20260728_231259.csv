@@ -1,5 +1,0 @@
-t_ms,pid,condition,set,target_id,kind,t_start,t_end,duration_s,outcome,rt_s,angle_deg
-1785276779600,10007,Filter,P,58,traffic_light,0.500,2.500,2.000,hit,0.501,9.281
-1785276779974,10007,Filter,B,-1,,,,,false_alarm,,
-1785276780406,10007,Filter,B,-1,,,,,false_alarm,,
-1785276790084,10007,Filter,B,-1,,,,,false_alarm,,

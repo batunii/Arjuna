@@ -1,10 +1,9 @@
 // One-click study data sync: Meta > Study > Pull Study Data From Headset.
 //
-// Pulls every authored_results_*.csv / authored_points_*.csv plus session_ledger.csv from the
-// device's persistentDataPath into Dissertation/authored/raw/ (skipping files already present
-// with the same byte size — the same match rule study-console.ps1's awipe trusts), then runs
-// Tools/analysis/authored_report.py and prints the aggregate to the Console. Nothing is ever
-// deleted from the device here; wiping stays a deliberate study-console step.
+// Pulls every authored_results_*.csv and authored_points_*.csv plus session_ledger.csv from the
+// device's persistentDataPath into Dissertation/authored/raw/, skipping files already present at
+// the same byte size, then runs Tools/analysis/authored_report.py and prints the aggregate to
+// the Console. Nothing is deleted from the device here.
 
 using System;
 using System.Collections.Generic;

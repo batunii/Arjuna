@@ -6,15 +6,12 @@
 //   Hold Y (left controller) ~1 s  — the only face button not already used
 //   Key V (adb: `adb shell input keyevent 50`) — experimenter side
 //
-// A full scene load (not an in-place toggle) is deliberate: the two managers own different
-// pipelines (PCA cameras vs VideoPlayer, passthrough layer on vs off) and each scene's
-// Start() already initialises its world correctly; switching in place would have to undo
-// all of that by hand.
+// A full scene load rather than an in-place toggle: the two managers own different pipelines
+// (PCA cameras vs VideoPlayer, passthrough layer on vs off) and each scene's Start()
+// initialises its own world.
 //
-// Deliberately NOT gated on StudyLogger.SessionOpen: this switch must always work
-// unconditionally during dev/manual testing. During a real recorded study session,
-// switch mid-condition via the experimenter console (key E ends the session first) so
-// the CSV closes cleanly — that's a procedural discipline, not a code-enforced block.
+// Not gated on StudyLogger.SessionOpen, so the switch always works. End a recorded session
+// first (key E) so the CSV closes cleanly.
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -105,8 +102,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             lr.loop             = false;
             lr.widthMultiplier  = 0.004f;
             lr.numCapVertices   = 2;
-            // Queue 4100 matches the existing mode-toast trick (VideoTestSceneManager.ShowModeToast)
-            // so the ring draws above the vignette sphere (queue 3000) instead of being occluded.
+            // Queue 4100 so the ring draws above the vignette sphere (queue 3000).
             lr.material = new Material(Shader.Find("Sprites/Default")) { renderQueue = 4100 };
             lr.startColor = lr.endColor = color;
             return lr;

@@ -2,15 +2,13 @@
 // One shape every SOA (1.5 s), visible for 700 ms: circle = go (pull trigger), square = no-go
 // (withhold). 80% go / 20% no-go, seeded and deterministic per (participant, condition).
 //
-// Sequence constraint note: the strategy doc says "no more than three identical in a row",
-// which is unsatisfiable for the go class at an 80% go rate (mean run length 5). Implemented
-// as the enforceable version of the same intent: no two consecutive no-gos, go runs capped at
-// 8. Flagged in the build report so the methodology text can be aligned.
+// Sequence constraint: "no more than three identical in a row" is unsatisfiable for the go
+// class at an 80% go rate (mean run length 5), so the implemented rule is no two consecutive
+// no-gos with go runs capped at 8.
 //
-// Shapes are generated at runtime (circle texture drawn procedurally) — no sprite assets, no
-// Shader.Find, nothing strippable in Android builds. Panel UI uses the default canvas material
-// at renderQueue 4050 so the head-centred vignette sphere (queue 3000) cannot sort over it;
-// the panel sits inside the focus window, where the overlay is transparent anyway.
+// Shapes are generated at runtime, so there are no sprite assets and nothing strippable in
+// Android builds. Panel UI uses the default canvas material at renderQueue 4050, above the
+// head-centred vignette sphere (queue 3000).
 
 using System.Collections;
 using System.Collections.Generic;

@@ -1,12 +1,9 @@
-// Landing toast for the Y-button environment switch (see SceneSwitcher.cs), which fires a
-// full SceneManager.LoadScene(..., LoadSceneMode.Single) — destroying everything in the old
-// scene, including any per-scene toast object. This controller bootstraps once at app start
-// and survives every later scene load via DontDestroyOnLoad (same pattern as InputManager.cs),
-// so it's still alive to show a toast right after the NEW scene finishes loading.
+// Landing toast for the Y-button environment switch (SceneSwitcher.cs). That switch is a full
+// LoadSceneMode.Single load, which destroys any per-scene toast object, so this controller
+// survives scene loads via DontDestroyOnLoad and shows its toast once the new scene is up.
 //
-// Deliberately decoupled from SceneSwitcher: it only reads the loaded scene's name from
-// SceneManager.sceneLoaded, so no handoff data is needed. Deliberately not gated on
-// StudyLogger.SessionOpen, matching SceneSwitcher's "always works" contract.
+// Decoupled from SceneSwitcher: it only reads the loaded scene's name from
+// SceneManager.sceneLoaded, so no handoff data is needed.
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,10 +23,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         private float        m_timer;
         private bool         m_seenFirstLoad;
 
-        // Bootstrap removed 2026-07-20 (Test/StudyQoL): the "SWITCHED" toast fired on every
-        // scene load — including the Block A launcher's — and read as a stray UI artifact
-        // during test runs. The class is kept (still referenced) but no longer self-spawns;
-        // add it to a GameObject manually if the toast is ever wanted again.
+        // No self-bootstrap: the toast fired on every scene load, including the Block A
+        // launcher's. Add this component to a GameObject manually if the toast is wanted.
 
         private void OnEnable()  => SceneManager.sceneLoaded += OnSceneLoaded;
         private void OnDisable() => SceneManager.sceneLoaded -= OnSceneLoaded;
@@ -55,8 +50,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_uiGroup = m_uiRoot.AddComponent<CanvasGroup>();
             m_uiGroup.alpha = 0f; m_uiGroup.blocksRaycasts = false; m_uiGroup.interactable = false;
 
-            // Queue 4100: same trick as VideoTestSceneManager.InitModeUI, so the toast draws
-            // above the vignette sphere (queue 3000) in whichever scene just loaded.
+            // Queue 4100 so the toast draws above the vignette sphere (queue 3000).
             m_uiMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
 
             var bg = CreateChild(m_uiRoot, "BG");

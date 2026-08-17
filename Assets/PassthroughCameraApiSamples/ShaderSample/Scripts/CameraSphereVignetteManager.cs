@@ -182,9 +182,8 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- shader property IDs ----
         private static readonly int s_mainTexLId           = Shader.PropertyToID("_MainTexL");
-        // T3 benchmark: 0 makes the camera feed cover the whole view (no window),
-        // so the same chart can be captured through the camera path and the native
-        // path without moving the headset. Shader line 779: periAlpha = lerp(1, t, this).
+        // T3 benchmark: 0 makes the camera feed cover the whole view, so the same chart can be
+        // captured through both the camera and native paths. periAlpha = lerp(1, t, this).
         private static readonly int s_passthroughModeId    = Shader.PropertyToID("_PassthroughMode");
         private static readonly int s_mainTexRId           = Shader.PropertyToID("_MainTexR");
         private static readonly int s_sphereCenterId       = Shader.PropertyToID("_SphereCenter");
@@ -257,14 +256,10 @@ namespace PassthroughCameraSamples.ShaderSample
         private readonly Vector4[] m_detectionRects = new Vector4[k_maxDetections];
         private readonly float[]   m_detectionFade  = new float[k_maxDetections];
 
-        // Live per-frame YOLO detections have no persistent identity of their own, so the
-        // same nearest-centre matching heuristic used by VideoTestSceneManager is applied
-        // here too — that's what lets `presence` ramp smoothly per real object instead of
-        // per array slot (slot indices aren't stable frame to frame otherwise).
-        // `firstSeenTime` gates visibility on track age (m_detectionMinAgeSec) — same debounce
-        // as VideoTestSceneManager: a detection that doesn't persist past the min age never
-        // ramps presence above 0, so single-inference-frame YOLO false positives never flash
-        // a window/highlight at all.
+        // Live YOLO detections have no persistent identity, so the same nearest-centre
+        // matching heuristic as VideoTestSceneManager is applied here, letting presence ramp
+        // per real object rather than per array slot. firstSeenTime gates visibility on track
+        // age (m_detectionMinAgeSec), so a single-frame false positive never shows.
         private struct TrackedDet { public Vector4 rect; public float firstSeenTime; public float lastSeenTime; public float presence; }
         private readonly List<TrackedDet> m_trackedDets = new();
 
@@ -317,10 +312,9 @@ namespace PassthroughCameraSamples.ShaderSample
             || mode == VignetteMode.SignPop
             || mode == VignetteMode.ConspicuitySqueeze || mode == VignetteMode.SpotLift;
 
-        // A-button cycle — every mode in the enum, in enum order, so all 11 are reachable
-        // from the controller in passthrough. ConspicuitySqueeze is surfaced as "Flatten":
-        // contrast balanced toward the local mean + gentle desaturation + slight dim.
-        // SignPop is ColorPop gated by the live YOLO detections rather than a baked track.
+        // A-button cycle: every mode in enum order, so all 11 are reachable from the
+        // controller. ConspicuitySqueeze is surfaced as "Flatten". Here SignPop is gated by
+        // live YOLO rather than a baked track.
         private static readonly VignetteMode[] k_modeCycle =
         {
             VignetteMode.Blur, VignetteMode.SoftDark, VignetteMode.HardDark,
@@ -521,8 +515,7 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateFilterUniforms()
         {
-            // Hard Dark uses a narrow edge so the black-out reads as an almost-binary
-            // "selection vs everything else" rather than a wide buffer zone.
+            // Hard Dark uses a narrow edge so the blackout reads as binary.
             float softEdgeDeg = m_vignetteMode == VignetteMode.HardDark ? m_hardDarkSoftEdgeDeg : m_softEdgeDeg;
             m_material.SetFloat(s_softEdgeId,        softEdgeDeg   * Mathf.Deg2Rad);
             m_material.SetFloat(s_maxBlurRadId,      m_maxBlurRadius);
@@ -532,11 +525,10 @@ namespace PassthroughCameraSamples.ShaderSample
             m_material.SetFloat(s_desatCurveExpId,   m_desatCurveExp);
             m_material.SetFloat(s_debugCamOverlayId, m_debugCamOverlay ? 1f : 0f);
 
-            // T3 benchmark (X button). Neutralises every grading step so the periphery is a
-            // plain re-render of the camera feed, making the capture a pure resolution
-            // comparison against native passthrough rather than one confounded by blur,
-            // desaturation or the perceptual noise term. Values are pushed here rather than
-            // set on the material so the study configuration is never modified.
+            // T3 benchmark (X button): neutralise every grading step so the periphery is a
+            // plain re-render of the camera feed, giving a pure resolution comparison against
+            // native passthrough. Pushed here rather than onto the material, so the study
+            // configuration is never modified.
             if (m_fullCoverTest)
             {
                 m_material.SetFloat(s_maxBlurRadId,          0f);
@@ -604,8 +596,8 @@ namespace PassthroughCameraSamples.ShaderSample
                                  / Mathf.Max(Time.deltaTime, 0.001f);
             m_lastHeadRot = head.rotation;
 
-            // Keep tracking head rotation above (no speed spike on re-enable), but never
-            // arm suppression while disabled; the setter already zeroed timer/suppression.
+            // Keep tracking head rotation so there is no speed spike on re-enable, but never
+            // arm suppression while disabled.
             if (!m_motionEnabled) return;
 
             // Check whether the head direction is inside the focus rect + arrival margin.
@@ -645,7 +637,7 @@ namespace PassthroughCameraSamples.ShaderSample
             m_motionSuppression = Mathf.MoveTowards(m_motionSuppression, target, fadeSpeed * Time.deltaTime);
         }
 
-        // ---- study API (IStudyVignetteControl — driven by Study/ConditionSequencer) ----
+        // ---- study API (IStudyVignetteControl) ----
 
         public VignetteMode CurrentMode => m_vignetteMode;
         public Vector4 ActiveRect => m_activeRect;
@@ -677,8 +669,7 @@ namespace PassthroughCameraSamples.ShaderSample
             }
         }
 
-        // Free-play comfort default; study blocks turn this off so the manipulation is constant
-        // (a head turn must never fade the condition the block is measuring).
+        // Free-play comfort default; study blocks turn this off so the manipulation is constant.
         private bool m_motionEnabled = true;
         public bool MotionEnabled
         {
@@ -755,13 +746,12 @@ namespace PassthroughCameraSamples.ShaderSample
             bool aPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.A);
             bool bPressed     = !m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.B);
             // X button: T3 benchmark only. Drops the focus window so the camera feed covers
-            // the whole view, so the acuity chart can be captured through both rendering
-            // paths in one continuous recording without the headset moving between them.
+            // the whole view and the acuity chart can be captured through both paths in one
+            // continuous recording.
             if (!m_studyMinimalUi && OVRInput.GetDown(OVRInput.RawButton.X))
             {
                 m_fullCoverTest = !m_fullCoverTest;
-                // Label the segment on screen so the capture is self-identifying: without it
-                // the two halves of the recording are hard to tell apart when scoring.
+                // Label the segment on screen so the capture is self-identifying.
                 SetDebug(m_fullCoverTest
                     ? "T3: CAMERA PATH (PCA feed, whole view, identity grading)"
                     : "T3: NATIVE PATH (OS passthrough)");
@@ -1015,16 +1005,14 @@ namespace PassthroughCameraSamples.ShaderSample
 
         // ---- world anchor (Hard Dark) ----
 
-        // Raycasts the 4 corners of the just-locked selection against live depth data and, if
-        // every corner hits real geometry, stores those world points so the window can be
-        // re-projected from the current head position every frame instead of staying a fixed
-        // bearing from wherever the head happened to be while painting.
+        // Raycasts the 4 corners of the locked selection against live depth data. If every
+        // corner hits real geometry, the world points are stored so the window can be
+        // re-projected from the current head position each frame instead of staying a fixed
+        // bearing.
         //
-        // The native raycaster is created asynchronously when the scene loads and reports
-        // NotReady until then — a paint in the first seconds after entering the scene used to
-        // fail permanently for that reason alone. NotReady now retries until the raycaster comes
-        // up (or the deadline passes); any other failure logs the per-corner statuses
-        // (NoHit / RayOccluded / HitPointOutsideOfCameraFrustum / …) so the cause is visible.
+        // The native raycaster initialises asynchronously and reports NotReady until it is up,
+        // so NotReady retries until the deadline passes. Any other failure logs the per-corner
+        // statuses (NoHit, RayOccluded, HitPointOutsideOfCameraFrustum, …).
         private const float k_anchorRetrySeconds = 10f;
 
         private Coroutine m_anchorRetry;
@@ -1096,10 +1084,9 @@ namespace PassthroughCameraSamples.ShaderSample
             return hitOk;
         }
 
-        // Re-derives az/el bounds from the anchored world corners relative to the CURRENT head
-        // position every frame — this is what makes the window perspective-correct (it grows
-        // angularly as you approach the real object and shrinks as you back away, just like
-        // looking at a fixed object/window would), rather than a fixed angular size.
+        // Re-derives az/el bounds from the anchored world corners relative to the current head
+        // position each frame, so the window is perspective-correct: it grows angularly as you
+        // approach and shrinks as you back away.
         private void UpdateWorldAnchorRect()
         {
             if (!m_hasWorldAnchor || m_vignetteMode != VignetteMode.HardDark) return;
@@ -1206,10 +1193,10 @@ namespace PassthroughCameraSamples.ShaderSample
             m_modeUIGroup.blocksRaycasts = false;
             m_modeUIGroup.interactable   = false;
 
-            // The vignette sphere renders on the Transparent queue (3000) with its bounds
-            // centered on the head, so it sorts closer than the toast and draws over it —
-            // default UI is also queue 3000. Queue 4100 puts the toast above the sphere
-            // and the selection dots (4000). GetDefaultCanvasMaterial survives build stripping.
+            // The vignette sphere renders on the Transparent queue (3000) centred on the head,
+            // so it draws over default UI, which is also queue 3000. Queue 4100 puts the toast
+            // above the sphere and the selection dots (4000). GetDefaultCanvasMaterial
+            // survives build stripping.
             m_modeUIMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
 
             // Dark background panel
@@ -1393,9 +1380,9 @@ namespace PassthroughCameraSamples.ShaderSample
             }
         }
 
-        // Nearest existing track within a radius scaled to rect size — same identity heuristic
-        // VideoTestSceneManager uses (class + nearest centre), minus the class check since both
-        // target classes get identical treatment downstream here.
+        // Nearest existing track within a radius scaled to rect size. Same identity heuristic
+        // as VideoTestSceneManager, without the class check: both target classes are treated
+        // identically here.
         private void UpsertTracked(Vector4 rect)
         {
             float cx = (rect.x + rect.y) * 0.5f, cy = (rect.z + rect.w) * 0.5f;
@@ -1418,21 +1405,17 @@ namespace PassthroughCameraSamples.ShaderSample
 
         private void UpdateDetectionUniforms()
         {
-            // StudyEffectSuppressed means "effect forced invisible" — the detection-highlight
-            // boost is part of that effect (it saturates/brightens detected objects
-            // independently of _VignetteStrength), so it must be suppressed too, or a
-            // baseline/no-filter condition would still visibly highlight detected objects.
+            // StudyEffectSuppressed forces the effect invisible. The detection-highlight boost
+            // is independent of _VignetteStrength, so it has to be suppressed here too.
             float now = Time.time;
             for (int i = 0; i < m_trackedDets.Count; i++)
             {
                 var tr = m_trackedDets[i];
                 bool active = !StudyEffectSuppressed && now - tr.lastSeenTime <= m_detectionLifetime;
-                // Debounce: an active track still shows nothing until it has survived
-                // m_detectionMinAgeSec — a false positive whose lifetime expires before it
-                // matures fades from 0 to 0, i.e. never appears.
-                // Size gate: rect is az/el in radians — stay silent while the object is
-                // still too small to actually see (the shader would inflate it to a ~2°
-                // minimum halo around nothing).
+                // Debounce: a track shows nothing until it has survived m_detectionMinAgeSec,
+                // so a short-lived false positive never appears.
+                // Size gate: rect is az/el in radians. Stay silent while the object is too
+                // small to see, since the shader would inflate it to a ~2° minimum halo.
                 float sizeDeg = Mathf.Max(tr.rect.y - tr.rect.x, tr.rect.w - tr.rect.z) * Mathf.Rad2Deg;
                 bool visible = active
                                && now - tr.firstSeenTime >= m_detectionMinAgeSec
@@ -1494,8 +1477,7 @@ namespace PassthroughCameraSamples.ShaderSample
             if (m_debugText != null)
             {
                 m_debugText.text = msg;
-                // Minimal-UI test mode: messages still show (anchor feedback matters while
-                // painting) but clear themselves instead of lingering as a UI artifact.
+                // Minimal-UI mode: messages still show, but clear themselves.
                 if (m_studyMinimalUi)
                 {
                     if (m_debugHideCoroutine != null) StopCoroutine(m_debugHideCoroutine);

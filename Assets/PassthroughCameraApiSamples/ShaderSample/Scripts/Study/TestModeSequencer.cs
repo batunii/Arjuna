@@ -1,26 +1,24 @@
-// Informal 4-mode test harness (Test/FinalCountDown branch). Standalone from
-// ConditionSequencer/StudyLogger by design — a quick-iteration tool for previewing modes,
-// not a formal study block.
+// Quick-preview harness for stepping through the filter modes outside a study session.
+// Standalone from ConditionSequencer and StudyLogger.
 //
-// Self-bootstraps at app start (RuntimeInitializeOnLoadMethod, same pattern as
-// SwitchFeedbackController) — no scene wiring, no menu step. Just Play or build.
+// Self-bootstraps at app start (RuntimeInitializeOnLoadMethod), so there is no scene wiring and
+// no menu step. AuthoredTargetPresenter destroys it, so only one of the two ever runs.
 //
-// Default sequence (edit m_modes below to change/reorder):
-//   1. Baseline   + Video        (VideoTestScene — probes, filter OFF, detect-only screening pass)
-//   2. SignPop    + Video        (VideoTestScene)
-//   3. No Filter  + Video        (VideoTestScene, same clip)
-//   4. Hard Dark  + Passthrough  (CameraSphereVignette)
-//   5. No Filter  + Passthrough  (CameraSphereVignette)
+// Default sequence (edit m_modes below to change or reorder):
+//   1. Baseline   + Video        (probes, filter off, detect-only screening pass)
+//   2. SignPop    + Video
+//   3. No Filter  + Video
+//   4. Hard Dark  + Passthrough
+//   5. No Filter  + Passthrough
 //
 // Per-mode controls:
-//   X — toggle. Video modes: play/pause the clip. Passthrough modes: start the vignette
-//       forming / reset it to off. First press also dismisses the instructions text.
-//   Y — advance to the next mode (leaves the current mode stopped/reset first). Moving
-//       between a video mode and a passthrough mode does a full scene load (same reasoning
-//       as SceneSwitcher.cs — the two managers own different pipelines).
-//       Was A until the A-button collision with the scene managers' own mode cycles;
-//       A now belongs to those (11 modes in passthrough, 4 in video).
-// Nothing auto-advances on a timer — advancing is always an explicit A press.
+//   X   toggle. Video modes play/pause the clip; passthrough modes start the vignette forming
+//       or reset it. The first press also dismisses the instructions.
+//   Y   advance to the next mode, leaving the current one stopped. Moving between a video mode
+//       and a passthrough mode does a full scene load, since the two managers own different
+//       pipelines. Y rather than A, because A is the scene managers' own mode cycle.
+//
+// Nothing auto-advances on a timer.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -54,12 +52,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
         [SerializeField]
         private List<TestModeEntry> m_modes = new()
         {
-            // Baseline block (probe-detection methods, procedure #1): probes with the filter OFF,
-            // run first as a detect-only pass, to measure each target's baseline detectability.
-            // blob_probe.py uses it to screen out floor/ceiling targets before the ON-vs-OFF
-            // comparison (see Dissertation/probe-target-design.md sec 4c). It shares the same
-            // seeded targets, so any practice/learning effect is equal across the later modes and
-            // cancels in the paired ON-OFF difference.
+            // Baseline: probes with the filter off, run first as a detect-only pass to measure
+            // each target's baseline detectability. blob_probe.py uses it to screen out
+            // unreachable targets. Shares the seeded target set with the later modes.
             new TestModeEntry { label = "Baseline (detect only, no filter)", stage = TestStage.VideoScene,
                 vignetteMode = VignetteMode.SignPop, noFilter = true },
             new TestModeEntry { label = "SignPop + Video", stage = TestStage.VideoScene,
@@ -78,10 +73,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
         [Header("Input — Quest controller")]
         [SerializeField] private OVRInput.RawButton m_toggleButton = OVRInput.RawButton.X;
-        // Y, not A: A is the vignette mode-cycle button in both scene managers
-        // (CameraSphereVignetteManager / VideoTestSceneManager). Sharing it meant one press
-        // cycled the mode AND advanced the harness, which then overwrote the mode via
-        // StudySetMode — the in-scene cycles were unusable while the harness was running.
+        // Y, not A: A is the vignette mode-cycle button in both scene managers.
         [SerializeField] private OVRInput.RawButton m_advanceButton = OVRInput.RawButton.Y;
 
         [Header("Instruction UI")]
@@ -196,16 +188,15 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_control.StudySetMode(entry.vignetteMode);
             m_control.StudyEffectSuppressed = entry.noFilter;
             m_active = false;
-            ApplyActive(false); // StudySetMode/video auto-play both default to "on" — force off
-                                 // until the participant's first X press.
+            ApplyActive(false); // StudySetMode and video auto-play default to on; force off
+                                 // until the first X press.
 
-            // Blob targets are a video-scene-only mechanic (modes 1 & 2) — same random set
-            // both times, independent hit/miss results per mode (see BlobTargetController).
+            // Blob targets are video-scene only: same random set every time, with independent
+            // hit/miss results per mode. See BlobTargetController.
             if (entry.stage == TestStage.VideoScene)
             {
-                // Lock the fixed windscreen window BEFORE activating blobs, so the person
-                // gate/grading runs against constant geometry in both video modes instead
-                // of the gaze-follow fallback.
+                // Lock the window before activating blobs, so the person gate and grading run
+                // against constant geometry rather than the gaze-follow fallback.
                 if (m_lockVideoWindow)
                 {
                     float halfW = m_videoWindowHalfWidthDeg * Mathf.Deg2Rad;
@@ -226,8 +217,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             return FindObjectOfType<CameraSphereVignetteManager>();
         }
 
-        // ---- world-space instruction UI (child of this DontDestroyOnLoad object — built
-        // once, survives every scene load) ----
+        // ---- world-space instruction UI (built once, survives scene loads) ----
 
         private void BuildUIIfNeeded()
         {
@@ -241,9 +231,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             rootRt.sizeDelta = new Vector2(900f, 300f);
             m_uiRoot.transform.localScale = Vector3.one * 0.0015f;
 
-            // Queue 4100: same trick as VideoTestSceneManager.InitModeUI / SwitchFeedbackController —
-            // the head-centred vignette sphere renders at queue 3000 and would otherwise occlude
-            // (or z-fight) a default-material world-space canvas.
+            // Queue 4100: the head-centred vignette sphere renders at queue 3000 and would
+            // otherwise occlude a default-material world-space canvas.
             m_uiMat = new Material(Canvas.GetDefaultCanvasMaterial()) { renderQueue = 4100 };
 
             var bgGO = new GameObject("Background");

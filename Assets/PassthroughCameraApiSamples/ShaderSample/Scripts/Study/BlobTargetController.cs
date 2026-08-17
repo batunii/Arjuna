@@ -1,30 +1,20 @@
-// Low-salience clickable "blob" targets for TestModeSequencer's modes 1 & 2 (Test/TestBlobs
-// branch). Randomly selects real traffic-light/stop-sign tracked lifetimes from the current
-// baked detection track and marks each, for exactly as long as that real object is actually on
-// screen (plus a short grace period), exactly where its box would have been. Aim the LEFT
-// controller at it and pull the left trigger — same convention as the existing ClickProbeTest.
+// Low-salience clickable "blob" targets for TestModeSequencer's video modes. Randomly selects
+// real traffic-light/stop-sign lifetimes from the current baked detection track and marks each
+// for as long as that object is on screen (plus a short grace period), where its box would have
+// been. Aim the left controller at it and pull the left trigger.
 //
-// Route B rendering (2026-07-18): the target is NOT a world-space object. Each frame this pushes
-// the active target's az/el + radius + ramped strength to the vignette shader (via
-// VideoTestSceneManager.SetBlobProbe), which composites it as a LOCAL modulation of the real
-// scene pixels — a soft desaturation + gentle dim, so it reads as a natural haze/smudge when
-// foveated and vanishes pre-attentively, never a foreign overlaid object. Because it modulates
-// the already-filtered colour, a target in a defocused/dimmed area is filtered too (supervisor
-// Point 3): on the blacked-out Hard-Dark periphery it simply disappears, like a real object there.
-// See Dissertation/probe-target-design.md.
+// The target is not a world-space object. Each frame this pushes its az/el, radius and ramped
+// strength to the vignette shader (VideoTestSceneManager.SetBlobProbe), which composites it as
+// a local modulation of the scene pixels: a soft desaturation and gentle dim, so it reads as a
+// haze when foveated and vanishes pre-attentively. Because it modulates the already-filtered
+// colour, a target in a defocused area is filtered too, and disappears entirely on a Hard Dark
+// periphery. See Dissertation/probe-target-design.md.
 //
-// The same random selection (seeded) is generated once per app run and reused for every
-// mode-1/mode-2 activation and every video loop, so mode 1 (SignPop on) and mode 2 (no
-// filter) are a fair paired comparison; only the hit/miss/reaction-time OUTCOME is reset
-// per activation, tagged with the mode label, so results are recorded separately per mode.
+// The seeded selection is generated once per app run and reused for every activation and every
+// video loop, so the filter-on and filter-off modes are a fair paired comparison. Only the
+// hit/miss/reaction-time outcome resets per activation, tagged with the mode label.
 //
-// Deliberately standalone from StudyLogger (same reasoning as TestModeSequencer) — logs to
-// its own CSV via a tiny inline writer, not the real study's contracted schema.
-//
-// Tunables below (min/long lifetime floors, hit-angle tolerance, grace window) are best-guess
-// defaults reasoned from the real lifetime distribution in the current bake (median ~0s, but
-// 9% of tracks exceed 2s) — pilot this yourself and retune, the same way the real study
-// calibrates probe size/timing empirically rather than by theory alone.
+// Logs to its own small CSV rather than StudyLogger's contracted schema.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -201,9 +191,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 return;
             }
 
-            // Signal pool first (unchanged selection behaviour/order), then the person pool —
-            // passed the signal pool's chosen windows so a person target can never time-overlap
-            // a signal target (only one target of either kind is ever active at once).
+            // Signal pool first, then the person pool, which is passed the signal pool's chosen
+            // windows so the two can never time-overlap. Only one target is active at a time.
             var signalChosen = SelectTargets(k_signalClasses, m_holdSeconds, m_targetCount,
                 m_minLifetimeSec, m_minEccentricityDeg, m_longLifetimeSec, m_longFraction,
                 m_minGapSec, m_seed, null, 0f, 0f);
@@ -211,9 +200,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             var signalWindows = new List<(float tStart, float tEnd)>();
             foreach (var l in signalChosen) signalWindows.Add((l.tStart, l.tEnd));
 
-            // Person candidates must also satisfy the runtime person gate's "close" criterion
-            // (apparent box height) — otherwise a blob forms on a distant pedestrian that
-            // PassesPersonGate will never highlight, and mode 1 vs mode 2 compares nothing.
+            // Person candidates must also satisfy the runtime gate's "close" criterion
+            // (apparent box height), or the blob forms on a pedestrian never highlighted.
             var personChosen = SelectTargets(k_personClasses, m_holdSeconds, m_personTargetCount,
                 m_personMinLifetimeSec, m_personMinEccentricityDeg, m_personLongLifetimeSec,
                 m_personLongFraction, m_personMinGapSec, m_personSeed, signalWindows,
@@ -323,10 +311,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             return false;
         }
 
-        /// <summary>Angular distance (deg) from video-forward (az=0, el=0) to this candidate's
-        /// position at its lifetime's temporal midpoint — a representative "how far off to the
-        /// side was this, typically" figure, since the object's angle drifts as the vehicle
-        /// approaches it.</summary>
+        /// <summary>Angular distance (deg) from video-forward (az=0, el=0) to the candidate's
+        /// position at its lifetime midpoint, as a representative figure: the angle drifts as
+        /// the vehicle approaches.</summary>
         private float ComputeEccentricityDeg(VideoTestSceneManager.DetectionLifetime l)
         {
             float tMid = (l.tStart + l.tEnd) * 0.5f;
@@ -393,9 +380,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
 
             UpdatePointer();
 
-            // Push the probe shape/amount every frame (not just on Activate) so it can't be lost to
-            // init ordering and so Inspector tweaks apply live. Cheap (a few SetFloat calls).
-            // In debug mode the bright m_debugColor is fed through the flash-tint channel.
+            // Push the probe shape and amount every frame, so it survives init ordering and
+            // inspector tweaks apply live. In debug mode m_debugColor goes through the flash
+            // tint channel.
             m_video.SetBlobProbeStatics((int)m_probeStyle, m_blobSigmaFrac, m_blobDesat, m_blobDim,
                                         m_blobRim, m_blobLens, m_blobRingColor, m_blobRingWidth,
                                         m_debugObviousBlob ? m_debugColor : m_hitFlashColor);
@@ -416,10 +403,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 haveAzEl = true;
             }
 
-            // Lock the ring SIZE once per target appearance — position still tracks the object, but
-            // the size is fixed for the target's whole lifetime (sized from the lifetime's midpoint
-            // box). Per-frame box-matching made the ring grow/shrink with the approaching object and
-            // jitter with YOLO's box; locking removes that "breathing".
+            // Lock the ring size once per target appearance, sized from the lifetime midpoint
+            // box. Position still tracks the object; a per-frame size would breathe with the
+            // approaching object and jitter with YOLO's box.
             if (current != null && !ReferenceEquals(current, m_sizeLockedFor))
             {
                 m_lockedSizeDeg = m_boxMatchSize
@@ -443,8 +429,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                         : 1f;
                     if (m_debugObviousBlob)
                     {
-                        // Big, full-strength, solid bright patch (flash channel = m_debugColor at 1)
-                        // so you can unambiguously confirm placement/timing.
+                        // Full-strength bright patch, to confirm placement and timing.
                         m_video.SetBlobProbe(true, curAzEl, 0.5f * m_debugBlobSizeDeg * Mathf.Deg2Rad, 1f, 1f);
                     }
                     else
@@ -525,10 +510,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             m_reticleGO.transform.position = head + Dir(az, el) * m_reticleDistance;
         }
 
-        // ---- visuals (built once, parented under this persistent object so they survive scene loads) ----
-        // Route B: the blob target itself has NO GameObject — it's a scene-pixel modulation composited
-        // in the vignette shader (see VideoTestSceneManager.SetBlobProbe). Only the aim reticle is a
-        // world-space object here.
+        // ---- visuals (built once, parented here so they survive scene loads) ----
+        // The blob target has no GameObject: it is a scene-pixel modulation composited in the
+        // vignette shader (VideoTestSceneManager.SetBlobProbe). Only the reticle is world-space.
 
         private void EnsureVisuals()
         {
@@ -563,9 +547,9 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             if (m_hitBeep && m_audioSource != null) m_audioSource.PlayOneShot(GetBeepClip());
         }
 
-        // Brief green flash at the hit location, driven through the shader probe (flash 1->0 over
-        // m_hitFlashSeconds). The colour comes from m_hitFlashColor (pushed as the flash tint in
-        // Activate); here we just fade the flash mix and hold the probe at the last position.
+        // Brief flash at the hit location, driven through the shader probe (flash 1->0 over
+        // m_hitFlashSeconds). Colour comes from m_hitFlashColor, pushed as the flash tint in
+        // Activate; this only fades the mix and holds the probe at the last position.
         private IEnumerator HitFlash(Vector2 azEl, float radiusRad)
         {
             float flashRad = radiusRad * m_hitFlashScale;
@@ -612,9 +596,8 @@ namespace PassthroughCameraSamples.ShaderSample.Study
                 return mat;
             }
 
-            // Editor-only fallback (breaks in Android builds — assign the template for device
-            // builds). Standard defaults to Opaque, which would ignore our alpha entirely, so
-            // switch it to Fade so a low-alpha blob actually renders as translucent.
+            // Editor-only fallback: assign the template for device builds. Standard defaults to
+            // Opaque, which ignores alpha, so switch it to Fade.
             Debug.LogWarning("[BlobTargetController] No marker material template — Shader.Find fallback breaks in Android builds.");
             var fallback = new Material(Shader.Find("Standard"));
             fallback.SetFloat("_Mode", 2f); // Fade
@@ -628,7 +611,7 @@ namespace PassthroughCameraSamples.ShaderSample.Study
             return fallback;
         }
 
-        // ---- logging (own small CSV, deliberately not StudyLogger — see file header) ----
+        // ---- logging (own small CSV, not StudyLogger) ----
 
         private void OpenLogIfNeeded()
         {
