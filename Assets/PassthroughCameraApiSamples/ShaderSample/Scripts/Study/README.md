@@ -65,7 +65,8 @@ All state transitions print `[Sequencer]` lines — watch `adb logcat -s Unity` 
 
 ## Session-day sequence (per participant)
 
-1. Pre-session checklist (testing-strategy §10.2); launch app; start `scrcpy` + screen record.
+1. Pre-session checklist (testing-strategy §10.2); launch app; start `scrcpy` mirror for live
+   monitoring only (do **not** record — ethics approval does not permit recording sessions).
 2. Type participant ID digits → ENTER. Check logcat for `Session open` and no `GUARD_FAIL`.
 3. Practice: P (repeat once if criterion missed — go-accuracy ≥ 90 % is printed).
 4. Block A: SPACE → participant paints window → SPACE locks (panel auto-places; W to redo)

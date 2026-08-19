@@ -57,6 +57,36 @@ def form_path(pid):
             return hits[0]
     raise SystemExit(f'no questionnaire form found for participant {pid} in {DIR}')
 
+# The per-participant .docx forms were consolidated into a single markdown record and removed
+# from the repository. That record is authoritative; the .docx reader below stays as a fallback
+# for anyone working from the original forms.
+COMBINED = Path(DIR) / 'post-study-questionnaire-responses-combined.md'
+# The sheet filed as "15-16" is one participant, recorded under 16 in the combined file.
+COMBINED_ALIASES = {'15-16': '16'}
+
+def load_combined():
+    if not COMBINED.is_file():
+        return None
+    rows = collections.defaultdict(dict)
+    for line in COMBINED.read_text(encoding='utf-8').splitlines():
+        cells = [c.strip() for c in line.split('|')[1:-1]]
+        if len(cells) != 4:
+            continue
+        pid, item, _question, a = cells
+        if item in KEYS and a in ('Yes', 'No'):
+            rows[pid][item] = 'Y' if a == 'Yes' else 'N'
+    return rows or None
+
+COMBINED_ANSWERS = load_combined()
+
+def get_answers(pid):
+    """Answers for one participant, from the combined record or the original .docx."""
+    if COMBINED_ANSWERS is not None:
+        key = COMBINED_ALIASES.get(pid, pid)
+        if key in COMBINED_ANSWERS:
+            return COMBINED_ANSWERS[key]
+    return answers(form_path(pid))
+
 def favourable(ans):
     fav = {}
     for item, a in ans.items():
@@ -70,8 +100,7 @@ def tally(names, label):
     sect_n = collections.Counter()
     per_pid = {}
     for nm in names:
-        path = form_path(nm)
-        ans = answers(path)
+        ans = get_answers(nm)
         fav = favourable(ans)
         per_pid[nm] = ans
         for item, isfav in fav.items():
@@ -98,8 +127,7 @@ for nm, ans in new.items():
 # strong dissenter check (P25-like: A favourable count per pid)
 print('\nA-block favourable per respondent:')
 for nm in OLD + NEW:
-    path = form_path(nm)
-    fav = favourable(answers(path))
+    fav = favourable(get_answers(nm))
     a = sum(v for k, v in fav.items() if k.startswith('A'))
     an = sum(1 for k in fav if k.startswith('A'))
     print(f'  {nm}: {a}/{an}')

@@ -1,5 +1,5 @@
-# Detached YOLO bake runner — launched via a one-shot Scheduled Task so it survives
-# Claude Code session/process teardown (managed background tasks were getting reaped).
+# Detached YOLO bake runner, launched via a one-shot Scheduled Task so it survives the
+# parent shell exiting.
 # Progress is appended live to DevVideos\bake_progress.log; a DONE/FAILED marker is
 # written at the end. Uses full tool paths so it works in the Task Scheduler context.
 
@@ -9,10 +9,9 @@ $uv   = 'C:\Users\syson\AppData\Local\Microsoft\WinGet\Packages\astral-sh.uv_Mic
 $ff   = 'C:\Users\syson\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin'
 $log  = Join-Path $repo 'Builds\StudyVideo\bake_progress.log'
 
-# Bakes against the ACTUAL sideloaded study video (Builds/StudyVideo/study_video.mp4,
-# produced by encode_study_video.py), not the older times_sq_6k_cut.mp4 source this
-# script used to point at — that produced a track with the wrong duration entirely
-# (420s baked vs. the real 520s clip), silently misaligned by video time.
+# Bake against the sideloaded study video (Builds/StudyVideo/study_video.mp4, produced by
+# encode_study_video.py), not the times_sq_6k_cut.mp4 source. They differ in duration
+# (420s vs the real 520s clip), and the mismatch misaligns the track by video time silently.
 $env:Path += ";$ff"
 Set-Location $repo
 "START $(Get-Date -Format o)" | Out-File $log -Encoding utf8
