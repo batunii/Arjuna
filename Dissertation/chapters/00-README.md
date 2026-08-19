@@ -20,7 +20,7 @@ ch6 7,677 · ch7 3,250 · ch8 1,336.
 | `ch1-introduction.md` | 1. Introduction | 7 | `../framing.md` §1, §5 |
 | `ch2-related-work.md` | 2. Background and Related Work | 20 | `../lit-review-48papers.md`, `../../.agent-docs/research/attention-guidance-research.md`, prior-art search (`../framing.md` §6.1), evaluation-methods literature |
 | `ch3-design-space.md` | 3. A Design Space for DR under Compositing Constraints | 10 | `../framing.md` §3 |
-| `ch4-system.md` | 4. System Design and Implementation | 16 | `../../.agent-docs/systems/focus-vignette.md`, `../../CLAUDE_SESSION_SUMMARY.md`, `../../FOCUS_VIGNETTE_PROGRESS.md` |
+| `ch4-system.md` | 4. System Design and Implementation | 16 | `../../.agent-docs/systems/focus-vignette.md`, `../../FOCUS_VIGNETTE_PROGRESS.md` |
 | `ch5-technical-evaluation.md` | 5. Technical Evaluation | 7 | `../framing.md` §3.3; benchmark session log; YOLO bake stats |
 | `ch6-user-study.md` | 6. User Study Design and Results | 18 | `../testing-strategy-v2.md`; `../authored/analysis-2026-08-08-pooled-n17.md` (frozen numbers) |
 | `ch7-discussion.md` | 7. Discussion | 8 | `../framing.md` §2.3, §4; decision table |

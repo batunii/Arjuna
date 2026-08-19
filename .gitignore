@@ -43,3 +43,15 @@ Dissertation/rewrite-app/
 # AI tooling — never ship inside the submission artefact
 .claude/
 .pi-subagents/
+.clinerules/
+.cursor/
+.opencode/
+.roo/
+.aider.conf.yml
+.mcp.json
+.windsurfrules
+opencode.jsonc
+AGENTS.md
+CLAUDE.md
+CLAUDE_SESSION_SUMMARY.md
+GEMINI.md
