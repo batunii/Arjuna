@@ -71,9 +71,13 @@ consumes this single scalar. The dark modes use it directly as overlay alpha. Co
 interpolate each pixel between its inside and outside treatments.
 
 The soft edge defaults to \verb|m_softEdgeDeg| = 20$^{\circ}$, widened to 32$^{\circ}$ for ColorPop
-(Section 4.5.2). These are the component defaults; the scene the user study ran serialises
-18$^{\circ}$ for the dark path and 24$^{\circ}$ for the colour-pop path, against an
-8$^{\circ}\times$6$^{\circ}$ window, which is the geometry Chapter 5, Section 5.7.3 reads its
+(Section 4.5.2). These are the component defaults. The two evaluated modes serialise different
+values, for reasons that follow from what each is for. SignPop, as a colour-pop mode, takes the
+widened edge at 24$^{\circ}$, because a colour-to-grey boundary reads harsher than a dark one.
+Hard Dark takes a deliberately narrow 2$^{\circ}$ edge (\verb|m_hardDarkSoftEdgeDeg|), because its
+role is the strongest available occlusion: once a selection is locked, everything outside it should
+read as black almost immediately rather than fade through a wide gradient buffer. Both run against a
+$\pm$8$^{\circ}\times\pm$6$^{\circ}$ window, which is the geometry Chapter 5, Section 5.7.3 reads its
 eccentricity bands against. The 20$^{\circ}$ default is chosen against the useful field of view, the region
 within roughly 30$^{\circ}$ of fixation from which people extract task-relevant information without
 moving their eyes or head \citep{ball1993}. Placing the soft edge inside that radius means the
@@ -106,7 +110,7 @@ and the OS pipeline's own latency compensation, none of which any application-re
 can match. The effect budget is spent entirely in the periphery, where human acuity is lowest. One
 line of shader arithmetic simultaneously solves the field-of-view problem, since the accessible
 camera feed covers only $\sim$85–90$^{\circ}$, and the fidelity problem, since that feed is
-1280$\times$960 mono against a native stereo view, by ensuring the reconstruction is only ever shown
+1280$\times$960 per camera against a native reprojected stereo view, by ensuring the reconstruction is only ever shown
 where neither limitation matters much.
 
 \subsection{Per-frame data flow}
@@ -162,8 +166,9 @@ colour. Right: the Tier-2 extreme, Hard Dark, where the window is the only regio
 
 \section{Binocular Fusion by World-Direction Sampling}
 
-The accessible camera feed is monocular, but the display is binocular, and how the mono image is
-presented to two eyes determines whether the system is usable at all. The governing requirement is
+Passthrough Camera Access exposes both forward cameras, but most modes here sample only one, and
+every mode must present a camera image that is not eye-aligned to a binocular display. How that
+image is presented to two eyes determines whether the system is usable at all. The governing requirement is
 that the sampling domain be \textbf{eye-independent}. Under stereo rendering the same world point
 projects to different screen positions in each eye, so any scheme keyed to screen position feeds each
 eye a different camera pixel for the same world point, and the two images do not fuse
@@ -179,10 +184,10 @@ uv = ( (dir.rt, dir.up) / max(dir.fwd, eps) ) / tanHalfFov * 0.5 + 0.5
 \end{verbatim}
 
 Because world direction is eye-independent, both eyes sample the \textit{same} camera pixel for the
-same world point. The mono image behaves like a texture painted onto the world shell, which the
+same world point. The camera image behaves like a texture painted onto the world shell, which the
 visual system can fuse, as verified on device (Section 4.10). The residual and acceptable artefact is that the painted shell has no true stereo
-disparity of its own, which is consistent with the project's standing comfort constraint that a mono
-feed must never be presented as if it were geometry-correct stereo across the full field of view.
+disparity of its own, which is consistent with the project's standing comfort constraint that a
+single-camera feed must never be presented as if it were geometry-correct stereo across the full field of view.
 
 Where both cameras are available, the shader samples both and selects per fragment by in-view weight,
 a \textbf{hard split} rather than an alpha crossfade, because a crossfade of two horizontally offset
@@ -275,13 +280,14 @@ monitoring mode whose own dimming floors peripheral detection would fail its saf
 construction rather than by finding. This track covers the great majority of peripheral pixels, so
 its floor, rather than the signal track's, is what decides whether the periphery stays usable.
 
-\textbf{The ROG track} boosts saturation about the pixel's own luminance inside the window, applies a
-sigmoidal midtone-contrast transfer per \citet{sutton2022}'s published recipe ($\alpha$ = 10,
-$\beta$ = 0.5, normalised so 0$\rightarrow$0 and 1$\rightarrow$1, scaled by $(1-t)$ so it is full
-inside the window and absent outside), and lifts brightness slightly. Outside the window, ROG pixels
-keep their \textbf{natural colour, dimmed} to \verb|_PopBrightOut| = 0.65. This is deliberate:
-signal-relevant colours remain detectable \textit{everywhere}, merely privileged inside the window,
-which fits a monitoring context in which a peripheral traffic light must never become invisible.
+\textbf{The ROG track} leaves signal-relevant colour untouched inside the window and attenuates it
+gently outside. Inside, saturation and brightness are held at unity, so a kept pixel is passed
+through at its natural appearance. Outside, ROG pixels retain their hue but are taken to 55\% of
+their chroma and 60\% of their luminance. This is deliberate: signal-relevant colours remain
+detectable \textit{everywhere}, merely privileged inside the window, which fits a monitoring context
+in which a peripheral traffic light must never become invisible. A sigmoidal midtone-contrast
+transfer after \citet{sutton2022} is implemented in the shader but is not enabled on the evaluated
+path, so the grading is a saturation-and-luminance operation only.
 
 \textbf{Glare compression.} Pixels that are bright, unsaturated, and not ROG, the signature of
 headlight glare, are compressed toward a knee at \verb|_PopGlareKnee| = 0.6 luma, a level above
@@ -295,14 +301,14 @@ clipped white centre of a bright signal lamp: before dimming, the shader samples
 surround, and if the surround is a kept colour, meaning the lamp's saturated fringe, the pixel is
 exempted.
 
-\textbf{Global periphery dim.} Finally the whole periphery, ROG included, is multiplied down by
-\verb|_PopPeriphDim| = 0.85, so the focus window also wins on plain luminance, the strongest single
+\textbf{Global periphery dim.} Finally the whole periphery, ROG included, is multiplied down by a
+further factor of 0.70, so the focus window also wins on plain luminance, the strongest single
 guidance channel in the attention literature \citep{bailey2009,grogorick2017}. Net outside-ROG
-brightness at defaults is therefore $\approx$ 0.65 $\times$ 0.85 $\approx$ 0.55 of natural. That
+brightness is therefore $\approx$ 0.60 $\times$ 0.70 $\approx$ 0.42 of natural. That
 figure is a deliberate midpoint rather than a maximum. \citet{cheng2022} found partial attenuation
 preferred over removal, and \citet{barhorstcates2016} found anxiety rising monotonically as the
 visible field narrows, so a monitoring mode that must keep a peripheral traffic light findable has
-reason to stop at roughly half natural brightness rather than push further.
+reason to stop above two-fifths of natural brightness rather than push further.
 
 Because a colour and grey boundary tends to read harsher than a blur or darkness boundary,
 ColorPop uses a widened window edge, \verb|m_popSoftEdgeDeg| = \textbf{32$^{\circ}$} against the
@@ -422,8 +428,9 @@ detection box. A \textbf{detection aperture} carves the vignette away directly o
 is not the focus window of Section 4.2: it is a separate, transient opening appearing wherever a
 detection is confirmed, inside or outside the focus window, and disappearing when the detection is
 lost. A \textbf{saliency lift} boosts saturation, brightness, and local contrast around the object,
-scaled down when the object already sits inside the focus window, since the standing window already
-reveals it there, and left at full strength in the periphery where the lift is doing the work. A
+at full strength when the object sits inside the focus window and scaled down outside it, since in
+the periphery the aperture has already opened a clear region around the object and the additional
+pop only needs to be subtle. A
 \textbf{darkened surround} dims a soft annulus just outside the object's boundary, raising the
 object's centre–surround contrast from both sides, after the dual modulation of \citet{veas2011}. The
 saliency lift additionally oscillates at approximately 1 Hz, following \citet{waldner2014} on
@@ -438,12 +445,20 @@ see. Adding detection apertures back into Hard Dark would weaken exactly the pro
 confirmatory test relies on. A detection-aware variant is a reasonable extension for contexts where a
 peripheral object genuinely matters, and the conclusion returns to it as future work.
 
-\textbf{Two gates on what counts as a detection at all.} The offline bake considers only the forward
-view by default, azimuth $\pm$85\textdegree{} and elevation $\pm$50\textdegree{} around video-centre,
-so a detection behind the participant never enters the track. At runtime, a detection's window and
-boost stay suppressed until its apparent size clears a minimum of $\sim$1.2\textdegree{}. In the
-current bake, 33 of 246 post-debounce traffic-light lifetimes never clear it, so a distant, still
-small light does not open a window over what is still, perceptually, a speck.
+\textbf{Gates on what counts as a detection at all.} The offline bake considers only the forward
+view, azimuth $\pm$90\textdegree{} and elevation $\pm$50\textdegree{} around video-centre,
+so a detection behind the participant never enters the track. At runtime, apparent size then decides
+whether a detection is allowed to draw anything, and the two target classes are gated separately
+because they fail in different ways.
+
+For signals, the gate is on the larger of the box's angular extents and is set to
+1.0\textdegree{} in the driving scene. Of the 203 post-debounce traffic-light lifetimes in the
+deployed track, 19 never clear it, so a distant light does not open a window over what is still,
+perceptually, a speck. For people the concern is not resolvability but relevance and volume, so they
+bypass that gate and take a higher threshold on box \textit{height} of 3\textdegree{}, which for a
+1.7 m adult corresponds to roughly 32 m, combined with the positional gate of Section 4.8.1. A
+pedestrian far enough away to be irrelevant to the next few seconds of driving is therefore silent
+even though the box is comfortably large enough to render.
 
 \textbf{What a confirmed detection actually switches on.} Six effects fire together on the same gate:
 the colour-pop upgrade, the window carve-out, the saturation lift, the brightness lift, the contrast
@@ -528,8 +543,17 @@ The live passthrough manager supports up to eight simultaneous \textbf{detection
 and elevation rectangles fed by an optional \verb|YoloRunner| component, inside which the vignette is
 cleared so the detected object shows through undiminished. Each island renders as a soft-edged
 ellipse with the dual modulation after \citet{veas2011} described in Section 4.5.5. Detections expire
-after 0.6 s without renewal. The class filter is deliberately narrow: COCO classes 9 (traffic light)
-and 0 (person) only, the two object classes the driving block's marker task uses as targets.
+after 0.6 s without renewal. Its class filter is deliberately narrow, COCO classes 9 (traffic light)
+and 11 (stop sign) only, with people excluded because a crowded street would otherwise fill every
+aperture slot with pedestrians.
+
+The evaluated driving block runs from the baked track instead, for the oracle-perception reason set
+out in Section 4.8.2, so its admitted classes are the baked ones: traffic lights and people. People
+there carry an additional positional gate, since a driving scene contains far more pedestrians than
+the sixteen-slot budget can hold and most are not safety-relevant. A person is highlighted when they
+fall inside the focus window, or when they sit within 22.5$^{\circ}$ of its boundary, with that
+acceptance widening in proportion to apparent size so that a pedestrian the car is approaching stays
+highlighted as they pass out of the window rather than being dropped at their nearest moment.
 
 Two properties of the aperture system are stated here because they bound what it can do in a crowded
 scene. First, the caps above are a hard budget: the live path holds eight simultaneous apertures and
@@ -548,9 +572,11 @@ For evaluation, live inference is replaced by a \textbf{pre-baked detection trac
 oracle-perception commitment named in Chapter 1: the study asks whether an effect built on excellent
 detection helps attention, without first building excellent detection on-device. A PC-side script
 (\verb|Tools/bake_detections.py|) runs YOLO11 \citep{jocher2024} over the full-resolution
-3840$\times$2160 study video as 3$\times$2 overlapping tiles plus a full-frame pass merged by
-per-class non-maximum suppression, sampling at 0.5 s intervals, and writes a JSON track keyed by
-video time. The runtime loads it and plays detections back deterministically.
+5760$\times$2880 study video. Each sample takes the forward crop of the equirectangular frame,
+$\pm$90$^{\circ}$ in azimuth and $\pm$50$^{\circ}$ in elevation, and runs it as 4$\times$3
+overlapping tiles plus a pass over the whole crop, thirteen inferences per sample, merged by
+per-class non-maximum suppression. Sampling is at 0.5 s intervals, and the script writes a JSON
+track keyed by video time. The runtime loads it and plays detections back deterministically.
 
 Full resolution is the point rather than an indulgence. Detections that serve as ground truth or as
 pre-scripted salience input must be computed at a resolution the live pipeline cannot afford, which
@@ -558,12 +584,22 @@ is exactly what makes them an \textit{oracle}. Distant traffic lights are the bi
 fully visible to a human viewer but subtend few pixels, so they fall below detectable size in a
 downsampled frame.
 
-\textbf{The bake over the 8-minute-39-second study clip produced 13,939 detections across 1,040
-sampled frames, with 99.5\% of sampled frames containing at least one detection} (median 14 per
+The raw bake detects every traffic light and sign in the forward crop, including many that do not
+govern the driver's lane: cross-street and pedestrian-facing signals, signals turned away from the
+camera, and unrelated distant lights. Since the runtime has no relevance filtering of its own and
+SignPop would highlight all of them equally, a curation pass
+(\verb|Tools/triage_traffic_lights.py|) reconstructs each real-world signal's lifetime using the same
+identity heuristic as the runtime tracker, buckets it by azimuth from video-forward, and moves the
+lane-irrelevant ones into a sidecar file. Roughly 1,300 detections were set aside this way. The
+sidecars are kept alongside the deployed track, so the split is inspectable and fully reversible.
+
+\textbf{The deployed track over the 8-minute-39-second study clip holds 13,939 detections across
+1,040 sampled frames, with 99.5\% of sampled frames containing at least one detection} (median 14 per
 sample; 2,952 traffic lights and 10,987 people). Two properties matter for the rest of the
 dissertation. First, it confirms the footage is genuinely event-dense, a precondition for its role as
-the driving-block stimulus. Second, it fixes a versioned, reproducible detection set, so the study's
-stimuli are artifacts rather than descriptions.
+the driving-block stimulus. Second, it fixes a versioned detection set that the study's stimuli are
+read from directly, so those stimuli are artifacts rather than descriptions. Reproducing the track
+from source requires the bake and the curation step together, both of which are in the repository.
 
 What the bake does \textit{not} establish is equally important. It says nothing about on-device
 feasibility, and nothing about detection quality in absolute terms, since full-resolution YOLO11 is a

@@ -80,7 +80,7 @@ application. An application cannot read the passthrough layer, cannot shade it, 
 mask it. It may only draw \textit{on top} of it, or apply a global colour transform through a narrow
 styling interface. Since early 2025 the platform has additionally exposed the raw forward camera feed
 to applications through Passthrough Camera Access, but at materially lower quality than the system
-passthrough the user normally sees: a monocular 1280$\times$960 stream covering roughly
+passthrough the user normally sees: a 1280$\times$960 stream per camera covering roughly
 85--90$^{\circ}$ of field of view, against the system layer's full coverage of the headset's
 approximately 110$^{\circ}$ display with its correct per-eye reprojection. The one place where full
 pixel control exists is therefore also the place where image quality is worst. A recent
@@ -193,8 +193,8 @@ system reduces it, and pre-commits to the interpretation of every outcome, inclu
   access, characterised from implementation experience rather than speculation (Chapter 3).
 \item \textbf{C2: Reference implementation.} An open, working multi-mode DR attention-guidance
   system on Quest 3 passthrough. Its main technical elements are a world-locked focus window
-  rendered as an absence in the overlay, a world-direction sampling scheme that lets the monocular
-  camera feed fuse binocularly, motion-coupled comfort suppression, and ten peripheral treatments
+  rendered as an absence in the overlay, a world-direction sampling scheme that lets a
+  single-camera feed fuse binocularly, motion-coupled comfort suppression, and ten peripheral treatments
   spanning the design space of Chapter 3. Two of them, SignPop and Hard Dark, are carried to
   confirmatory evaluation, with documented failure cases and with the architecture's two central
   trade-offs, frame cost and legibility, measured on device (Chapter 4). The full source code is

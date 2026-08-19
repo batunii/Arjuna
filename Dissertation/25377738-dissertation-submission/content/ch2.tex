@@ -92,9 +92,10 @@ through AR glasses, implemented as saturation adjustment plus sigmoidal contrast
 deliberately avoiding hue shifts. Modulation drew significantly more fixations to target regions but,
 an honest and important negative, was \textit{not} imperceptible. Against an overt circle cue,
 modulation's advantage was that it preserved natural scene exploration where explicit markers glue
-gaze to themselves. This dissertation's ColorPop implements Sutton et al.'s exact sigmoidal contrast
-recipe on its salient-colour channel, inheriting the philosophy: accept visibility, preserve
-exploration, re-grade rather than annotate. The critical difference is platform. Sutton et al. built
+gaze to themselves. This dissertation's ColorPop inherits the philosophy directly, accept visibility,
+preserve exploration, re-grade rather than annotate, and applies the saturation-and-luminance half of
+the recipe on its salient-colour channel; the sigmoidal contrast stage is implemented but not enabled
+on the evaluated path (Chapter 4, Section 4.5.2). The critical difference is platform. Sutton et al. built
 a bench-mounted optical see-through rig whose additive optics can only add light. The present system
 runs on consumer video see-through hardware with full subtractive control of its rendered layers.
 

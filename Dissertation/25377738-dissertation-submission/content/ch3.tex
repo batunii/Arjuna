@@ -87,7 +87,7 @@ Soft Dark, Hard Dark, GranulatedPeriphery, SpotLift. The focus window itself \\
 \textbf{3: Camera re-render (PCA)} &
 Passthrough Camera Access: the raw forward camera feed as a GPU texture, with intrinsics and pose &
 Arbitrary per-pixel manipulation: blur, desaturation, salience re-grading, glare compression &
-Mono 1280$\times$960 at $\sim$85–90$^{\circ}$ horizontal FOV vs the $\sim$110$^{\circ}$ OS view. Added latency. Binocular-fusion burden (Chapter 4). Sustained on-device processing is thermally bounded &
+1280$\times$960 per camera at $\sim$85–90$^{\circ}$ horizontal FOV vs the $\sim$110$^{\circ}$ OS view. Added latency. Binocular-fusion burden (Chapter 4). Sustained on-device processing is thermally bounded &
 SignPop (evaluated, built on the ColorPop pipeline), ColorPop, Blur (superseded), Chromatic\-Cool, Conspicuity\-Squeeze, Outlined\-Dark \\
 \hline
 \end{longtable}
@@ -147,13 +147,16 @@ intrinsics and pose. At Tier 3 the application is no longer manipulating a proxy
 holds camera pixels and can apply arbitrary per-pixel computation: Gaussian blur, luminance-weighted
 desaturation, hue-selective salience re-grading, glare compression.
 
-The price is paid in four currencies. \textbf{Resolution and field of view}: the accessible feed is a
-single mono stream at 1280$\times$960 covering roughly 85–90$^{\circ}$ horizontally, against the OS
+The price is paid in four currencies. \textbf{Resolution and field of view}: the accessible feed is
+1280$\times$960 per camera covering roughly 85–90$^{\circ}$ horizontally, against the OS
 passthrough's $\sim$110$^{\circ}$ stereo view, so a Tier-3 re-render is categorically lower-fidelity
 than what the user would otherwise see. \textbf{Latency}: the application-side pipeline of camera
 capture, texture upload, shader, and display adds delay the OS passthrough path, with its dedicated
-reprojection, does not exhibit. \textbf{Binocular fusion}: the feed is monocular, and presenting it
-convincingly to two eyes is non-trivial, since the naive approach measurably fails (Chapter 4).
+reprojection, does not exhibit. \textbf{Binocular fusion}: the cameras are forward-facing and
+offset from the eyes rather than eye-aligned, so a Tier-3 re-render must be resampled into a
+form two eyes can fuse; the naive approach measurably fails (Chapter 4). Several of the modes
+here, including the evaluated one, sample a single camera, which makes this the operative
+constraint in practice.
 \textbf{Thermal budget}: sustained on-device processing of the camera stream is bounded. The only
 published work to quantify this class of hardware for PCA-style live compositing is a
 simulation-based feasibility study projecting 720p30 operation with thermal throttling after five to
@@ -306,7 +309,7 @@ hardware \citep{sutton2022}. The defensible novelty claim is therefore precisely
 composite}, native passthrough through a world-locked focus window in an effect-processed camera-feed
 periphery, exploiting the quality and field-of-view asymmetry between layers, \textbf{applied to
 peripheral attention guidance on a consumer standalone headset}, together with the world-direction
-fusion sampling that makes the mono feed binocularly viewable. An alpha-blended dark overlay, by
+fusion sampling that makes a single-camera feed binocularly viewable. An alpha-blended dark overlay, by
 itself, is just compositing, and is not claimed as novel. The claim is worded around the design
 space rather than the single technique. If a concurrent system were to surface, the contribution
 would remain a characterised design space with an independently built implementation.
