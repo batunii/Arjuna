@@ -1,6 +1,6 @@
 # ESQ (end-of-session questionnaire) — Day-1 naive participants, 2026-07-22
 
-Source: `Dissertation/post-study-questionnaire-{2-P2,3-P3,33-P33,4-P4}.docx`
+Source: `Dissertation/post-study-questionnaire-{2,3,33,4}.docx`
 (P2, P3, P33, P4). Administration deviation from the instrument spec: sections A–C only,
 answered **agree/disagree (Y/N)** instead of the designed 7-point scale (time); item **C3**
 (head-turn fade naturalness) skipped for all — it doesn't apply cleanly to the video-locked

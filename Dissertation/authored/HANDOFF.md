@@ -249,17 +249,17 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   byte-identical). CPT tool selector gained "Newest videos (protest + ad/meme clips)" as
   the DEFAULT, stamped `distractors=PROTEST`. Same pooling caveat as NEW|ORIGINAL: runs
   with different `distractors` values don't pool without noting it.
-- **Day-3 P12→P13 (2026-07-27, the P13 participant):** she started as P12 — filter-arm CPT first
+- **Day-3 P12→P13 (2026-07-27):** this participant started as P12 — filter-arm CPT first
   (hand-typed pid **1**, Unity not yet up so no HUD pid to copy; the exact hazard the
   cross-system-id note predicted) then video Filter B — and the app crashed after that
   block. Relaunch auto-assigned **13**; the full redo session (video NoFilter A + Filter B,
   CPT A1 FILTER + A2 NOFILTER, questionnaire) is canonical. P12 fragments + the mistyped
   "P1" CPT file are quarantined in `raw/aborted_p12_20260727/` (see its README). Caveats:
-  P13 carries prior exposure (one video-Filter-B + one filter-CPT run before her real
+  P13 carries prior exposure (one video-Filter-B + one filter-CPT run before their real
   session); P13's final passthrough-NoFilter BLOCK row is missing from the ledger (app
   relaunched for the next participant before X-advance — CPT CSV itself is complete).
   **P11 was never used** (ledger jumps P10→P12). Day-3 pids are NOT contiguous.
-- **Day-3 P14/P15/P16 = ONE participant, p15 (2026-07-27):** P14 = video Filter A
+- **Day-3 P14/P15/P16 = ONE participant (2026-07-27):** P14 = video Filter A
   aborted at 3.6 min (PLAN, no BLOCK row). Relaunch → P15 (passthrough-first): CPT
   A3 + A4 ran back-to-back but the browser filter toggle was never flipped for A4 —
   original file says NOFILTER everywhere, yet the ledger BLOCK row (passthrough
@@ -268,16 +268,16 @@ design + methods: `../probe-target-design.md`. Branch: **`Test/PointAuthoring`**
   (`blocka/blockA_nback1_P15_A4_FILTER_*.csv`: filename + `filter=` payload +
   `dr_intensity` rewritten) is canonical — note `dr_intensity` is NOT independent
   evidence, it mirrors the same hand-set toggle. P15's video Filter B run flooded
-  (206 FAs/246 trials) → excluded; her canonical **Block B pair is P16's** forced-arm
+  (206 FAs/246 trials) → excluded; their canonical **Block B pair is P16's** forced-arm
   relaunches (NoFilter-B 18:04 + Filter-A 18:35; no PLAN row, both logged slot 0).
   Rejects + original mislabeled A4 quarantined in `raw/excluded_p15_20260727/`
   (see its README, incl. triple-filter-exposure + response-style-swing caveats).
   **Analysis must join P15 (Block A) + P16 (Block B) as one participant**;
-  questionnaire is the shared `post-study-questionnaire-15-16-p15.docx`.
-- **Day-3 P17 (2026-07-27, the P17 participant): clean session, taken as-is.** Video NoFilter-B +
+  questionnaire is the shared `post-study-questionnaire-15-16.docx`.
+- **Day-3 P17 (2026-07-27): clean session, taken as-is.** Video NoFilter-B +
   Filter-A, CPT practice + A1 FILTER + A2 NOFILTER, questionnaire 17. Two footnotes:
   a 1 KB A2 false start (restarted 23 s later, same seed 171) is quarantined in
-  `raw/aborted_p17_a2_20260727/`; and like P13, her final passthrough-NoFilter BLOCK
+  `raw/aborted_p17_a2_20260727/`; and like P13, their final passthrough-NoFilter BLOCK
   row is missing from the ledger (app closed before X-advance — CSV itself complete).
 - **Versions POOL now (2026-07-27, John, verbal — supersedes the 2026-07-23
   never-aggregate rule):** the pilot versions came out close enough to report as a
